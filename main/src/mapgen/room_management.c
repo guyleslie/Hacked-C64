@@ -2,8 +2,8 @@
 // Contains room placement, validation, and priority management
 
 #include <conio.h>
-#include "../mapgen_types.h"      // For Room, MAX_ROOMS, Viewport
-#include "../mapgen_internal.h"   // For room placement/validation
+#include "mapgen_types.h"      // For Room, MAX_ROOMS, Viewport
+#include "mapgen_internal.h"   // For room placement/validation
 
 // External global references  
 extern Room rooms[MAX_ROOMS];

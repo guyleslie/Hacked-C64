@@ -1,6 +1,6 @@
 // Map export utility for C64/Oscar64 compatible binary format
 // Exports the compact_map to a .bin file for easy loading on C64
-#include "../mapgen_types.h"
+#include "mapgen/mapgen_types.h"
 
 // Externally defined compact_map
 extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];

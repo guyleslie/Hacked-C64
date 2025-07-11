@@ -6,8 +6,8 @@
 #include <conio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
-#include "../mapgen_display.h"    // For display, viewport, input
+#include "mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
+#include "mapgen_display.h"    // For display, viewport, input
 #include "../oscar64_console.h"   // For oscar_clrscr, etc.
 
 // =============================================================================

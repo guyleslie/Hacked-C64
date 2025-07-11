@@ -5,9 +5,9 @@
 #include <conio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
-#include "../mapgen_utility.h"    // For utility/math/cache functions
-#include "../mapgen_internal.h"   // For internal helpers if needed
+#include "mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
+#include "mapgen_utility.h"    // For utility/math/cache functions
+#include "mapgen_internal.h"   // For internal helpers if needed
 
 
 // =============================================================================

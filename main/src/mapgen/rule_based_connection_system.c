@@ -12,8 +12,8 @@ unsigned char corridor_endpoint_override = 0;
 // 4. NO exceptions - every connection is rule-based
 // =============================================================================
 
-#include "../mapgen_types.h"      // For Room, MAX_ROOMS
-#include "../mapgen_internal.h"   // For connection helpers
+#include "mapgen_types.h"      // For Room, MAX_ROOMS
+#include "mapgen_internal.h"   // For connection helpers
 
 // External references
 extern Room rooms[MAX_ROOMS];

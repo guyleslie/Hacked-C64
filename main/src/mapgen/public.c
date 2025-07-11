@@ -1,9 +1,9 @@
 // Public Interface Module for C64 Map Generator
 // Contains the main API functions for external use and integration
 
-#include "../mapgen_types.h"      // For Room, Viewport, etc.
-#include "../mapgen_api.h"        // For public API
-#include "../mapgen_display.h"    // For display/viewport reset
+#include "mapgen_types.h"      // For Room, Viewport, etc.
+#include "mapgen_api.h"        // For public API
+#include "mapgen_display.h"    // For display/viewport reset
 
 // External global references
 extern Room rooms[MAX_ROOMS];

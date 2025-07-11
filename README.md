@@ -15,13 +15,15 @@ main/
 ├── src/
 │   ├── common.h                           // Common macros, constants, and utility functions
 │   ├── main.c                             // Main program entry point and game loop
-│   ├── mapgen_api.h                       // Public API for map generation
-│   ├── mapgen_display.h                   // Map display and rendering functions
-│   ├── mapgen_internal.h                  // Internal map generation logic and helpers
-│   ├── mapgen_types.h                     // Type definitions for map structures and tiles
-│   ├── mapgen_utility.h                   // Utility functions for map generation
 │   ├── oscar64_console.h                  // Console I/O routines for Oscar64/C64
 │   └── mapgen/
+│   ├── oscar64_console.h                  // Console I/O routines for Oscar64/C64
+│   └── mapgen/
+│       ├── mapgen_api.h                   // Public API for map generation
+│       ├── mapgen_display.h               // Map display and rendering functions
+│       ├── mapgen_internal.h              // Internal map generation logic and helpers
+│       ├── mapgen_types.h                 // Type definitions for map structures and tiles
+│       ├── mapgen_utility.h               // Utility functions for map generation
 │       ├── map_export.c                   // Exports map data for external use or debugging
 │       ├── map_export.h                   // Header for map export functions
 │       ├── map_generation.c               // Core dungeon map generation algorithms
@@ -232,3 +234,17 @@ main/
 
 - Compile the project using the OSCAR64 compiler.
 - Run the resulting binary on a real C64 or a compatible emulator (such as VICE or C64Debugger).
+
+---
+
+## CI Build Artifacts (GitHub Actions)
+
+When the project is built by GitHub Actions (see `.github/workflows/cmake-single-platform.yml`), the entire `build/` directory is uploaded as a downloadable artifact at the end of each workflow run.
+
+- **How to download:**
+  1. Go to the [Actions](../../actions) tab on GitHub.
+  2. Select the latest workflow run for your branch.
+  3. Scroll down to the "Artifacts" section and download the `build-output.zip` file.
+  4. Extract it to access the compiled binaries (e.g., `Hacked C64.prg`).
+
+> **Note:** The build output is not committed to the repository, but is always available as an artifact after each CI run.
