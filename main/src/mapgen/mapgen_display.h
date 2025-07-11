@@ -1,7 +1,7 @@
 #ifndef MAPGEN_DISPLAY_H
 #define MAPGEN_DISPLAY_H
 
-#include "mapgen/mapgen_types.h"
+#include "mapgen_types.h"
 
 // Display, camera, and input functions
 void update_camera(void);

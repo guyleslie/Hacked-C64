@@ -1,7 +1,7 @@
 #ifndef MAPGEN_API_H
 #define MAPGEN_API_H
 
-#include "mapgen/mapgen_types.h"
+#include "mapgen_types.h"
 
 // Public API for map generation and query
 void mapgen_init(void);
