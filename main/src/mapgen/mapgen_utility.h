@@ -3,7 +3,7 @@ unsigned char is_valid_room_wall_for_door(unsigned char x, unsigned char y);
 #ifndef MAPGEN_UTILITY_H
 #define MAPGEN_UTILITY_H
 
-#include "mapgen/mapgen_types.h"
+#include "mapgen_types.h"
 
 // Mathematical and coordinate utility functions
 unsigned char fast_abs_diff(unsigned char a, unsigned char b);

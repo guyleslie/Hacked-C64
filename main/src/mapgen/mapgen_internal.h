@@ -4,7 +4,7 @@
 #ifndef MAPGEN_INTERNAL_H
 #define MAPGEN_INTERNAL_H
 
-#include "mapgen/mapgen_types.h"
+#include "mapgen_types.h"
 
 // Internal map generation and utility functions (not part of public API)
 void init_rng(void);
