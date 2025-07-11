@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Path to C64 Debugger executable (using local helpers folder)
+REM Path to C64 Debugger executable
 set "C64DEBUGGER_PATH=E:\Apps\c64 debugger\C64Debugger.exe"
 
 REM Get the current directory name (project name)
