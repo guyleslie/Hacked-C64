@@ -10,29 +10,31 @@ This project is a highly optimized dungeon map generator for the Commodore 64, w
 
 The project is organized as follows:
 
+```ascii
 main/
-  src/
-    common.h
-    main.c
-    mapgen_api.h
-    mapgen_display.h
-    mapgen_internal.h
-    mapgen_types.h
-    mapgen_utility.h
-    oscar64_console.h
-    mapgen/
-      map_export.c
-      map_export.h
-      map_generation.c
-      public.c
-      room_management.c
-      rule_based_connection_system.c
-      testdisplay.c
-      utility.c
-build.bat
-run_c64debugger.bat
-run_vice.bat
-README.md
+├── src/
+│   ├── common.h
+│   ├── main.c
+│   ├── mapgen_api.h
+│   ├── mapgen_display.h
+│   ├── mapgen_internal.h
+│   ├── mapgen_types.h
+│   ├── mapgen_utility.h
+│   ├── oscar64_console.h
+│   └── mapgen/
+│       ├── map_export.c
+│       ├── map_export.h
+│       ├── map_generation.c
+│       ├── public.c
+│       ├── room_management.c
+│       ├── rule_based_connection_system.c
+│       ├── testdisplay.c
+│       └── utility.c
+├── build.bat
+├── run_c64debugger.bat
+├── run_vice.bat
+└── README.md
+```
 
 ## System Architecture
 
