@@ -21,24 +21,20 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Download Oscar64 latest release
+        shell: pwsh
         run: |
-          set OSCAR64_TEMP=%GITHUB_WORKSPACE%\oscar64_temp
-          mkdir %OSCAR64_TEMP%
-          curl -s https://api.github.com/repos/drmortalwombat/oscar64/releases/latest > latest.json
-          for /f "tokens=2 delims=:," %%A in ('findstr /i "browser_download_url" latest.json ^| findstr /i "win64.zip"') do set URL=%%~A
-          set URL=%URL:~1,-1%
-          echo Downloading Oscar64 from %URL%
-          curl -L -o oscar64.zip %URL%
-          7z x oscar64.zip -o%OSCAR64_TEMP% > nul
-        shell: cmd
-        env:
-          PATH: ${{ runner.temp }}\7zip;${{ env.PATH }}
+          $oscarDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
+          New-Item -ItemType Directory -Force -Path $oscarDir | Out-Null
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/drmortalwombat/oscar64/releases/latest"
+          $asset = $release.assets | Where-Object { $_.name -like "*win64.zip" }
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "oscar64.zip"
+          Expand-Archive -Path "oscar64.zip" -DestinationPath $oscarDir
 
       - name: Configure CMake
+        shell: pwsh
         run: |
-          set OSCAR64_TEMP=%GITHUB_WORKSPACE%\oscar64_temp
-          cmake -S . -B build -DOSCAR64_PATH="%OSCAR64_TEMP%"
-        shell: cmd
+          $oscarDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
+          cmake -S . -B build -DOSCAR64_PATH="$oscarDir"
 
       - name: Build with CMake
         run: |
@@ -47,9 +43,9 @@ jobs:
 
       - name: Cleanup Oscar64
         if: always()
+        shell: pwsh
         run: |
-          rmdir /s /q %GITHUB_WORKSPACE%\oscar64_temp
-        shell: cmd
+          Remove-Item -Recurse -Force "$env:GITHUB_WORKSPACE/oscar64_temp"
 
       - name: List build output
         run: |
