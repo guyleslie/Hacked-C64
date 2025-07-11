@@ -62,6 +62,11 @@ jobs:
         run: |
           Remove-Item -Recurse -Force "$env:GITHUB_WORKSPACE/oscar64_temp"
 
+      - name: Upload build output as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: build/
       - name: List build output
         run: |
           dir build
