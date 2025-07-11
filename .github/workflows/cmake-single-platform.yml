@@ -22,7 +22,7 @@ jobs:
 
       - name: Set up Oscar64
         run: |
-          # Download and extract Oscar64 if not present (customize as needed)
+          REM Download and extract Oscar64 if not present (customize as needed)
           if not exist "E:\Apps\oscar64\bin\oscar64.exe" (
             echo Please install Oscar64 manually to E:\Apps\oscar64
             exit 1
