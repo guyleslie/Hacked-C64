@@ -26,6 +26,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $oscarDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
+          Write-Host "[DEBUG] Creating Oscar64 temp directory: $oscarDir"
           New-Item -ItemType Directory -Force -Path $oscarDir | Out-Null
           $headers = @{ Authorization = "token $env:GH_TOKEN" }
           $release = Invoke-RestMethod -Uri "https://api.github.com/repos/drmortalwombat/oscar64/releases/latest" -Headers $headers
@@ -34,9 +35,15 @@ jobs:
             Write-Error "No oscar64.zip asset found in latest release. Assets: $($release.assets.name -join ', ')"
             exit 1
           }
-          Write-Host "Downloading $($asset.name) from $($asset.browser_download_url)"
+          Write-Host "[DEBUG] Downloading $($asset.name) from $($asset.browser_download_url)"
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "oscar64.zip"
+          Write-Host "[DEBUG] Downloaded oscar64.zip, listing contents:"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::OpenRead("oscar64.zip").Entries | ForEach-Object { Write-Host $_.FullName }
+          Write-Host "[DEBUG] Extracting oscar64.zip to $oscarDir"
           Expand-Archive -Path "oscar64.zip" -DestinationPath $oscarDir
+          Write-Host "[DEBUG] Directory listing after extraction:"
+          Get-ChildItem -Recurse $oscarDir | Write-Host
 
       - name: Configure CMake
         shell: pwsh
