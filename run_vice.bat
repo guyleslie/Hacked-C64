@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 REM Path to VICE executable (using local helpers folder)
-set "VICE_PATH=%cd%\helpers\vice\bin\x64sc.exe"
+set "VICE_PATH=E:\Apps\GTK3VICE-3.9-win64\bin\x64sc.exe"
 
 REM Get the current directory name (project name)
 for %%I in ("%cd%") do set "PROJECT_NAME=%%~nxI"
