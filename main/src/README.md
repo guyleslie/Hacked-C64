@@ -3,9 +3,9 @@
 This document describes the dungeon map generation process as implemented in the project, based on a detailed code analysis (2025.07.08).
 
 ## 1. Initialization
+
 - **reset_all_generation_data**: Clears the map, resets the room list, invalidates caches, and initializes the rule-based connection system.
 - **init_rule_based_connection_system**: Zeros the connection matrix, resets memory pools, and precomputes room distances.
-
 
 ## 2. Room Placement
 
@@ -14,7 +14,6 @@ This document describes the dungeon map generation process as implemented in the
 - For each room, a grid cell is chosen, and the room's position within the cell is randomized to avoid strict alignment and create a more natural dungeon feel.
 - This method ensures good room distribution, prevents excessive overlap, and makes it easy to control the maximum number of rooms.
 - Each room's center is cached for fast access by other algorithms (corridor generation, stairs placement, etc.).
-
 
 ## 3. Room Connection (Corridor Generation)
 
@@ -49,22 +48,41 @@ This document describes the dungeon map generation process as implemented in the
 - After the corridor is drawn, doors are placed at both ends (on the wall tile between the room and corridor), if valid.
 
 ## 4. Wall Placement
+
 - **add_walls**: Scans all floor and door tiles, placing walls on adjacent empty tiles. This is highly optimized for the C64.
 
 ## 5. Stairs Placement
+
 - **add_stairs**: Places up and down stairs in the highest-priority rooms (usually start and end rooms), at their center.
 
 ## Key Points
+
 - **Corridors never start from the room's interior**; they always begin and end just outside the room wall, with doors placed at the wall.
 - The system is fully rule-based, with no exceptions or random corridor carving.
 - All steps are optimized for the Commodore 64 and Oscar64 toolchain.
 
 ---
 
-For further details, see the following key functions:
-- `generate_level` (src/mapgen/map_generation.c)
-- `rule_based_connect_rooms` (src/mapgen/rule_based_connection_system.c)
-- `draw_rule_based_corridor` (src/mapgen/rule_based_connection_system.c)
-- `find_room_exit` (src/mapgen/room_management.c)
-- `add_walls` (src/mapgen/map_generation.c)
-- `add_stairs` (src/mapgen/map_generation.c)
+ For further details, see the following key functions:
+
+- `generate_level` (main/src/mapgen/map_generation.c)
+- `rule_based_connect_rooms` (main/src/mapgen/rule_based_connection_system.c)
+- `draw_rule_based_corridor` (main/src/mapgen/rule_based_connection_system.c)
+- `find_room_exit` (main/src/mapgen/room_management.c)
+- `add_walls` (main/src/mapgen/map_generation.c)
+- `add_stairs` (main/src/mapgen/map_generation.c)
+
+---
+
+## Header Files in `main/src/`
+
+The following header files are available in the `main/src` directory and provide the main API and internal definitions for the map generation system:
+
+- `common.h`
+- `map_export.h`
+- `mapgen_api.h`
+- `mapgen_display.h`
+- `mapgen_internal.h`
+- `mapgen_types.h`
+- `mapgen_utility.h`
+- `oscar64_console.h`
