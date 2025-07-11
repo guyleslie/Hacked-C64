@@ -1,5 +1,6 @@
 # Hacked-C64
-# C64 Map Generator – Detailed Program Description
+
+C64 Map Generator – Detailed Program Description
 
 ## Overview
 
