@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 REM Path to C64 Debugger executable (using local helpers folder)
-set "C64DEBUGGER_PATH=%cd%\helpers\c64 debugger\C64Debugger.exe"
+set "C64DEBUGGER_PATH=E:\APPS\c64 debugger\C64Debugger.exe"
 
 REM Get the current directory name (project name)
 for %%I in ("%cd%") do set "PROJECT_NAME=%%~nxI"
