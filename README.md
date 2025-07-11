@@ -12,30 +12,30 @@ This project is a highly optimized dungeon map generator for the Commodore 64, w
 Hacked-C64/
 ├── main/
 │   └── src/
-│       ├── common.h                 // Common macros, constants, and helpers shared project-wide
-│       ├── main.c                   // Main program entry point, input loop, and high-level game logic
-│       ├── oscar64_console.h        // Abstractions for Oscar64/C64-specific console I/O
-│       └── mapgen/                  // All map (dungeon) generation logic in a dedicated module
-│           ├── mapgen_api.h             // Public API for map generation (exposed to game)
-│           ├── mapgen_display.h         // Functions for rendering and visualizing the map
-│           ├── mapgen_internal.h        // Internal structures and helpers (not exposed outside mapgen)
-│           ├── mapgen_types.h           // Core type definitions (tiles, room, connection, etc.)
-│           ├── mapgen_utility.h         // Utility functions for mapgen (random, math, helpers)
-│           ├── map_export.c             // Logic to export map data (for debugging or external tools)
-│           ├── map_export.h             // Header for map export functions
-│           ├── map_generation.c         // Main procedural map generation algorithms (room/corridor MST, placement, validation)
-│           ├── public.c                 // Implementation of the mapgen public API
-│           ├── room_management.c        // Algorithms for room placement, sizing, and management
+│       ├── common.h                           // Common macros, constants, and helpers shared project-wide
+│       ├── main.c                             // Main program entry point, input loop, and high-level game logic
+│       ├── oscar64_console.h                  // Abstractions for Oscar64/C64-specific console I/O
+│       └── mapgen/                            // All map (dungeon) generation logic in a dedicated module
+│           ├── mapgen_api.h                   // Public API for map generation (exposed to game)
+│           ├── mapgen_display.h               // Functions for rendering and visualizing the map
+│           ├── mapgen_internal.h              // Internal structures and helpers (not exposed outside mapgen)
+│           ├── mapgen_types.h                 // Core type definitions (tiles, room, connection, etc.)
+│           ├── mapgen_utility.h               // Utility functions for mapgen (random, math, helpers)
+│           ├── map_export.c                   // Logic to export map data (for debugging or external tools)
+│           ├── map_export.h                   // Header for map export functions
+│           ├── map_generation.c               // Main procedural map generation algorithms (room/corridor MST, placement, validation)
+│           ├── public.c                       // Implementation of the mapgen public API
+│           ├── room_management.c              // Algorithms for room placement, sizing, and management
 │           ├── rule_based_connection_system.c // Minimum Spanning Tree & rule-based corridor/door generation
-│           ├── testdisplay.c            // Simple ASCII/char-based visual test for map output
-│           └── utility.c                // General-purpose helpers (math, random, etc.) used by mapgen
-├── build.bat                      // Windows build script (compiles all sources via Oscar64/CC65)
-├── run_c64debugger.bat            // Launches the compiled binary in C64 Debugger
-├── run_vice.bat                   // Launches the compiled binary in the VICE emulator
+│           ├── testdisplay.c                  // Simple ASCII/char-based visual test for map output
+│           └── utility.c                      // General-purpose helpers (math, random, etc.) used by mapgen
+├── build.bat                                  // Windows build script (compiles all sources via Oscar64/CC65)
+├── run_c64debugger.bat                        // Launches the compiled binary in C64 Debugger
+├── run_vice.bat                               // Launches the compiled binary in the VICE emulator
 ├── .github/
 │   └── workflows/
-│       └── cmake-single-platform.yml // CI/CD workflow for GitHub Actions
-└── README.md                      // Project documentation (you are here)
+│       └── cmake-single-platform.yml          // CI/CD workflow for GitHub Actions
+└── README.md                                  // Project documentation (this file)
 ```
 
 **Legend:**
