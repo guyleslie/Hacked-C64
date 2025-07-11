@@ -6,6 +6,34 @@ C64 Map Generator – Detailed Program Description
 
 This project is a highly optimized dungeon map generator for the Commodore 64, written in C for the OSCAR64 compiler. It generates random dungeon layouts with rooms, corridors, walls, and stairs, and features real-time navigation and display optimizations tailored for the C64’s hardware constraints.
 
+## Project Structure
+
+The project is organized as follows:
+
+main/
+  src/
+    common.h
+    main.c
+    mapgen_api.h
+    mapgen_display.h
+    mapgen_internal.h
+    mapgen_types.h
+    mapgen_utility.h
+    oscar64_console.h
+    mapgen/
+      map_export.c
+      map_export.h
+      map_generation.c
+      public.c
+      room_management.c
+      rule_based_connection_system.c
+      testdisplay.c
+      utility.c
+build.bat
+run_c64debugger.bat
+run_vice.bat
+README.md
+
 ## System Architecture
 
 ### Core Components
@@ -189,15 +217,34 @@ This project is a highly optimized dungeon map generator for the Commodore 64, w
 
 ### Running the Program
 
-1. Compile the project using the OSCAR64 compiler.
-2. Run the resulting binary on a real C64 or a compatible emulator (e.g., VICE, C64Debugger).
-3. Use the WASD keys to navigate the generated map.
-4. Press SPACE to generate a new random map instantly.
-5. Press Q to quit the program.
+#### 1. Using Batch Files
+
+- **build.bat**: Compiles the project using the configured assembler/compiler (e.g., Oscar64 or CC65).
+- **run_vice.bat**: Runs the compiled binary in the VICE emulator.
+- **run_c64debugger.bat**: Runs the compiled binary in the C64 Debugger.
+
+> **Note:**  
+> The paths to the Oscar64 compiler, VICE emulator, and C64 Debugger are customizable. Edit the batch files to set the correct paths for your system.
+
+#### 2. Manual Execution
+
+- Compile the project using the OSCAR64 compiler.
+- Run the resulting binary on a real C64 or a compatible emulator (such as VICE or C64Debugger).
+
+### Program Controls
+
+- **W** – Move up
+- **A** – Move left
+- **S** – Move down
+- **D** – Move right
+- **SPACE** – Generate a new random map
+- **Q** – Quit the program
+
+All controls provide immediate, real-time feedback for smooth navigation and map regeneration.
 
 ### Interactive Features
 
-- **Real-time Navigation**: Explore the map with smooth scrolling.
+- **Real-time Navigation**: Explore the map with text based fast scrolling.
 - **Instant Regeneration**: Generate new maps on demand with a single keypress.
 - **Visual Feedback**: Progress indicators are shown during map generation.
 - **Responsive Controls**: All controls provide immediate feedback.
