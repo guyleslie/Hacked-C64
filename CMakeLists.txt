@@ -12,12 +12,13 @@ else()
 endif()
 
 # Oscar64 binary and include paths (always use these variables below)
-set(OSCAR64_BIN "${OSCAR64_PATH}/oscar64.exe")
-set(OSCAR64_INCLUDE "${OSCAR64_PATH}/include")
-set(OSCAR64_INCLUDE_C64 "${OSCAR64_PATH}/include/c64")
-set(OSCAR64_INCLUDE_C128 "${OSCAR64_PATH}/include/c128")
-set(OSCAR64_INCLUDE_AUDIO "${OSCAR64_PATH}/include/audio")
-set(OSCAR64_INCLUDE_GFX "${OSCAR64_PATH}/include/gfx")
+# The binary is in oscar64/bin/oscar64.exe after extraction
+set(OSCAR64_BIN "${OSCAR64_PATH}/oscar64/bin/oscar64.exe")
+set(OSCAR64_INCLUDE "${OSCAR64_PATH}/oscar64/include")
+set(OSCAR64_INCLUDE_C64 "${OSCAR64_PATH}/oscar64/include/c64")
+set(OSCAR64_INCLUDE_C128 "${OSCAR64_PATH}/oscar64/include/c128")
+set(OSCAR64_INCLUDE_AUDIO "${OSCAR64_PATH}/oscar64/include/audio")
+set(OSCAR64_INCLUDE_GFX "${OSCAR64_PATH}/oscar64/include/gfx")
 
 # Source files (explicit list, as in build.bat)
 set(SRC_FILES
