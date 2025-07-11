@@ -99,7 +99,7 @@ main/
 ### Camera System
 
 - **Viewport Management**: The visible area is 40×25 characters, matching the C64’s screen.
-- **Smooth Scrolling**: The camera scrolls smoothly with delta updates for a seamless user experience.
+- **Smooth Scrolling**: The camera scrolls fast with delta updates for a seamless user experience.
 - **Boundary Handling**: The camera is prevented from moving beyond the map edges.
 - **Synchronization**: The camera position is always kept in sync with the viewport.
 
@@ -172,7 +172,7 @@ main/
 ### Display Optimizations
 
 - **Delta Updates**: Only changed screen portions are redrawn.
-- **Perfect Scrolling**: Scroll direction is tracked and optimized for smoothness.
+- **Perfect Scrolling**: Scroll direction is tracked and optimized for fast refresh.
 - **Direct Memory Access**: Screen updates bypass OS routines for speed.
 - **Buffer Management**: Efficient screen buffer comparison reduces unnecessary redraws.
 
@@ -197,7 +197,7 @@ main/
 
 - **Generation Time**: ~2–3 seconds on a real C64.
 - **Wall Generation**: ~20× faster than naive approaches.
-- **Screen Updates**: Smooth scrolling at full frame rate.
+- **Screen Updates**: Fast scrolling at full frame rate.
 - **Memory Efficiency**: 62.5% savings vs. traditional tile storage.
 
 ## Quality Assurance
@@ -232,23 +232,3 @@ main/
 
 - Compile the project using the OSCAR64 compiler.
 - Run the resulting binary on a real C64 or a compatible emulator (such as VICE or C64Debugger).
-
-### Program Controls
-
-- **W** – Move up
-- **A** – Move left
-- **S** – Move down
-- **D** – Move right
-- **SPACE** – Generate a new random map
-- **Q** – Quit the program
-
-All controls provide immediate, real-time feedback for smooth navigation and map regeneration.
-
-### Interactive Features
-
-- **Real-time Navigation**: Explore the map with text based fast scrolling.
-- **Instant Regeneration**: Generate new maps on demand with a single keypress.
-- **Visual Feedback**: Progress indicators are shown during map generation.
-- **Responsive Controls**: All controls provide immediate feedback.
-
-This program demonstrates advanced algorithms and optimization techniques specifically tailored for the Commodore 64’s hardware, creating an efficient and enjoyable dungeon generation experience within the system’s memory and processing limitations.
