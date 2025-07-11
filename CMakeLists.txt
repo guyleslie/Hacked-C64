@@ -8,7 +8,7 @@ if(NOT OSCAR64_PATH)
 endif()
 
 # Oscar64 binary and include paths (always use these variables below)
-set(OSCAR64_BIN "${OSCAR64_PATH}/bin/oscar64.exe")
+set(OSCAR64_BIN "${OSCAR64_PATH}/oscar64.exe")
 set(OSCAR64_INCLUDE "${OSCAR64_PATH}/include")
 set(OSCAR64_INCLUDE_C64 "${OSCAR64_PATH}/include/c64")
 set(OSCAR64_INCLUDE_C128 "${OSCAR64_PATH}/include/c128")
