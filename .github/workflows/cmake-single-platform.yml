@@ -22,10 +22,13 @@ jobs:
 
       - name: Download Oscar64 latest release
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $oscarDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
           New-Item -ItemType Directory -Force -Path $oscarDir | Out-Null
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/drmortalwombat/oscar64/releases/latest"
+          $headers = @{ Authorization = "token $env:GH_TOKEN" }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/drmortalwombat/oscar64/releases/latest" -Headers $headers
           $asset = $release.assets | Where-Object { $_.name -eq "oscar64.zip" }
           if (-not $asset) {
             Write-Error "No oscar64.zip asset found in latest release. Assets: $($release.assets.name -join ', ')"
