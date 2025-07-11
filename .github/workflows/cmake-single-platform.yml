@@ -26,7 +26,12 @@ jobs:
           $oscarDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
           New-Item -ItemType Directory -Force -Path $oscarDir | Out-Null
           $release = Invoke-RestMethod -Uri "https://api.github.com/repos/drmortalwombat/oscar64/releases/latest"
-          $asset = $release.assets | Where-Object { $_.name -like "*win64.zip" }
+          $asset = $release.assets | Where-Object { $_.name -eq "oscar64.zip" }
+          if (-not $asset) {
+            Write-Error "No oscar64.zip asset found in latest release. Assets: $($release.assets.name -join ', ')"
+            exit 1
+          }
+          Write-Host "Downloading $($asset.name) from $($asset.browser_download_url)"
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "oscar64.zip"
           Expand-Archive -Path "oscar64.zip" -DestinationPath $oscarDir
 
