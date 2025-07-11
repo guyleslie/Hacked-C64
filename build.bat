@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Path to oscar64 compiler (updated from VS Code configuration)
+REM Path to oscar64 compiler
 set "OSCAR64_PATH=E:\Apps\oscar64\bin\oscar64.exe"
 REM Set the source directories
 set "SRC_DIR=%cd%\src"
