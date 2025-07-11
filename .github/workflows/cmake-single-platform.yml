@@ -1,0 +1,45 @@
+# CMake single-platform workflow for Oscar64-based C64 project
+# This workflow assumes Windows runner and local Oscar64 toolchain
+
+name: CMake Single Platform Oscar64 Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Set up Oscar64
+        run: |
+          # Download and extract Oscar64 if not present (customize as needed)
+          if not exist "E:\Apps\oscar64\bin\oscar64.exe" (
+            echo Please install Oscar64 manually to E:\Apps\oscar64
+            exit 1
+          )
+        shell: cmd
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B build -DOSCAR64_PATH="E:/Apps/oscar64"
+        shell: cmd
+
+      - name: Build with CMake
+        run: |
+          cmake --build build --target oscar64_build
+        shell: cmd
+
+      - name: List build output
+        run: |
+          dir build
+        shell: cmd
