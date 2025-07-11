@@ -141,80 +141,75 @@ unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2)
 
     unsigned char exit1_x, exit1_y, exit2_x, exit2_y;
     unsigned char room1_center_x, room1_center_y, room2_center_x, room2_center_y;
-
-    // Get the centers and exits of the rooms
     get_room_center(room1, &room1_center_x, &room1_center_y);
     get_room_center(room2, &room2_center_x, &room2_center_y);
-    // Always use the other room's center as the target for both sides to ensure symmetric door placement
     find_room_exit(&rooms[room1], room2_center_x, room2_center_y, &exit1_x, &exit1_y);
     find_room_exit(&rooms[room2], room1_center_x, room1_center_y, &exit2_x, &exit2_y);
 
-    // Determine the initial direction from exit1 (which wall?)
-    int dx = 0, dy = 0;
-    if (exit1_x == rooms[room1].x - 1) { dx = -1; dy = 0; } // left wall
-    else if (exit1_x == rooms[room1].x + rooms[room1].w) { dx = 1; dy = 0; } // right wall
-    else if (exit1_y == rooms[room1].y - 1) { dx = 0; dy = -1; } // top wall
-    else if (exit1_y == rooms[room1].y + rooms[room1].h) { dx = 0; dy = 1; } // bottom wall
+    // Build the full corridor path first
+    #include "door_placement.h"
+    CorridorPath path;
+    path.length = 0;
 
-    // Step out from the room wall
+    int dx = 0, dy = 0;
+    if (exit1_x == rooms[room1].x - 1) { dx = -1; dy = 0; }
+    else if (exit1_x == rooms[room1].x + rooms[room1].w) { dx = 1; dy = 0; }
+    else if (exit1_y == rooms[room1].y - 1) { dx = 0; dy = -1; }
+    else if (exit1_y == rooms[room1].y + rooms[room1].h) { dx = 0; dy = 1; }
+
     int x = exit1_x + dx;
     int y = exit1_y + dy;
     // Store the first corridor tile position for later door placement
-    int first_corridor_x = x;
-    int first_corridor_y = y;
-
-    // Draw the first corridor tile (if allowed)
     corridor_endpoint_override = 1;
     if (can_place_corridor_tile(x, y)) {
         set_tile_raw(x, y, TILE_FLOOR);
+        if (path.length < MAX_PATH_LENGTH) {
+            path.x[path.length] = x;
+            path.y[path.length] = y;
+            path.length++;
+        }
     }
     corridor_endpoint_override = 0;
 
-    // Now, determine the bend point: the point where either x == exit2_x or y == exit2_y
-    // We'll first go straight in the initial direction until we align with the target exit on one axis
-    // Track the last walkable tile for door placement
-    int last_corridor_x = x;
-    int last_corridor_y = y;
+    // Go straight until aligned with target exit
     while (x != exit2_x && y != exit2_y) {
-        // Move in the initial direction
         x += dx;
         y += dy;
         if (can_place_corridor_tile(x, y)) {
             set_tile_raw(x, y, TILE_FLOOR);
-            last_corridor_x = x;
-            last_corridor_y = y;
+            if (path.length < MAX_PATH_LENGTH) {
+                path.x[path.length] = x;
+                path.y[path.length] = y;
+                path.length++;
+            }
         }
     }
-
-    // Now, bend: move along the other axis until we reach the target exit
+    // Bend: move along the other axis
     while (x != exit2_x) {
         x += (x < exit2_x) ? 1 : -1;
         if (can_place_corridor_tile(x, y)) {
             set_tile_raw(x, y, TILE_FLOOR);
-            last_corridor_x = x;
-            last_corridor_y = y;
+            if (path.length < MAX_PATH_LENGTH) {
+                path.x[path.length] = x;
+                path.y[path.length] = y;
+                path.length++;
+            }
         }
     }
     while (y != exit2_y) {
         y += (y < exit2_y) ? 1 : -1;
         if (can_place_corridor_tile(x, y)) {
             set_tile_raw(x, y, TILE_FLOOR);
-            last_corridor_x = x;
-            last_corridor_y = y;
+            if (path.length < MAX_PATH_LENGTH) {
+                path.x[path.length] = x;
+                path.y[path.length] = y;
+                path.length++;
+            }
         }
     }
 
-    // After the full corridor is drawn, place doors at both ends if valid
-    // Place door at the start (where the corridor leaves the room)
-    if (is_valid_room_wall_for_door(exit1_x, exit1_y)) {
-        set_tile_raw(exit1_x, exit1_y, TILE_DOOR);
-    }
-    // Place door at the end (where the corridor meets the target room)
-    if (is_valid_room_wall_for_door(exit2_x, exit2_y)) {
-        set_tile_raw(exit2_x, exit2_y, TILE_DOOR);
-    }
-
-    // Optionally, handle corner/corridor-joining exceptions here if needed
+    // Place doors using the improved logic
+    place_doors_along_corridor(&path);
 
     return 1; // Success
 }
@@ -319,10 +314,9 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
         // MIRRORED LOGIC: Both ends use the same logic for door and corridor placement
 
         // --- START ROOM SIDE (exit1) ---
-        if (!coords_in_bounds(exit1_x, exit1_y)) return 0;
-        if (is_valid_room_wall_for_door(exit1_x, exit1_y)) {
-            set_tile_raw(exit1_x, exit1_y, TILE_DOOR); // Place door at the entry point
-        }
+        #include "door_placement.h"
+        CorridorPath path1;
+        path1.length = 0;
         int dx1 = 0, dy1 = 0;
         if (exit1_x == rooms[room1].x - 1) { dx1 = -1; dy1 = 0; }
         else if (exit1_x == rooms[room1].x + rooms[room1].w) { dx1 = 1; dy1 = 0; }
@@ -333,6 +327,9 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
         corridor_endpoint_override = 1;
         if (coords_in_bounds(corridor1_x, corridor1_y) && can_place_corridor_tile(corridor1_x, corridor1_y)) {
             set_tile_raw(corridor1_x, corridor1_y, TILE_FLOOR);
+            path1.x[path1.length] = corridor1_x;
+            path1.y[path1.length] = corridor1_y;
+            path1.length++;
         }
         corridor_endpoint_override = 0;
         unsigned char current1_x = corridor1_x;
@@ -348,14 +345,18 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
             }
             if (is_outside_any_room(current1_x, current1_y) && can_place_corridor_tile(current1_x, current1_y)) {
                 set_tile_raw(current1_x, current1_y, TILE_FLOOR);
+                if (path1.length < MAX_PATH_LENGTH) {
+                    path1.x[path1.length] = current1_x;
+                    path1.y[path1.length] = current1_y;
+                    path1.length++;
+                }
             }
         }
+        place_doors_along_corridor(&path1);
 
         // --- TARGET ROOM SIDE (exit2) ---
-        if (!coords_in_bounds(exit2_x, exit2_y)) return 0;
-        if (is_valid_room_wall_for_door(exit2_x, exit2_y)) {
-            set_tile_raw(exit2_x, exit2_y, TILE_DOOR); // Place door at the target entry point
-        }
+        CorridorPath path2;
+        path2.length = 0;
         int dx2 = 0, dy2 = 0;
         if (exit2_x == rooms[room2].x - 1) { dx2 = -1; dy2 = 0; }
         else if (exit2_x == rooms[room2].x + rooms[room2].w) { dx2 = 1; dy2 = 0; }
@@ -366,6 +367,9 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
         corridor_endpoint_override = 1;
         if (coords_in_bounds(corridor2_x, corridor2_y) && can_place_corridor_tile(corridor2_x, corridor2_y)) {
             set_tile_raw(corridor2_x, corridor2_y, TILE_FLOOR);
+            path2.x[path2.length] = corridor2_x;
+            path2.y[path2.length] = corridor2_y;
+            path2.length++;
         }
         corridor_endpoint_override = 0;
         unsigned char current2_x = corridor2_x;
@@ -381,8 +385,14 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
             }
             if (is_outside_any_room(current2_x, current2_y) && can_place_corridor_tile(current2_x, current2_y)) {
                 set_tile_raw(current2_x, current2_y, TILE_FLOOR);
+                if (path2.length < MAX_PATH_LENGTH) {
+                    path2.x[path2.length] = current2_x;
+                    path2.y[path2.length] = current2_y;
+                    path2.length++;
+                }
             }
         }
+        place_doors_along_corridor(&path2);
         return 1; // Successful reuse
     }
     
