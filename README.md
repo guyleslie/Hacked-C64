@@ -4,11 +4,12 @@ C64 Map Generator – Detailed Program Description
 
 ## Overview
 
+This project is a highly optimized dungeon map generator for the Commodore 64, written in C for the OSCAR64 compiler. It generates random dungeon layouts with rooms, corridors, walls, and stairs, and features real-time navigation and display optimizations tailored for the C64’s hardware constraints.
+
 ## Project Structure
 
 The project is organized as follows:
 
-```
 main/
   src/
     common.h
@@ -32,10 +33,6 @@ build.bat
 run_c64debugger.bat
 run_vice.bat
 README.md
-```
-
-
-This project is a highly optimized dungeon map generator for the Commodore 64, written in C for the OSCAR64 compiler. It generates random dungeon layouts with rooms, corridors, walls, and stairs, and features real-time navigation and display optimizations tailored for the C64’s hardware constraints.
 
 ## System Architecture
 
