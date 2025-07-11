@@ -13,27 +13,27 @@ The project is organized as follows:
 ```ascii
 main/
 ├── src/
-│   ├── common.h                  // Common macros, constants, and utility functions
-│   ├── main.c                    // Main program entry point and game loop
-│   ├── mapgen_api.h              // Public API for map generation
-│   ├── mapgen_display.h          // Map display and rendering functions
-│   ├── mapgen_internal.h         // Internal map generation logic and helpers
-│   ├── mapgen_types.h            // Type definitions for map structures and tiles
-│   ├── mapgen_utility.h          // Utility functions for map generation
-│   ├── oscar64_console.h         // Console I/O routines for Oscar64/C64
+│   ├── common.h                           // Common macros, constants, and utility functions
+│   ├── main.c                             // Main program entry point and game loop
+│   ├── mapgen_api.h                       // Public API for map generation
+│   ├── mapgen_display.h                   // Map display and rendering functions
+│   ├── mapgen_internal.h                  // Internal map generation logic and helpers
+│   ├── mapgen_types.h                     // Type definitions for map structures and tiles
+│   ├── mapgen_utility.h                   // Utility functions for map generation
+│   ├── oscar64_console.h                  // Console I/O routines for Oscar64/C64
 │   └── mapgen/
-│       ├── map_export.c          // Exports map data for external use or debugging
-│       ├── map_export.h          // Header for map export functions
-│       ├── map_generation.c      // Core dungeon map generation algorithms
-│       ├── public.c              // Public interface implementations for mapgen
-│       ├── room_management.c     // Room placement and management logic
+│       ├── map_export.c                   // Exports map data for external use or debugging
+│       ├── map_export.h                   // Header for map export functions
+│       ├── map_generation.c               // Core dungeon map generation algorithms
+│       ├── public.c                       // Public interface implementations for mapgen
+│       ├── room_management.c              // Room placement and management logic
 │       ├── rule_based_connection_system.c // Room connection and corridor logic (MST, rules)
-│       ├── testdisplay.c         // Simple character based test display for the map 
-│       └── utility.c             // General-purpose utility functions
-├── build.bat                     // Batch file to build the project
-├── run_c64debugger.bat           // Batch file to run in C64 Debugger
-├── run_vice.bat                  // Batch file to run in VICE emulator
-└── README.md                     // Project documentation
+│       ├── testdisplay.c                  // Simple character based test display for the map 
+│       └── utility.c                      // General-purpose utility functions
+├── build.bat                              // Batch file to build the project
+├── run_c64debugger.bat                    // Batch file to run in C64 Debugger
+├── run_vice.bat                           // Batch file to run in VICE emulator
+└── README.md                              // Project documentation
 ```
 
 ## System Architecture
