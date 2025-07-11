@@ -16,7 +16,7 @@ extern unsigned char room_count;
 // floor/door tiles and place walls around them. This is typically 80-200 tiles.
 // Performance improvement: ~20x faster than full map scan!
 
-// ULTRA-OPTIMIZED: Floor-Only Wall Generation - Only checks floor tiles!
+// OPTIMIZED: Only checks floor and door at all 4 neighboring tiles
 void add_walls(void) {
     unsigned char x, y;
 
