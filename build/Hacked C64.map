@@ -1,0 +1,755 @@
+sections
+0880 - 321d : DATA, code
+321d - 336a : DATA, data
+336a - 41a0 : BSS, bss
+41a0 - 9000 : HEAP, heap
+9000 - 9f64 : STACK, stack
+00f7 - 00f7 : ZEROPAGE, zeropage
+0801 - 0853 : DATA, startup
+9ffa - a000 : SSTACK, sstack
+9ffa - 9ffa : SSTACK, get_hardware_entropy@stack
+9ff5 - 9ffa : SSTACK, rnd@stack
+9feb - 9ff5 : SSTACK, init_rng@stack
+9feb - 9feb : SSTACK, mapgen_init@stack
+9ffa - 9ffa : SSTACK, oscar_clrscr@stack
+9ffa - 9ffa : SSTACK, reset_viewport_state@stack
+9ffa - 9ffa : SSTACK, reset_display_state@stack
+9ff6 - 9ffa : SSTACK, clear_map@stack
+9ffa - 9ffa : SSTACK, clear_room_center_cache@stack
+9ffa - 9ffa : SSTACK, get_room_center@stack
+9ffa - 9ffa : SSTACK, fast_abs_diff@stack
+9ffa - 9ffa : SSTACK, manhattan_distance@stack
+9ff6 - 9ffa : SSTACK, calculate_room_distance@stack
+9ff2 - 9ff6 : SSTACK, init_rule_based_connection_system@stack
+9feb - 9feb : SSTACK, reset_all_generation_data@stack
+9ff9 - 9ffa : SSTACK, print_text@stack
+9feb - 9ff5 : SSTACK, get_grid_position@stack
+9ffa - 9ffa : SSTACK, coords_in_bounds@stack
+9ff4 - 9ffa : SSTACK, get_tile_core@stack
+9ff4 - 9ff4 : SSTACK, tile_is_empty@stack
+9feb - 9ff4 : SSTACK, can_place_room@stack
+9fe7 - 9feb : SSTACK, try_place_room_at_grid@stack
+9ff0 - 9ffa : SSTACK, set_compact_tile_fast@stack
+9ff0 - 9ff0 : SSTACK, set_tile_raw@stack
+9fee - 9ff0 : SSTACK, place_room@stack
+9ff4 - 9ff5 : SSTACK, assign_room_priorities@stack
+9ff9 - 9ffa : SSTACK, init_room_center_cache@stack
+9ff6 - 9ffa : SSTACK, update_camera@stack
+9fc8 - 9fe7 : SSTACK, create_rooms@stack
+9ffa - 9ffa : SSTACK, rooms_are_connected@stack
+9ff5 - 9ff6 : SSTACK, get_cached_room_distance@stack
+9fec - 9ff5 : SSTACK, can_connect_rooms_safely@stack
+9ffa - 9ffa : SSTACK, coords_in_bounds_fast@stack
+9ff4 - 9ff4 : SSTACK, get_tile_raw@stack
+9ff4 - 9ff4 : SSTACK, tile_is_floor_fast@stack
+9ff9 - 9ffa : SSTACK, is_inside_room@stack
+9ff9 - 9ff9 : SSTACK, is_outside_any_room@stack
+9fe6 - 9ff4 : SSTACK, can_reuse_existing_path@stack
+9ff5 - 9ffa : SSTACK, find_room_exit@stack
+9ff4 - 9ff4 : SSTACK, tile_is_floor@stack
+9ff7 - 9ffa : SSTACK, is_valid_room_wall_for_door@stack
+9ffa - 9ffa : SSTACK, manhattan_distance_fast@stack
+9ff6 - 9ff9 : SSTACK, can_place_corridor_tile@stack
+9fc8 - 9ff0 : SSTACK, connect_via_existing_corridors@stack
+9fd8 - 9ff0 : SSTACK, draw_rule_based_corridor@stack
+9f95 - 9fc8 : SSTACK, rule_based_connect_rooms@stack
+9fed - 9ff0 : SSTACK, add_walls@stack
+9fe6 - 9ff0 : SSTACK, add_stairs@stack
+9f65 - 9f95 : SSTACK, generate_level@stack
+9f65 - 9f65 : SSTACK, mapgen_generate_dungeon@stack
+9ffa - 9ffa : SSTACK, krnio_setnam@stack
+9ffa - 9ffa : SSTACK, krnio_save@stack
+9ffa - 9ffa : SSTACK, wherex@stack
+9ffa - 9ffa : SSTACK, putrch@stack
+9ff9 - 9ffa : SSTACK, putpch@stack
+9ff8 - 9ff9 : SSTACK, puts@stack
+9ff1 - 9ffa : SSTACK, get_map_tile_fast@stack
+9fec - 9ff1 : SSTACK, update_full_screen@stack
+9ff4 - 9ffa : SSTACK, memmove@stack
+9fe4 - 9fec : SSTACK, update_screen_with_perfect_scroll@stack
+9fe3 - 9fe4 : SSTACK, render_map_viewport@stack
+9ffa - 9ffa : SSTACK, convch@stack
+9ff9 - 9ffa : SSTACK, getch@stack
+9fef - 9ff6 : SSTACK, process_navigation_input@stack
+9f64 - 9f65 : SSTACK, main@stack
+
+regions
+00f7 - 00ff : 0000, 0000, zeropage
+0801 - 0880 : 0853, 0052, startup
+0880 - 9000 : 336a, 3920, main
+
+objects
+00f7 - 00f7 : ZeroStart, START:zeropage
+00f7 - 00f7 : ZeroEnd, END:zeropage
+0801 - 0853 : startup, NATIVE_CODE:startup
+0880 - 090e : main, NATIVE_CODE:code
+090e - 0911 : mapgen_init, NATIVE_CODE:code
+0911 - 0a5e : init_rng, NATIVE_CODE:code
+0a5e - 0a6c : get_hardware_entropy, NATIVE_CODE:code
+0a6c - 0b65 : rnd, NATIVE_CODE:code
+0b65 - 0b98 : oscar_clrscr, NATIVE_CODE:code
+0b98 - 0ba4 : mapgen_generate_dungeon, NATIVE_CODE:code
+0ba4 - 0bb5 : reset_viewport_state, NATIVE_CODE:code
+0bb5 - 0bd3 : reset_display_state, NATIVE_CODE:code
+0bd3 - 0be4 : reset_all_generation_data, NATIVE_CODE:code
+0be4 - 0c24 : clear_map, NATIVE_CODE:code
+0c24 - 0c2a : clear_room_center_cache, NATIVE_CODE:code
+0c2a - 0d08 : init_rule_based_connection_system, NATIVE_CODE:code
+0d08 - 0d4d : calculate_room_distance, NATIVE_CODE:code
+0d4d - 0dc8 : get_room_center, NATIVE_CODE:code
+0dc8 - 0de4 : manhattan_distance, NATIVE_CODE:code
+0de4 - 0df3 : fast_abs_diff, NATIVE_CODE:code
+0df3 - 102d : generate_level, NATIVE_CODE:code
+102d - 1057 : print_text, NATIVE_CODE:code
+1057 - 1077 : *, DATA:code
+1077 - 1237 : create_rooms, NATIVE_CODE:code
+1237 - 1247 : *, DATA:code
+1247 - 131f : try_place_room_at_grid, NATIVE_CODE:code
+131f - 13cd : get_grid_position, NATIVE_CODE:code
+13cd - 14dd : can_place_room, NATIVE_CODE:code
+14dd - 14f0 : coords_in_bounds, NATIVE_CODE:code
+14f0 - 1514 : tile_is_empty, NATIVE_CODE:code
+1514 - 15a7 : get_tile_core, NATIVE_CODE:code
+15a7 - 163b : place_room, NATIVE_CODE:code
+163b - 164a : set_tile_raw, NATIVE_CODE:code
+164a - 1740 : set_compact_tile_fast, NATIVE_CODE:code
+1740 - 1742 : *, DATA:code
+1742 - 178a : assign_room_priorities, NATIVE_CODE:code
+178a - 17fe : init_room_center_cache, NATIVE_CODE:code
+17fe - 186f : update_camera, NATIVE_CODE:code
+186f - 1891 : *, DATA:code
+1891 - 18bc : rooms_are_connected, NATIVE_CODE:code
+18bc - 1973 : can_connect_rooms_safely, NATIVE_CODE:code
+1973 - 19e3 : get_cached_room_distance, NATIVE_CODE:code
+19e3 - 1af9 : rule_based_connect_rooms, NATIVE_CODE:code
+1af9 - 1c3f : can_reuse_existing_path, NATIVE_CODE:code
+1c3f - 1c52 : coords_in_bounds_fast, NATIVE_CODE:code
+1c52 - 1c7a : tile_is_floor_fast, NATIVE_CODE:code
+1c7a - 1c96 : get_tile_raw, NATIVE_CODE:code
+1c96 - 1caa : is_outside_any_room, NATIVE_CODE:code
+1caa - 1cfa : is_inside_room, NATIVE_CODE:code
+1cfa - 21cc : connect_via_existing_corridors, NATIVE_CODE:code
+21cc - 226f : find_room_exit, NATIVE_CODE:code
+226f - 2291 : tile_is_floor, NATIVE_CODE:code
+2291 - 2346 : is_valid_room_wall_for_door, NATIVE_CODE:code
+2346 - 23f0 : can_place_corridor_tile, NATIVE_CODE:code
+23f0 - 240c : manhattan_distance_fast, NATIVE_CODE:code
+240c - 2739 : draw_rule_based_corridor, NATIVE_CODE:code
+2739 - 282c : add_walls, NATIVE_CODE:code
+282c - 283d : *, DATA:code
+283d - 2953 : add_stairs, NATIVE_CODE:code
+2953 - 2964 : *, DATA:code
+2964 - 297a : krnio_setnam, NATIVE_CODE:code
+297a - 2986 : *, DATA:code
+2986 - 29a6 : krnio_save, NATIVE_CODE:code
+29a6 - 29bf : puts, NATIVE_CODE:code
+29bf - 2a1b : putpch, NATIVE_CODE:code
+2a1b - 2a20 : wherex, NATIVE_CODE:code
+2a20 - 2a28 : putrch, NATIVE_CODE:code
+2a28 - 2a39 : *, DATA:code
+2a39 - 2a91 : render_map_viewport, NATIVE_CODE:code
+2a91 - 2d89 : update_screen_with_perfect_scroll, NATIVE_CODE:code
+2d89 - 2df3 : update_full_screen, NATIVE_CODE:code
+2df3 - 2ec3 : get_map_tile_fast, NATIVE_CODE:code
+2ec3 - 2fbc : memmove, NATIVE_CODE:code
+2fbc - 2fcb : getch, NATIVE_CODE:code
+2fcb - 2ffd : convch, NATIVE_CODE:code
+2ffd - 3102 : process_navigation_input, NATIVE_CODE:code
+3102 - 313a : mul16by8, NATIVE_CODE:code
+313a - 317c : mul16, NATIVE_CODE:code
+317c - 3201 : divmod, NATIVE_CODE:code
+3201 - 320a : __multab7982L, DATA:code
+320a - 3213 : __multab7982H, DATA:code
+3213 - 3217 : __multab14L, DATA:code
+3217 - 321d : __shltab7L, DATA:code
+321d - 321e : spentry, DATA:data
+321e - 3220 : generation_counter, DATA:data
+3220 - 3222 : rng_seed, DATA:data
+3222 - 3223 : room_count, DATA:data
+3223 - 3224 : room_center_cache_valid, DATA:data
+3224 - 32e6 : corridor_pool, DATA:data
+32e6 - 332f : connection_cache, DATA:data
+332f - 3330 : distance_cache_valid, DATA:data
+3330 - 3331 : corridor_endpoint_override, DATA:data
+3331 - 3332 : giocharmap, DATA:data
+3332 - 336a : bitshift, DATA:data
+336a - 336a : BSSStart, START:bss
+336a - 336b : camera_center_x, DATA:bss
+336b - 336c : camera_center_y, DATA:bss
+336c - 336e : view, DATA:bss
+336e - 3756 : screen_buffer, DATA:bss
+3756 - 3757 : screen_dirty, DATA:bss
+3757 - 3758 : last_scroll_direction, DATA:bss
+3758 - 3d58 : compact_map, DATA:bss
+3d58 - 3ee8 : connection_matrix, DATA:bss
+3ee8 - 4078 : room_distance_cache, DATA:bss
+4078 - 40a0 : room_center_cache, DATA:bss
+4100 - 41a0 : rooms, DATA:bss
+41a0 - 41a0 : BSSEnd, END:bss
+9f64 - 9f64 : StackEnd, END:stack
+9f64 - 9f65 : key, BSS:main@stack
+9f65 - 9f73 : generate_level@stack, BSS:generate_level@stack
+9f73 - 9f74 : j, BSS:generate_level@stack
+9f74 - 9f75 : distance, BSS:generate_level@stack
+9f75 - 9f76 : j, BSS:generate_level@stack
+9f76 - 9f77 : failed_attempts, BSS:generate_level@stack
+9f77 - 9f78 : connection_found, BSS:generate_level@stack
+9f78 - 9f79 : best_distance, BSS:generate_level@stack
+9f79 - 9f7a : best_room2, BSS:generate_level@stack
+9f7a - 9f7b : best_room1, BSS:generate_level@stack
+9f7b - 9f7d : iterations, BSS:generate_level@stack
+9f7d - 9f7f : max_iterations, BSS:generate_level@stack
+9f7f - 9f80 : i, BSS:generate_level@stack
+9f80 - 9f81 : connections_made, BSS:generate_level@stack
+9f81 - 9f95 : connected, BSS:generate_level@stack
+9f95 - 9f9d : rule_based_connect_rooms@stack, BSS:rule_based_connect_rooms@stack
+9f9d - 9f9e : i, BSS:rule_based_connect_rooms@stack
+9f9e - 9f9f : current, BSS:rule_based_connect_rooms@stack
+9f9f - 9fa0 : sp, BSS:rule_based_connect_rooms@stack
+9fa0 - 9fb4 : stack, BSS:rule_based_connect_rooms@stack
+9fb4 - 9fc8 : visited, BSS:rule_based_connect_rooms@stack
+9fc8 - 9fc9 : step_limit2, BSS:connect_via_existing_corridors@stack
+9fc8 - 9fcc : create_rooms@stack, BSS:create_rooms@stack
+9fc9 - 9fca : current2_y, BSS:connect_via_existing_corridors@stack
+9fca - 9fcb : current2_x, BSS:connect_via_existing_corridors@stack
+9fcb - 9fcc : corridor2_y, BSS:connect_via_existing_corridors@stack
+9fcc - 9fcd : corridor2_x, BSS:connect_via_existing_corridors@stack
+9fcc - 9fcd : temp, BSS:create_rooms@stack
+9fcd - 9fce : pass, BSS:create_rooms@stack
+9fcd - 9fcf : dy2, BSS:connect_via_existing_corridors@stack
+9fce - 9fcf : temp, BSS:create_rooms@stack
+9fcf - 9fd1 : dx2, BSS:connect_via_existing_corridors@stack
+9fcf - 9fd0 : j, BSS:create_rooms@stack
+9fd0 - 9fd1 : grid_count, BSS:create_rooms@stack
+9fd1 - 9fd2 : step_limit1, BSS:connect_via_existing_corridors@stack
+9fd1 - 9fe1 : grid_positions, BSS:create_rooms@stack
+9fd2 - 9fd3 : current1_y, BSS:connect_via_existing_corridors@stack
+9fd3 - 9fd4 : current1_x, BSS:connect_via_existing_corridors@stack
+9fd4 - 9fd5 : corridor1_y, BSS:connect_via_existing_corridors@stack
+9fd5 - 9fd6 : corridor1_x, BSS:connect_via_existing_corridors@stack
+9fd6 - 9fd8 : dy1, BSS:connect_via_existing_corridors@stack
+9fd8 - 9fda : last_corridor_y, BSS:draw_rule_based_corridor@stack
+9fd8 - 9fda : dx1, BSS:connect_via_existing_corridors@stack
+9fda - 9fdc : last_corridor_x, BSS:draw_rule_based_corridor@stack
+9fda - 9fdb : dist2, BSS:connect_via_existing_corridors@stack
+9fdb - 9fdc : dist1, BSS:connect_via_existing_corridors@stack
+9fdc - 9fde : first_corridor_y, BSS:draw_rule_based_corridor@stack
+9fdc - 9fdd : x, BSS:connect_via_existing_corridors@stack
+9fdd - 9fde : y, BSS:connect_via_existing_corridors@stack
+9fde - 9fdf : search_y2, BSS:connect_via_existing_corridors@stack
+9fde - 9fe0 : first_corridor_x, BSS:draw_rule_based_corridor@stack
+9fdf - 9fe0 : search_x2, BSS:connect_via_existing_corridors@stack
+9fe0 - 9fe2 : y, BSS:draw_rule_based_corridor@stack
+9fe0 - 9fe1 : search_y1, BSS:connect_via_existing_corridors@stack
+9fe1 - 9fe2 : placed_rooms, BSS:create_rooms@stack
+9fe1 - 9fe2 : search_x1, BSS:connect_via_existing_corridors@stack
+9fe2 - 9fe3 : h, BSS:create_rooms@stack
+9fe2 - 9fe4 : x, BSS:draw_rule_based_corridor@stack
+9fe2 - 9fe3 : min_dist2, BSS:connect_via_existing_corridors@stack
+9fe3 - 9fe4 : w, BSS:create_rooms@stack
+9fe3 - 9fe4 : current_scroll_direction, BSS:render_map_viewport@stack
+9fe3 - 9fe4 : min_dist1, BSS:connect_via_existing_corridors@stack
+9fe4 - 9fe6 : dy, BSS:draw_rule_based_corridor@stack
+9fe4 - 9fe5 : y, BSS:create_rooms@stack
+9fe4 - 9fe5 : closest_corridor_y2, BSS:connect_via_existing_corridors@stack
+9fe4 - 9fe5 : tile, BSS:update_screen_with_perfect_scroll@stack
+9fe5 - 9fe6 : x, BSS:create_rooms@stack
+9fe5 - 9fe6 : tile, BSS:update_screen_with_perfect_scroll@stack
+9fe5 - 9fe6 : closest_corridor_x2, BSS:connect_via_existing_corridors@stack
+9fe6 - 9fe7 : check_y, BSS:can_reuse_existing_path@stack
+9fe6 - 9fe7 : closest_corridor_y1, BSS:connect_via_existing_corridors@stack
+9fe6 - 9fe7 : down_y, BSS:add_stairs@stack
+9fe6 - 9fe7 : tile, BSS:update_screen_with_perfect_scroll@stack
+9fe6 - 9fe8 : dx, BSS:draw_rule_based_corridor@stack
+9fe6 - 9fe7 : i, BSS:create_rooms@stack
+9fe7 - 9fe8 : closest_corridor_x1, BSS:connect_via_existing_corridors@stack
+9fe7 - 9fe8 : down_x, BSS:add_stairs@stack
+9fe7 - 9fe8 : tile, BSS:update_screen_with_perfect_scroll@stack
+9fe7 - 9fe8 : check_x, BSS:can_reuse_existing_path@stack
+9fe7 - 9fe8 : offset_range, BSS:try_place_room_at_grid@stack
+9fe8 - 9fe9 : up_y, BSS:add_stairs@stack
+9fe8 - 9fe9 : room2_center_y, BSS:connect_via_existing_corridors@stack
+9fe8 - 9fe9 : dy, BSS:can_reuse_existing_path@stack
+9fe8 - 9fe9 : attempts, BSS:try_place_room_at_grid@stack
+9fe8 - 9fe9 : room2_center_y, BSS:draw_rule_based_corridor@stack
+9fe8 - 9fe9 : y, BSS:update_screen_with_perfect_scroll@stack
+9fe9 - 9fea : room2_center_x, BSS:connect_via_existing_corridors@stack
+9fe9 - 9fea : dx, BSS:can_reuse_existing_path@stack
+9fe9 - 9fea : y, BSS:try_place_room_at_grid@stack
+9fe9 - 9fea : room2_center_x, BSS:draw_rule_based_corridor@stack
+9fe9 - 9fea : x, BSS:update_screen_with_perfect_scroll@stack
+9fe9 - 9fea : up_x, BSS:add_stairs@stack
+9fea - 9feb : x, BSS:try_place_room_at_grid@stack
+9fea - 9feb : i, BSS:add_stairs@stack
+9fea - 9fec : screen_offset, BSS:update_screen_with_perfect_scroll@stack
+9fea - 9feb : check_y, BSS:can_reuse_existing_path@stack
+9fea - 9feb : room1_center_y, BSS:connect_via_existing_corridors@stack
+9fea - 9feb : room1_center_y, BSS:draw_rule_based_corridor@stack
+9feb - 9fec : check_x, BSS:can_reuse_existing_path@stack
+9feb - 9fec : random_offset_y, BSS:get_grid_position@stack
+9feb - 9fec : i, BSS:init_rng@stack
+9feb - 9fec : room1_center_x, BSS:draw_rule_based_corridor@stack
+9feb - 9fec : second_highest, BSS:add_stairs@stack
+9feb - 9fec : room1_center_x, BSS:connect_via_existing_corridors@stack
+9feb - 9fec : min_y_dist, BSS:can_place_room@stack
+9fec - 9fed : exit2_y, BSS:connect_via_existing_corridors@stack
+9fec - 9fed : exit2_y, BSS:draw_rule_based_corridor@stack
+9fec - 9fed : random_offset_x, BSS:get_grid_position@stack
+9fec - 9fed : dy, BSS:can_reuse_existing_path@stack
+9fec - 9fed : min_x_dist, BSS:can_place_room@stack
+9fec - 9fed : i, BSS:add_stairs@stack
+9fec - 9fed : tile, BSS:update_full_screen@stack
+9fec - 9fed : i, BSS:init_rng@stack
+9fec - 9fed : room2_buffer_y2, BSS:can_connect_rooms_safely@stack
+9fed - 9fee : exit2_x, BSS:draw_rule_based_corridor@stack
+9fed - 9fef : entropy4, BSS:init_rng@stack
+9fed - 9fee : highest_priority, BSS:add_stairs@stack
+9fed - 9fee : x, BSS:update_full_screen@stack
+9fed - 9fee : exit2_x, BSS:connect_via_existing_corridors@stack
+9fed - 9fee : dx, BSS:can_reuse_existing_path@stack
+9fed - 9fee : new_bottom, BSS:can_place_room@stack
+9fed - 9fee : tile, BSS:add_walls@stack
+9fed - 9fee : room2_buffer_x2, BSS:can_connect_rooms_safely@stack
+9fed - 9fee : extra_range_y, BSS:get_grid_position@stack
+9fee - 9fef : exit1_y, BSS:draw_rule_based_corridor@stack
+9fee - 9fef : found_path_near_room2, BSS:can_reuse_existing_path@stack
+9fee - 9fef : y, BSS:add_walls@stack
+9fee - 9fef : iy, BSS:place_room@stack
+9fee - 9fef : extra_range_x, BSS:get_grid_position@stack
+9fee - 9fef : new_right, BSS:can_place_room@stack
+9fee - 9fef : room2_buffer_y1, BSS:can_connect_rooms_safely@stack
+9fee - 9fef : end_room, BSS:add_stairs@stack
+9fee - 9fef : exit1_y, BSS:connect_via_existing_corridors@stack
+9fee - 9ff0 : screen_pos, BSS:update_full_screen@stack
+9fef - 9ff0 : exit1_x, BSS:connect_via_existing_corridors@stack
+9fef - 9ff0 : base_y, BSS:get_grid_position@stack
+9fef - 9ff0 : ix, BSS:place_room@stack
+9fef - 9ff0 : found_path_near_room1, BSS:can_reuse_existing_path@stack
+9fef - 9ff0 : x, BSS:add_walls@stack
+9fef - 9ff1 : entropy3, BSS:init_rng@stack
+9fef - 9ff0 : start_room, BSS:add_stairs@stack
+9fef - 9ff0 : existing_bottom, BSS:can_place_room@stack
+9fef - 9ff0 : room2_buffer_x1, BSS:can_connect_rooms_safely@stack
+9fef - 9ff0 : prev_camera_y, BSS:process_navigation_input@stack
+9fef - 9ff0 : exit1_x, BSS:draw_rule_based_corridor@stack
+9ff0 - 9ff1 : room2_center_y, BSS:can_reuse_existing_path@stack
+9ff0 - 9ff1 : room1_buffer_y2, BSS:can_connect_rooms_safely@stack
+9ff0 - 9ff1 : mask2, BSS:set_compact_tile_fast@stack
+9ff0 - 9ff1 : prev_camera_x, BSS:process_navigation_input@stack
+9ff0 - 9ff1 : existing_right, BSS:can_place_room@stack
+9ff0 - 9ff1 : base_x, BSS:get_grid_position@stack
+9ff0 - 9ff1 : screen_y, BSS:update_full_screen@stack
+9ff1 - 9ff3 : entropy2, BSS:init_rng@stack
+9ff1 - 9ff2 : cell_h, BSS:get_grid_position@stack
+9ff1 - 9ff2 : moved, BSS:process_navigation_input@stack
+9ff1 - 9ff2 : i, BSS:can_place_room@stack
+9ff1 - 9ff2 : mask1, BSS:set_compact_tile_fast@stack
+9ff1 - 9ff2 : room2_center_x, BSS:can_reuse_existing_path@stack
+9ff1 - 9ff2 : second_part, BSS:get_map_tile_fast@stack
+9ff1 - 9ff2 : room1_buffer_x2, BSS:can_connect_rooms_safely@stack
+9ff2 - 9ff3 : iy, BSS:can_place_room@stack
+9ff2 - 9ff3 : room1_center_y, BSS:can_reuse_existing_path@stack
+9ff2 - 9ff3 : j, BSS:init_rule_based_connection_system@stack
+9ff2 - 9ff3 : cell_w, BSS:get_grid_position@stack
+9ff2 - 9ff3 : first_part, BSS:get_map_tile_fast@stack
+9ff2 - 9ff3 : high_bits, BSS:set_compact_tile_fast@stack
+9ff2 - 9ff3 : new_camera_y, BSS:process_navigation_input@stack
+9ff2 - 9ff3 : room1_buffer_y1, BSS:can_connect_rooms_safely@stack
+9ff3 - 9ff4 : i, BSS:init_rule_based_connection_system@stack
+9ff3 - 9ff4 : low_bits, BSS:get_map_tile_fast@stack
+9ff3 - 9ff4 : room1_center_x, BSS:can_reuse_existing_path@stack
+9ff3 - 9ff4 : room1_buffer_x1, BSS:can_connect_rooms_safely@stack
+9ff3 - 9ff4 : grid_y, BSS:get_grid_position@stack
+9ff3 - 9ff4 : new_camera_x, BSS:process_navigation_input@stack
+9ff3 - 9ff4 : low_bits, BSS:set_compact_tile_fast@stack
+9ff3 - 9ff5 : entropy1, BSS:init_rng@stack
+9ff3 - 9ff4 : ix, BSS:can_place_room@stack
+9ff4 - 9ff5 : grid_x, BSS:get_grid_position@stack
+9ff4 - 9ff5 : old_view_y, BSS:process_navigation_input@stack
+9ff4 - 9ff5 : mask, BSS:set_compact_tile_fast@stack
+9ff4 - 9ff5 : distance, BSS:can_connect_rooms_safely@stack
+9ff4 - 9ff6 : s, BSS:memmove@stack
+9ff4 - 9ff5 : raw_tile, BSS:get_map_tile_fast@stack
+9ff4 - 9ff5 : low_bits, BSS:get_tile_core@stack
+9ff4 - 9ff5 : j, BSS:init_rule_based_connection_system@stack
+9ff4 - 9ff5 : i, BSS:assign_room_priorities@stack
+9ff5 - 9ff6 : bit_pos, BSS:get_tile_core@stack
+9ff5 - 9ff6 : cached_distance, BSS:get_cached_room_distance@stack
+9ff5 - 9ff6 : threshold, BSS:rnd@stack
+9ff5 - 9ff6 : bit_pos, BSS:set_compact_tile_fast@stack
+9ff5 - 9ff6 : dy, BSS:find_room_exit@stack
+9ff5 - 9ff6 : i, BSS:init_rule_based_connection_system@stack
+9ff5 - 9ff6 : bit_pos, BSS:get_map_tile_fast@stack
+9ff5 - 9ff6 : old_view_x, BSS:process_navigation_input@stack
+9ff6 - 9ff7 : dx, BSS:find_room_exit@stack
+9ff6 - 9ff7 : y2, BSS:calculate_room_distance@stack
+9ff6 - 9ff8 : byte_ptr, BSS:set_compact_tile_fast@stack
+9ff6 - 9ff8 : byte_ptr, BSS:get_tile_core@stack
+9ff6 - 9ff8 : d, BSS:memmove@stack
+9ff6 - 9ff8 : byte_ptr, BSS:get_map_tile_fast@stack
+9ff6 - 9ff7 : old_camera_y, BSS:update_camera@stack
+9ff6 - 9ff8 : i, BSS:clear_map@stack
+9ff6 - 9ff7 : room_center_y, BSS:can_place_corridor_tile@stack
+9ff6 - 9ff7 : result, BSS:rnd@stack
+9ff7 - 9ff8 : room_id, BSS:find_room_exit@stack
+9ff7 - 9ff8 : carry_flag, BSS:rnd@stack
+9ff7 - 9ff8 : room_center_x, BSS:can_place_corridor_tile@stack
+9ff7 - 9ff9 : room, BSS:is_valid_room_wall_for_door@stack
+9ff7 - 9ff8 : x2, BSS:calculate_room_distance@stack
+9ff7 - 9ff8 : old_camera_x, BSS:update_camera@stack
+9ff8 - 9ff9 : old_y, BSS:update_camera@stack
+9ff8 - 9ff9 : y1, BSS:calculate_room_distance@stack
+9ff8 - 9ff9 : ch, BSS:puts@stack
+9ff8 - 9ff9 : old_low, BSS:rnd@stack
+9ff8 - 9ffa : bit_offset, BSS:get_map_tile_fast@stack
+9ff8 - 9ff9 : i, BSS:can_place_corridor_tile@stack
+9ff8 - 9ffa : bit_offset, BSS:set_compact_tile_fast@stack
+9ff8 - 9ffa : total_bytes, BSS:clear_map@stack
+9ff8 - 9ffa : bit_offset, BSS:get_tile_core@stack
+9ff8 - 9ff9 : room_center_y, BSS:find_room_exit@stack
+9ff8 - 9ffa : sz, BSS:memmove@stack
+9ff9 - 9ffa : old_high, BSS:rnd@stack
+9ff9 - 9ffa : ch, BSS:getch@stack
+9ff9 - 9ffa : i, BSS:print_text@stack
+9ff9 - 9ffa : x1, BSS:calculate_room_distance@stack
+9ff9 - 9ffa : room_center_x, BSS:find_room_exit@stack
+9ff9 - 9ffa : i, BSS:init_room_center_cache@stack
+9ff9 - 9ffa : i, BSS:is_valid_room_wall_for_door@stack
+9ff9 - 9ffa : i, BSS:is_inside_room@stack
+9ff9 - 9ffa : old_x, BSS:update_camera@stack
+9ff9 - 9ffa : n, BSS:putpch@stack
+9ffa - a000 : sstack, STACK:sstack
+
+objects by size
+3758 (0600) : compact_map, DATA:bss
+1cfa (04d2) : connect_via_existing_corridors, NATIVE_CODE:code
+336e (03e8) : screen_buffer, DATA:bss
+240c (032d) : draw_rule_based_corridor, NATIVE_CODE:code
+2a91 (02f8) : update_screen_with_perfect_scroll, NATIVE_CODE:code
+0df3 (023a) : generate_level, NATIVE_CODE:code
+1077 (01c0) : create_rooms, NATIVE_CODE:code
+3d58 (0190) : connection_matrix, DATA:bss
+3ee8 (0190) : room_distance_cache, DATA:bss
+0911 (014d) : init_rng, NATIVE_CODE:code
+1af9 (0146) : can_reuse_existing_path, NATIVE_CODE:code
+19e3 (0116) : rule_based_connect_rooms, NATIVE_CODE:code
+283d (0116) : add_stairs, NATIVE_CODE:code
+13cd (0110) : can_place_room, NATIVE_CODE:code
+2ffd (0105) : process_navigation_input, NATIVE_CODE:code
+0a6c (00f9) : rnd, NATIVE_CODE:code
+2ec3 (00f9) : memmove, NATIVE_CODE:code
+164a (00f6) : set_compact_tile_fast, NATIVE_CODE:code
+2739 (00f3) : add_walls, NATIVE_CODE:code
+0c2a (00de) : init_rule_based_connection_system, NATIVE_CODE:code
+1247 (00d8) : try_place_room_at_grid, NATIVE_CODE:code
+2df3 (00d0) : get_map_tile_fast, NATIVE_CODE:code
+3224 (00c2) : corridor_pool, DATA:data
+18bc (00b7) : can_connect_rooms_safely, NATIVE_CODE:code
+2291 (00b5) : is_valid_room_wall_for_door, NATIVE_CODE:code
+131f (00ae) : get_grid_position, NATIVE_CODE:code
+2346 (00aa) : can_place_corridor_tile, NATIVE_CODE:code
+21cc (00a3) : find_room_exit, NATIVE_CODE:code
+4100 (00a0) : rooms, DATA:bss
+15a7 (0094) : place_room, NATIVE_CODE:code
+1514 (0093) : get_tile_core, NATIVE_CODE:code
+0880 (008e) : main, NATIVE_CODE:code
+317c (0085) : divmod, NATIVE_CODE:code
+0d4d (007b) : get_room_center, NATIVE_CODE:code
+178a (0074) : init_room_center_cache, NATIVE_CODE:code
+17fe (0071) : update_camera, NATIVE_CODE:code
+1973 (0070) : get_cached_room_distance, NATIVE_CODE:code
+2d89 (006a) : update_full_screen, NATIVE_CODE:code
+29bf (005c) : putpch, NATIVE_CODE:code
+2a39 (0058) : render_map_viewport, NATIVE_CODE:code
+0801 (0052) : startup, NATIVE_CODE:startup
+1caa (0050) : is_inside_room, NATIVE_CODE:code
+32e6 (0049) : connection_cache, DATA:data
+1742 (0048) : assign_room_priorities, NATIVE_CODE:code
+0d08 (0045) : calculate_room_distance, NATIVE_CODE:code
+313a (0042) : mul16, NATIVE_CODE:code
+0be4 (0040) : clear_map, NATIVE_CODE:code
+3102 (0038) : mul16by8, NATIVE_CODE:code
+3332 (0038) : bitshift, DATA:data
+0b65 (0033) : oscar_clrscr, NATIVE_CODE:code
+2fcb (0032) : convch, NATIVE_CODE:code
+1891 (002b) : rooms_are_connected, NATIVE_CODE:code
+102d (002a) : print_text, NATIVE_CODE:code
+1c52 (0028) : tile_is_floor_fast, NATIVE_CODE:code
+4078 (0028) : room_center_cache, DATA:bss
+14f0 (0024) : tile_is_empty, NATIVE_CODE:code
+226f (0022) : tile_is_floor, NATIVE_CODE:code
+2986 (0020) : krnio_save, NATIVE_CODE:code
+0bb5 (001e) : reset_display_state, NATIVE_CODE:code
+0dc8 (001c) : manhattan_distance, NATIVE_CODE:code
+1c7a (001c) : get_tile_raw, NATIVE_CODE:code
+23f0 (001c) : manhattan_distance_fast, NATIVE_CODE:code
+29a6 (0019) : puts, NATIVE_CODE:code
+2964 (0016) : krnio_setnam, NATIVE_CODE:code
+1c96 (0014) : is_outside_any_room, NATIVE_CODE:code
+9f81 (0014) : connected, BSS:generate_level@stack
+9fa0 (0014) : stack, BSS:rule_based_connect_rooms@stack
+9fb4 (0014) : visited, BSS:rule_based_connect_rooms@stack
+14dd (0013) : coords_in_bounds, NATIVE_CODE:code
+1c3f (0013) : coords_in_bounds_fast, NATIVE_CODE:code
+0ba4 (0011) : reset_viewport_state, NATIVE_CODE:code
+0bd3 (0011) : reset_all_generation_data, NATIVE_CODE:code
+9fd1 (0010) : grid_positions, BSS:create_rooms@stack
+0de4 (000f) : fast_abs_diff, NATIVE_CODE:code
+163b (000f) : set_tile_raw, NATIVE_CODE:code
+2fbc (000f) : getch, NATIVE_CODE:code
+0a5e (000e) : get_hardware_entropy, NATIVE_CODE:code
+9f65 (000e) : generate_level@stack, BSS:generate_level@stack
+0b98 (000c) : mapgen_generate_dungeon, NATIVE_CODE:code
+3201 (0009) : __multab7982L, DATA:code
+320a (0009) : __multab7982H, DATA:code
+2a20 (0008) : putrch, NATIVE_CODE:code
+9f95 (0008) : rule_based_connect_rooms@stack, BSS:rule_based_connect_rooms@stack
+0c24 (0006) : clear_room_center_cache, NATIVE_CODE:code
+3217 (0006) : __shltab7L, DATA:code
+9ffa (0006) : sstack, STACK:sstack
+2a1b (0005) : wherex, NATIVE_CODE:code
+3213 (0004) : __multab14L, DATA:code
+9fc8 (0004) : create_rooms@stack, BSS:create_rooms@stack
+090e (0003) : mapgen_init, NATIVE_CODE:code
+321e (0002) : generation_counter, DATA:data
+3220 (0002) : rng_seed, DATA:data
+336c (0002) : view, DATA:bss
+9f7b (0002) : iterations, BSS:generate_level@stack
+9f7d (0002) : max_iterations, BSS:generate_level@stack
+9fcd (0002) : dy2, BSS:connect_via_existing_corridors@stack
+9fcf (0002) : dx2, BSS:connect_via_existing_corridors@stack
+9fd6 (0002) : dy1, BSS:connect_via_existing_corridors@stack
+9fd8 (0002) : last_corridor_y, BSS:draw_rule_based_corridor@stack
+9fd8 (0002) : dx1, BSS:connect_via_existing_corridors@stack
+9fda (0002) : last_corridor_x, BSS:draw_rule_based_corridor@stack
+9fdc (0002) : first_corridor_y, BSS:draw_rule_based_corridor@stack
+9fde (0002) : first_corridor_x, BSS:draw_rule_based_corridor@stack
+9fe0 (0002) : y, BSS:draw_rule_based_corridor@stack
+9fe2 (0002) : x, BSS:draw_rule_based_corridor@stack
+9fe4 (0002) : dy, BSS:draw_rule_based_corridor@stack
+9fe6 (0002) : dx, BSS:draw_rule_based_corridor@stack
+9fea (0002) : screen_offset, BSS:update_screen_with_perfect_scroll@stack
+9fed (0002) : entropy4, BSS:init_rng@stack
+9fee (0002) : screen_pos, BSS:update_full_screen@stack
+9fef (0002) : entropy3, BSS:init_rng@stack
+9ff1 (0002) : entropy2, BSS:init_rng@stack
+9ff3 (0002) : entropy1, BSS:init_rng@stack
+9ff4 (0002) : s, BSS:memmove@stack
+9ff6 (0002) : byte_ptr, BSS:set_compact_tile_fast@stack
+9ff6 (0002) : byte_ptr, BSS:get_tile_core@stack
+9ff6 (0002) : d, BSS:memmove@stack
+9ff6 (0002) : byte_ptr, BSS:get_map_tile_fast@stack
+9ff6 (0002) : i, BSS:clear_map@stack
+9ff7 (0002) : room, BSS:is_valid_room_wall_for_door@stack
+9ff8 (0002) : bit_offset, BSS:get_map_tile_fast@stack
+9ff8 (0002) : bit_offset, BSS:set_compact_tile_fast@stack
+9ff8 (0002) : total_bytes, BSS:clear_map@stack
+9ff8 (0002) : bit_offset, BSS:get_tile_core@stack
+9ff8 (0002) : sz, BSS:memmove@stack
+321d (0001) : spentry, DATA:data
+3222 (0001) : room_count, DATA:data
+3223 (0001) : room_center_cache_valid, DATA:data
+332f (0001) : distance_cache_valid, DATA:data
+3330 (0001) : corridor_endpoint_override, DATA:data
+3331 (0001) : giocharmap, DATA:data
+336a (0001) : camera_center_x, DATA:bss
+336b (0001) : camera_center_y, DATA:bss
+3756 (0001) : screen_dirty, DATA:bss
+3757 (0001) : last_scroll_direction, DATA:bss
+9f64 (0001) : key, BSS:main@stack
+9f73 (0001) : j, BSS:generate_level@stack
+9f74 (0001) : distance, BSS:generate_level@stack
+9f75 (0001) : j, BSS:generate_level@stack
+9f76 (0001) : failed_attempts, BSS:generate_level@stack
+9f77 (0001) : connection_found, BSS:generate_level@stack
+9f78 (0001) : best_distance, BSS:generate_level@stack
+9f79 (0001) : best_room2, BSS:generate_level@stack
+9f7a (0001) : best_room1, BSS:generate_level@stack
+9f7f (0001) : i, BSS:generate_level@stack
+9f80 (0001) : connections_made, BSS:generate_level@stack
+9f9d (0001) : i, BSS:rule_based_connect_rooms@stack
+9f9e (0001) : current, BSS:rule_based_connect_rooms@stack
+9f9f (0001) : sp, BSS:rule_based_connect_rooms@stack
+9fc8 (0001) : step_limit2, BSS:connect_via_existing_corridors@stack
+9fc9 (0001) : current2_y, BSS:connect_via_existing_corridors@stack
+9fca (0001) : current2_x, BSS:connect_via_existing_corridors@stack
+9fcb (0001) : corridor2_y, BSS:connect_via_existing_corridors@stack
+9fcc (0001) : corridor2_x, BSS:connect_via_existing_corridors@stack
+9fcc (0001) : temp, BSS:create_rooms@stack
+9fcd (0001) : pass, BSS:create_rooms@stack
+9fce (0001) : temp, BSS:create_rooms@stack
+9fcf (0001) : j, BSS:create_rooms@stack
+9fd0 (0001) : grid_count, BSS:create_rooms@stack
+9fd1 (0001) : step_limit1, BSS:connect_via_existing_corridors@stack
+9fd2 (0001) : current1_y, BSS:connect_via_existing_corridors@stack
+9fd3 (0001) : current1_x, BSS:connect_via_existing_corridors@stack
+9fd4 (0001) : corridor1_y, BSS:connect_via_existing_corridors@stack
+9fd5 (0001) : corridor1_x, BSS:connect_via_existing_corridors@stack
+9fda (0001) : dist2, BSS:connect_via_existing_corridors@stack
+9fdb (0001) : dist1, BSS:connect_via_existing_corridors@stack
+9fdc (0001) : x, BSS:connect_via_existing_corridors@stack
+9fdd (0001) : y, BSS:connect_via_existing_corridors@stack
+9fde (0001) : search_y2, BSS:connect_via_existing_corridors@stack
+9fdf (0001) : search_x2, BSS:connect_via_existing_corridors@stack
+9fe0 (0001) : search_y1, BSS:connect_via_existing_corridors@stack
+9fe1 (0001) : placed_rooms, BSS:create_rooms@stack
+9fe1 (0001) : search_x1, BSS:connect_via_existing_corridors@stack
+9fe2 (0001) : h, BSS:create_rooms@stack
+9fe2 (0001) : min_dist2, BSS:connect_via_existing_corridors@stack
+9fe3 (0001) : w, BSS:create_rooms@stack
+9fe3 (0001) : current_scroll_direction, BSS:render_map_viewport@stack
+9fe3 (0001) : min_dist1, BSS:connect_via_existing_corridors@stack
+9fe4 (0001) : y, BSS:create_rooms@stack
+9fe4 (0001) : closest_corridor_y2, BSS:connect_via_existing_corridors@stack
+9fe4 (0001) : tile, BSS:update_screen_with_perfect_scroll@stack
+9fe5 (0001) : x, BSS:create_rooms@stack
+9fe5 (0001) : tile, BSS:update_screen_with_perfect_scroll@stack
+9fe5 (0001) : closest_corridor_x2, BSS:connect_via_existing_corridors@stack
+9fe6 (0001) : check_y, BSS:can_reuse_existing_path@stack
+9fe6 (0001) : closest_corridor_y1, BSS:connect_via_existing_corridors@stack
+9fe6 (0001) : down_y, BSS:add_stairs@stack
+9fe6 (0001) : tile, BSS:update_screen_with_perfect_scroll@stack
+9fe6 (0001) : i, BSS:create_rooms@stack
+9fe7 (0001) : closest_corridor_x1, BSS:connect_via_existing_corridors@stack
+9fe7 (0001) : down_x, BSS:add_stairs@stack
+9fe7 (0001) : tile, BSS:update_screen_with_perfect_scroll@stack
+9fe7 (0001) : check_x, BSS:can_reuse_existing_path@stack
+9fe7 (0001) : offset_range, BSS:try_place_room_at_grid@stack
+9fe8 (0001) : up_y, BSS:add_stairs@stack
+9fe8 (0001) : room2_center_y, BSS:connect_via_existing_corridors@stack
+9fe8 (0001) : dy, BSS:can_reuse_existing_path@stack
+9fe8 (0001) : attempts, BSS:try_place_room_at_grid@stack
+9fe8 (0001) : room2_center_y, BSS:draw_rule_based_corridor@stack
+9fe8 (0001) : y, BSS:update_screen_with_perfect_scroll@stack
+9fe9 (0001) : room2_center_x, BSS:connect_via_existing_corridors@stack
+9fe9 (0001) : dx, BSS:can_reuse_existing_path@stack
+9fe9 (0001) : y, BSS:try_place_room_at_grid@stack
+9fe9 (0001) : room2_center_x, BSS:draw_rule_based_corridor@stack
+9fe9 (0001) : x, BSS:update_screen_with_perfect_scroll@stack
+9fe9 (0001) : up_x, BSS:add_stairs@stack
+9fea (0001) : x, BSS:try_place_room_at_grid@stack
+9fea (0001) : i, BSS:add_stairs@stack
+9fea (0001) : check_y, BSS:can_reuse_existing_path@stack
+9fea (0001) : room1_center_y, BSS:connect_via_existing_corridors@stack
+9fea (0001) : room1_center_y, BSS:draw_rule_based_corridor@stack
+9feb (0001) : check_x, BSS:can_reuse_existing_path@stack
+9feb (0001) : random_offset_y, BSS:get_grid_position@stack
+9feb (0001) : i, BSS:init_rng@stack
+9feb (0001) : room1_center_x, BSS:draw_rule_based_corridor@stack
+9feb (0001) : second_highest, BSS:add_stairs@stack
+9feb (0001) : room1_center_x, BSS:connect_via_existing_corridors@stack
+9feb (0001) : min_y_dist, BSS:can_place_room@stack
+9fec (0001) : exit2_y, BSS:connect_via_existing_corridors@stack
+9fec (0001) : exit2_y, BSS:draw_rule_based_corridor@stack
+9fec (0001) : random_offset_x, BSS:get_grid_position@stack
+9fec (0001) : dy, BSS:can_reuse_existing_path@stack
+9fec (0001) : min_x_dist, BSS:can_place_room@stack
+9fec (0001) : i, BSS:add_stairs@stack
+9fec (0001) : tile, BSS:update_full_screen@stack
+9fec (0001) : i, BSS:init_rng@stack
+9fec (0001) : room2_buffer_y2, BSS:can_connect_rooms_safely@stack
+9fed (0001) : exit2_x, BSS:draw_rule_based_corridor@stack
+9fed (0001) : highest_priority, BSS:add_stairs@stack
+9fed (0001) : x, BSS:update_full_screen@stack
+9fed (0001) : exit2_x, BSS:connect_via_existing_corridors@stack
+9fed (0001) : dx, BSS:can_reuse_existing_path@stack
+9fed (0001) : new_bottom, BSS:can_place_room@stack
+9fed (0001) : tile, BSS:add_walls@stack
+9fed (0001) : room2_buffer_x2, BSS:can_connect_rooms_safely@stack
+9fed (0001) : extra_range_y, BSS:get_grid_position@stack
+9fee (0001) : exit1_y, BSS:draw_rule_based_corridor@stack
+9fee (0001) : found_path_near_room2, BSS:can_reuse_existing_path@stack
+9fee (0001) : y, BSS:add_walls@stack
+9fee (0001) : iy, BSS:place_room@stack
+9fee (0001) : extra_range_x, BSS:get_grid_position@stack
+9fee (0001) : new_right, BSS:can_place_room@stack
+9fee (0001) : room2_buffer_y1, BSS:can_connect_rooms_safely@stack
+9fee (0001) : end_room, BSS:add_stairs@stack
+9fee (0001) : exit1_y, BSS:connect_via_existing_corridors@stack
+9fef (0001) : exit1_x, BSS:connect_via_existing_corridors@stack
+9fef (0001) : base_y, BSS:get_grid_position@stack
+9fef (0001) : ix, BSS:place_room@stack
+9fef (0001) : found_path_near_room1, BSS:can_reuse_existing_path@stack
+9fef (0001) : x, BSS:add_walls@stack
+9fef (0001) : start_room, BSS:add_stairs@stack
+9fef (0001) : existing_bottom, BSS:can_place_room@stack
+9fef (0001) : room2_buffer_x1, BSS:can_connect_rooms_safely@stack
+9fef (0001) : prev_camera_y, BSS:process_navigation_input@stack
+9fef (0001) : exit1_x, BSS:draw_rule_based_corridor@stack
+9ff0 (0001) : room2_center_y, BSS:can_reuse_existing_path@stack
+9ff0 (0001) : room1_buffer_y2, BSS:can_connect_rooms_safely@stack
+9ff0 (0001) : mask2, BSS:set_compact_tile_fast@stack
+9ff0 (0001) : prev_camera_x, BSS:process_navigation_input@stack
+9ff0 (0001) : existing_right, BSS:can_place_room@stack
+9ff0 (0001) : base_x, BSS:get_grid_position@stack
+9ff0 (0001) : screen_y, BSS:update_full_screen@stack
+9ff1 (0001) : cell_h, BSS:get_grid_position@stack
+9ff1 (0001) : moved, BSS:process_navigation_input@stack
+9ff1 (0001) : i, BSS:can_place_room@stack
+9ff1 (0001) : mask1, BSS:set_compact_tile_fast@stack
+9ff1 (0001) : room2_center_x, BSS:can_reuse_existing_path@stack
+9ff1 (0001) : second_part, BSS:get_map_tile_fast@stack
+9ff1 (0001) : room1_buffer_x2, BSS:can_connect_rooms_safely@stack
+9ff2 (0001) : iy, BSS:can_place_room@stack
+9ff2 (0001) : room1_center_y, BSS:can_reuse_existing_path@stack
+9ff2 (0001) : j, BSS:init_rule_based_connection_system@stack
+9ff2 (0001) : cell_w, BSS:get_grid_position@stack
+9ff2 (0001) : first_part, BSS:get_map_tile_fast@stack
+9ff2 (0001) : high_bits, BSS:set_compact_tile_fast@stack
+9ff2 (0001) : new_camera_y, BSS:process_navigation_input@stack
+9ff2 (0001) : room1_buffer_y1, BSS:can_connect_rooms_safely@stack
+9ff3 (0001) : i, BSS:init_rule_based_connection_system@stack
+9ff3 (0001) : low_bits, BSS:get_map_tile_fast@stack
+9ff3 (0001) : room1_center_x, BSS:can_reuse_existing_path@stack
+9ff3 (0001) : room1_buffer_x1, BSS:can_connect_rooms_safely@stack
+9ff3 (0001) : grid_y, BSS:get_grid_position@stack
+9ff3 (0001) : new_camera_x, BSS:process_navigation_input@stack
+9ff3 (0001) : low_bits, BSS:set_compact_tile_fast@stack
+9ff3 (0001) : ix, BSS:can_place_room@stack
+9ff4 (0001) : grid_x, BSS:get_grid_position@stack
+9ff4 (0001) : old_view_y, BSS:process_navigation_input@stack
+9ff4 (0001) : mask, BSS:set_compact_tile_fast@stack
+9ff4 (0001) : distance, BSS:can_connect_rooms_safely@stack
+9ff4 (0001) : raw_tile, BSS:get_map_tile_fast@stack
+9ff4 (0001) : low_bits, BSS:get_tile_core@stack
+9ff4 (0001) : j, BSS:init_rule_based_connection_system@stack
+9ff4 (0001) : i, BSS:assign_room_priorities@stack
+9ff5 (0001) : bit_pos, BSS:get_tile_core@stack
+9ff5 (0001) : cached_distance, BSS:get_cached_room_distance@stack
+9ff5 (0001) : threshold, BSS:rnd@stack
+9ff5 (0001) : bit_pos, BSS:set_compact_tile_fast@stack
+9ff5 (0001) : dy, BSS:find_room_exit@stack
+9ff5 (0001) : i, BSS:init_rule_based_connection_system@stack
+9ff5 (0001) : bit_pos, BSS:get_map_tile_fast@stack
+9ff5 (0001) : old_view_x, BSS:process_navigation_input@stack
+9ff6 (0001) : dx, BSS:find_room_exit@stack
+9ff6 (0001) : y2, BSS:calculate_room_distance@stack
+9ff6 (0001) : old_camera_y, BSS:update_camera@stack
+9ff6 (0001) : room_center_y, BSS:can_place_corridor_tile@stack
+9ff6 (0001) : result, BSS:rnd@stack
+9ff7 (0001) : room_id, BSS:find_room_exit@stack
+9ff7 (0001) : carry_flag, BSS:rnd@stack
+9ff7 (0001) : room_center_x, BSS:can_place_corridor_tile@stack
+9ff7 (0001) : x2, BSS:calculate_room_distance@stack
+9ff7 (0001) : old_camera_x, BSS:update_camera@stack
+9ff8 (0001) : old_y, BSS:update_camera@stack
+9ff8 (0001) : y1, BSS:calculate_room_distance@stack
+9ff8 (0001) : ch, BSS:puts@stack
+9ff8 (0001) : old_low, BSS:rnd@stack
+9ff8 (0001) : i, BSS:can_place_corridor_tile@stack
+9ff8 (0001) : room_center_y, BSS:find_room_exit@stack
+9ff9 (0001) : old_high, BSS:rnd@stack
+9ff9 (0001) : ch, BSS:getch@stack
+9ff9 (0001) : i, BSS:print_text@stack
+9ff9 (0001) : x1, BSS:calculate_room_distance@stack
+9ff9 (0001) : room_center_x, BSS:find_room_exit@stack
+9ff9 (0001) : i, BSS:init_room_center_cache@stack
+9ff9 (0001) : i, BSS:is_valid_room_wall_for_door@stack
+9ff9 (0001) : i, BSS:is_inside_room@stack
+9ff9 (0001) : old_x, BSS:update_camera@stack
+9ff9 (0001) : n, BSS:putpch@stack
+00f7 (0000) : ZeroStart, START:zeropage
+00f7 (0000) : ZeroEnd, END:zeropage
+336a (0000) : BSSStart, START:bss
+41a0 (0000) : BSSEnd, END:bss
+9f64 (0000) : StackEnd, END:stack

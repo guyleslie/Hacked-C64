@@ -37,16 +37,6 @@ unsigned char is_valid_room_wall_for_door(unsigned char x, unsigned char y) {
 // Utility Functions Module for C64 Map Generator
 // Contains bounds checking, tile access, RNG, and basic helper functions
 
-#include <c64/vic.h>
-#include <c64/cia.h>
-#include <stdio.h>
-#include <conio.h>
-#include <string.h>
-#include <stdlib.h>
-#include "../mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
-#include "../mapgen_utility.h"    // For utility/math/cache functions
-#include "../mapgen_internal.h"   // For internal helpers if needed
-
 // External global references
 extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 extern unsigned int rng_seed;
