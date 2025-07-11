@@ -2,8 +2,12 @@
 cmake_minimum_required(VERSION 3.10)
 project(HackedC64_Oscar64)
 
-# Oscar64 root directory is set by the workflow (OSCAR64_PATH). Fallback only if not set.
-if(NOT OSCAR64_PATH)
+# Oscar64 root directory is set by the workflow (OSCAR64_PATH or GITHUB_WORKSPACE/oscar64_temp). Fallback only if not set.
+if(DEFINED ENV{OSCAR64_PATH})
+  set(OSCAR64_PATH $ENV{OSCAR64_PATH})
+elseif(DEFINED ENV{GITHUB_WORKSPACE})
+  set(OSCAR64_PATH "$ENV{GITHUB_WORKSPACE}/oscar64_temp")
+else()
   set(OSCAR64_PATH "E:/Apps/oscar64")
 endif()
 
