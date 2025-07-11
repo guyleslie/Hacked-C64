@@ -4,8 +4,8 @@ setlocal enabledelayedexpansion
 REM Path to oscar64 compiler
 set "OSCAR64_PATH=E:\Apps\oscar64\bin\oscar64.exe"
 REM Set the source directories
-set "SRC_DIR=%cd%\src"
-set "MAPGEN_DIR=%cd%\src\mapgen"
+set "SRC_DIR=%cd%\main\src"
+set "MAPGEN_DIR=%cd%\main\src\mapgen"
 REM Set the build directory
 set "BUILD_DIR=%cd%\build"
 REM Get the current directory name
@@ -26,7 +26,7 @@ if not exist "%BUILD_DIR%" (
 
 REM Build the project with oscar64 (all required .c files, explicit list)
 echo Building "%PROJECT_NAME%" with oscar64...
-"%OSCAR64_PATH%" -o="%OUTPUT_PATH%" -n -g -tf=prg -O0 -tm=c64 -dDEBUG -d__oscar64__ -i="E:\Apps\oscar64\include" -i="E:\Apps\oscar64\include\c64" -i="E:\Apps\oscar64\include\c128" -i="E:\Apps\oscar64\include\audio" -i="E:\Apps\oscar64\include\gfx" -i="%cd%" -i="%cd%\src" -i="%cd%\src\mapgen" -i="%cd%\build" "src\main.c" "src\mapgen\map_export.c" "src\mapgen\map_generation.c" "src\mapgen\public.c" "src\mapgen\room_management.c" "src\mapgen\rule_based_connection_system.c" "src\mapgen\testdisplay.c" "src\mapgen\utility.c"
+"%OSCAR64_PATH%" -o="%OUTPUT_PATH%" -n -g -tf=prg -O0 -tm=c64 -dDEBUG -d__oscar64__ -i="E:\Apps\oscar64\include" -i="E:\Apps\oscar64\include\c64" -i="E:\Apps\oscar64\include\c128" -i="E:\Apps\oscar64\include\audio" -i="E:\Apps\oscar64\include\gfx" -i="%cd%" -i="%cd%\src" -i="%cd%\main\src\mapgen" -i="%cd%\build" "main\src\main.c" "main\src\mapgen\map_export.c" "main\src\mapgen\map_generation.c" "main\src\mapgen\public.c" "main\src\mapgen\room_management.c" "main\src\mapgen\rule_based_connection_system.c" "main\src\mapgen\testdisplay.c" "main\src\mapgen\utility.c"
 REM Check if build was successful
 if exist "%OUTPUT_PATH%" (
     echo Build successful! Output: "%OUTPUT_PATH%"
