@@ -20,23 +20,35 @@ jobs:
       - name: Set up CMake
         uses: lukka/get-cmake@latest
 
-      - name: Set up Oscar64
+      - name: Download Oscar64 latest release
         run: |
-          REM Download and extract Oscar64 if not present (customize as needed)
-          if not exist "E:\Apps\oscar64\bin\oscar64.exe" (
-            echo Please install Oscar64 manually to E:\Apps\oscar64
-            exit 1
-          )
+          set OSCAR64_TEMP=%GITHUB_WORKSPACE%\oscar64_temp
+          mkdir %OSCAR64_TEMP%
+          curl -s https://api.github.com/repos/drmortalwombat/oscar64/releases/latest > latest.json
+          for /f "tokens=2 delims=:," %%A in ('findstr /i "browser_download_url" latest.json ^| findstr /i "win64.zip"') do set URL=%%~A
+          set URL=%URL:~1,-1%
+          echo Downloading Oscar64 from %URL%
+          curl -L -o oscar64.zip %URL%
+          7z x oscar64.zip -o%OSCAR64_TEMP% > nul
         shell: cmd
+        env:
+          PATH: ${{ runner.temp }}\7zip;${{ env.PATH }}
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -DOSCAR64_PATH="E:/Apps/oscar64"
+          set OSCAR64_TEMP=%GITHUB_WORKSPACE%\oscar64_temp
+          cmake -S . -B build -DOSCAR64_PATH="%OSCAR64_TEMP%"
         shell: cmd
 
       - name: Build with CMake
         run: |
           cmake --build build --target oscar64_build
+        shell: cmd
+
+      - name: Cleanup Oscar64
+        if: always()
+        run: |
+          rmdir /s /q %GITHUB_WORKSPACE%\oscar64_temp
         shell: cmd
 
       - name: List build output
