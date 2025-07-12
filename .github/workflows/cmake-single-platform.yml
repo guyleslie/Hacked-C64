@@ -1,3 +1,5 @@
+
+# This workflow uses the CMake Single Platform Oscar64 Build workflow to generate the build result and artifact info section at the end of the build log.
 # CMake single-platform workflow for Oscar64-based C64 project
 # This workflow assumes Windows runner and local Oscar64 toolchain
 
@@ -85,18 +87,18 @@ jobs:
           $reset = "`e[0m"
           if ("${{ job.status }}" -eq "success") {
             Write-Host ("${orange}=======================================================================================${reset}")
-            Write-Output ""
+            Write-Host "`n"
             Write-Host ("${green}BUILD SUCCESSFUL!${reset}")
-            Write-Output ""
-            Write-Host "Download the build artifact from the Actions run page:"
+            Write-Host "`n"
+            Write-Host "Latest build files:"
             Write-Host ("https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}")
-            Write-Output ""
-            Write-Host "${green}You can download the build artifacts from the 'Upload build output as artifact' step above."
-            Write-Output ""
+            Write-Host "`n"
+            Write-Host "${green}Artifact download URL is above in Upload build output as artifact section"
+            Write-Host "`n"
             Write-Host ("${orange}=======================================================================================${reset}")
           } else {
             Write-Host ("${orange}=======================================================================================${reset}")
-            Write-Output ""
+            Write-Host "`n"
             Write-Host ("${red}BUILD FAILED!${reset}")
             Write-Output ""
             Write-Host ("${orange}=======================================================================================${reset}")
