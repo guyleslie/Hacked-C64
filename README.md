@@ -8,7 +8,6 @@ This project is a highly optimized dungeon map generator for the Commodore 64, w
 
 ## Project Structure
 
-
 ```ascii
 Hacked-C64/
 ├── main/
@@ -42,6 +41,7 @@ Hacked-C64/
 ```
 
 **Legend:**
+
 - `main/` — All C source code (entry point and primary modules)
 - `mapgen/` — Dedicated folder for all map/dungeon generation logic, types, and helpers
 - `.github/` — CI/CD automation and workflow scripts
@@ -130,50 +130,53 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Q**: Quits the program.
 - **Real-time Response**: All controls provide immediate feedback and screen updates.
 
-## Generation Pipeline
+### Generation Pipeline
 
-### Phase 1: Initialization
+1. **Initialization and Reset**
+   - Viewport, camera, and display buffers are reset to their default state.
+   - All map generation data (rooms, corridors, caches) are cleared.
+   - The random number generator is initialized (hardware entropy, seed mixing).
 
-1. **Reset Systems**: All generation data and display buffers are cleared.
-2. **RNG Initialization**: The random number generator is seeded using hardware entropy sources.
-3. **Memory Setup**: Static memory pools and caches are initialized.
+2. **Room Creation**
+   - 4×4 grid-based placement, with positions randomized using the Fisher-Yates shuffle.
+   - Random room size (4–8 tiles), 60% rectangular, 40% square.
+   - For each position, validation: minimum distance, overlap, and boundary checks.
+   - On successful validation, the room is registered and its floor tiles are placed.
 
-### Phase 2: Room Creation
+3. **Room Connection (Rule-based MST)**
+   - Minimum Spanning Tree (MST) logic: always seeks the shortest valid connection.
+   - Every connection is strictly validated (distance, overlap, buffer).
+   - Corridors and doors are only placed if all rules are satisfied.
+   - Fallback: if no valid connection is found, after several attempts the process stops, but all rooms remain accessible.
 
-1. **Grid Generation**: A 4×4 grid of potential room positions is created.
-2. **Position Shuffling**: Grid positions are randomized using the Fisher-Yates algorithm.
-3. **Size Calculation**: Room dimensions are generated randomly, with a bias toward rectangles.
-4. **Placement Validation**: Spacing rules and boundary constraints are checked for each room.
-5. **Room Registration**: Valid rooms are stored in the room array.
+4. **Wall Generation**
+   - Only floor and door tiles are checked.
+   - For each such tile, if there is an empty neighbor, a wall is placed.
+   - Efficient: only 80–200 tiles need to be checked, and boundaries are never exceeded.
 
-### Phase 3: Room Connection
+5. **Stair Placement**
+   - Selection is based on room priority (most connections, position).
+   - UP stairs: placed at the center of the highest priority room.
+   - DOWN stairs: placed at the center of the second highest priority room.
 
-1. **MST Initialization**: Room 0 is marked as connected.
-2. **Connection Search**: The shortest valid connections between connected and unconnected rooms are found.
-3. **Rule Validation**: All connections are validated for distance and spacing rules.
-4. **Corridor Drawing**: L-shaped corridors are created, with doors placed at room boundaries.
-5. **Fallback System**: An emergency connection system ensures no room is left isolated.
+6. **Return**
+   - Returns 1 on successful generation, otherwise 0.
 
-### Phase 4: Wall Generation
-
-1. **Floor Scanning**: All floor and door tiles are iterated over.
-2. **Adjacent Checking**: Each tile’s four neighbors are checked for empty space.
-3. **Wall Placement**: Walls are placed around floor/door tiles as needed.
-4. **Boundary Respect**: Walls are never placed outside the map boundaries.
-
-### Phase 5: Stair Placement
-
-1. **Priority Analysis**: Room priorities are calculated based on position and connections.
-2. **Stair Assignment**: UP stairs are placed in the highest priority room, DOWN stairs in the second highest.
-3. **Center Calculation**: Cached room center positions are used for precise stair placement.
+**All steps use static memory and fixed-size arrays; there is no dynamic allocation. Every pipeline step includes strict validation and fallback logic to ensure all rooms are accessible.**
 
 ## Performance Optimizations
 
 ### Memory Optimizations
 
-- **Compact Encoding**: 3-bit tile storage saves 62.5% memory compared to byte-per-tile approaches.
-- **Static Allocation**: All memory is statically allocated; no dynamic allocation overhead.
-- **Cache Systems**: Room center cache, distance cache, and connection cache are used to avoid redundant calculations.
+- **Compact Map Storage**: The map is stored in a `compact_map` array using 3 bits per tile, implemented with direct bit manipulation. This allows 4096 tiles to fit in just 1536 bytes.
+- **Static Memory Pools**: All major data structures (rooms, corridors, caches, buffers) are statically allocated as fixed-size arrays at compile time (e.g., `Room rooms[MAX_ROOMS]`, `CorridorPool corridor_pool`, `unsigned char room_distance_cache[MAX_ROOMS][MAX_ROOMS]`).
+- **No Dynamic Allocation**: There is no use of `malloc`, `free`, or any dynamic memory; all memory is reserved at compile time for predictable usage and C64 compatibility.
+- **Cache Systems**:
+  - *Room Center Cache*: Stores the center coordinates of each room for fast lookup, avoiding repeated calculations.
+  - *Distance Cache*: Stores pairwise room distances, with cache validation flags, to avoid redundant distance calculations.
+  - *Connection Cache*: Tracks valid room connections and corridor reuse.
+- **Buffer Reuse**: Buffers (such as the screen buffer and generation data) are cleared and reused between generations, never reallocated.
+- **Constants and Limits**: All array sizes and memory pools are defined by constants (e.g., `MAX_ROOMS`, `MAP_W`, `MAP_H`), ensuring no accidental overruns and easy tuning for memory constraints.
 
 ### CPU Optimizations
 
@@ -193,22 +196,28 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ### Map Properties
 
-- **Dimensions**: 64×64 tiles (4,096 total tiles).
-- **Viewport**: 40×25 characters (visible area).
-- **Room Count**: 1–20 rooms per map.
-- **Room Sizes**: 4×4 to 8×8 tiles each.
+- **Map Dimensions**: 64×64 tiles (4096 tiles), each tile encoded in 3 bits (compact encoding).
+- **Viewport**: 40×25 characters (C64 screen size).
+- **Room Count**: Up to 20 rooms per map (`MAX_ROOMS`).
+- **Room Sizes**: Each room is 4×4 to 8×8 tiles.
+- **Corridor Segments**: Up to 32 segments per map (`MAX_CORRIDOR_SEGMENTS`).
+- **Connection Cache**: Up to 24 cached connections (`MAX_CONNECTION_CACHE`).
 
 ### Memory Usage
 
-- **Map Storage**: 1,536 bytes (compact encoding).
-- **Room Data**: 160 bytes (20 rooms × 8 bytes each).
-- **Screen Buffer**: 1,000 bytes (40×25 characters).
-- **Working Memory**: ~500 bytes (caches, temporary variables).
-- **Total**: ~3,200 bytes (comfortably fits in the C64’s 64KB RAM).
+- **Map Storage**: 1536 bytes (`compact_map[1536]`, 4096 tiles × 3 bits).
+- **Room Data**: 160 bytes (`Room rooms[20]`, each 8 bytes).
+- **Corridor Data**: 224 bytes (`CorridorSegment segments[32]`, each 7 bytes).
+- **Connection Cache**: 73 bytes (`room1[24]`, `room2[24]`, `distance[24]`, `count`).
+- **Room Center Cache**: 40 bytes (`room_center_cache[20][2]`).
+- **Room Distance Cache**: 400 bytes (`room_distance_cache[20][20]`).
+- **Screen Buffer**: 1000 bytes (`40×25`).
+- **Other Working Memory**: ~150 bytes (temporary variables, flags, counters, etc.).
+- **Total Memory Usage**: ~3583 bytes (rounded, ~3.6 KB; well within the C64's 64KB RAM).
 
 ### Performance Metrics
 
-- **Generation Time**: ~2–3 seconds on a real C64.
+- **Map Generation Time**: ~3–8 seconds on a real C64 (depending on map complexity and number of rooms).
 - **Wall Generation**: ~20× faster than naive approaches.
 - **Screen Updates**: Fast scrolling at full frame rate.
 - **Memory Efficiency**: 62.5% savings vs. traditional tile storage.
