@@ -89,9 +89,9 @@ jobs:
             $allSucceeded = $false
           }
           if ($allSucceeded) {
-            echo "# <span style='font-size:1.5em'><b>✅ <strong>ALL JOBS COMPLETED SUCCESSFULLY!</strong></b></span>" >> $env:GITHUB_STEP_SUMMARY
+            echo "# <span style='font-size:1.5em'><b><strong>ALL JOBS COMPLETED SUCCESSFULLY!</strong></b></span>" >> $env:GITHUB_STEP_SUMMARY
           } else {
-            echo "# <span style='font-size:1.5em'><b>❌ <strong>ONE OR MORE JOBS FAILED OR WERE CANCELLED!</strong></b></span>" >> $env:GITHUB_STEP_SUMMARY
+            echo "# <span style='font-size:1.5em'><b><strong>ONE OR MORE JOBS FAILED OR WERE CANCELLED!</strong></b></span>" >> $env:GITHUB_STEP_SUMMARY
           }
           echo "" >> $env:GITHUB_STEP_SUMMARY
           echo "#### Download the build artifact here:" >> $env:GITHUB_STEP_SUMMARY
