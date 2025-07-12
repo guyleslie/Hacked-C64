@@ -14,19 +14,19 @@
 // DOOR PLACEMENT VALIDATION
 // =============================================================================
 // Checks if the given coordinate is a valid room wall tile for door placement
-// Returns 1 if (x, y) is directly outside the walkable area (floor) of any room (the outer perimeter)
+// Returns 1 if (x, y) is on the outermost walkable tile (the room's edge/perimeter)
 unsigned char is_valid_room_wall(unsigned char x, unsigned char y) {
     unsigned char i;
     for (i = 0; i < room_count; i++) {
         Room *room = &rooms[i];
-        // Top wall (above the room)
-        if (y == room->y - 1 && x >= room->x && x < room->x + room->w) return 1;
-        // Bottom wall (below the room)
-        if (y == room->y + room->h && x >= room->x && x < room->x + room->w) return 1;
-        // Left wall (left of the room)
-        if (x == room->x - 1 && y >= room->y && y < room->y + room->h) return 1;
-        // Right wall (right of the room)
-        if (x == room->x + room->w && y >= room->y && y < room->y + room->h) return 1;
+        // Top edge
+        if (y == room->y && x >= room->x && x < room->x + room->w) return 1;
+        // Bottom edge
+        if (y == room->y + room->h - 1 && x >= room->x && x < room->x + room->w) return 1;
+        // Left edge
+        if (x == room->x && y >= room->y && y < room->y + room->h) return 1;
+        // Right edge
+        if (x == room->x + room->w - 1 && y >= room->y && y < room->y + room->h) return 1;
     }
     return 0;
 }
