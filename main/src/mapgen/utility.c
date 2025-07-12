@@ -61,35 +61,29 @@ unsigned int get_hardware_entropy(void) {
 // Enhanced RNG initialization with counter mixing
 void init_rng(void) {
     unsigned int entropy1, entropy2, entropy3, entropy4;
-    
+    unsigned char i;
     // Collect multiple entropy samples with delays
     entropy1 = get_hardware_entropy();
     entropy2 = get_hardware_entropy();
     entropy3 = get_hardware_entropy();
     entropy4 = get_hardware_entropy();
-    
     // Increment generation counter for unique seeds
     generation_counter++;
-    
     // Enhanced mixing with multiple entropy sources
     rng_seed = entropy1 ^ (entropy2 << 3) ^ (entropy3 >> 2) ^ (entropy4 << 5);
     rng_seed ^= (generation_counter << 7) ^ (generation_counter >> 1);
     rng_seed = (rng_seed << 5) ^ (rng_seed >> 11) ^ 0xAC1DU;
-    
     // Additional mixing with counter and time-based variations
     rng_seed ^= generation_counter * 0x9E37U;
     rng_seed ^= (entropy1 + entropy2) * 0x5A2FU;
-    
     // Multiple rounds of mixing for better distribution
-    for (unsigned char i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
         rng_seed = (rng_seed << 3) ^ (rng_seed >> 13) ^ (i * 0x1F2E);
     }
-    
     // Ensure non-zero seed
     if (rng_seed == 0) rng_seed = 0x1D21U + generation_counter;
-    
     // Warm up the RNG by discarding first few values
-    for (unsigned char i = 0; i < 8; i++) {
+    for (i = 0; i < 8; i++) {
         rnd(255);
     }
 }

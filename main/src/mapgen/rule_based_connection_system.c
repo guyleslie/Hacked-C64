@@ -1,6 +1,9 @@
 // Global flag to allow endpoint override for corridor placement
 // Set to 1 when placing corridor at a room wall endpoint
 unsigned char corridor_endpoint_override = 0;
+
+// Oscar64: include door placement prototypes at the top of the file
+#include "door_placement.h"
 // =============================================================================
 // RULE-BASED ROOM CONNECTION SYSTEM
 // Strict rule-based room connection system - all rules are always enforced
@@ -18,6 +21,10 @@ unsigned char corridor_endpoint_override = 0;
 // External references
 extern Room rooms[MAX_ROOMS];
 extern unsigned char room_count;
+
+// Oscar64/C64: Move large arrays to static file scope to avoid stack overflow
+static unsigned char visited_global[MAX_ROOMS];
+static unsigned char stack_global[MAX_ROOMS];
 
 // Connection tracking
 static unsigned char connection_matrix[MAX_ROOMS][MAX_ROOMS];
@@ -135,38 +142,39 @@ unsigned char can_place_corridor_tile(unsigned char x, unsigned char y) {
 // =============================================================================
 
 // Simple L-shaped corridor drawing with rule enforcement
+// Oscar64/C64: Use static struct to avoid stack usage
+static CorridorPath corridor_path_static;
 unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2) {
     // Improved L-corridor logic: always start in the direction of the exit wall,
     // then bend towards the target exit. Doors are placed only after the full corridor path is generated.
 
     unsigned char exit1_x, exit1_y, exit2_x, exit2_y;
     unsigned char room1_center_x, room1_center_y, room2_center_x, room2_center_y;
+    signed char dx = 0, dy = 0;
+    signed char x, y;
     get_room_center(room1, &room1_center_x, &room1_center_y);
     get_room_center(room2, &room2_center_x, &room2_center_y);
     find_room_exit(&rooms[room1], room2_center_x, room2_center_y, &exit1_x, &exit1_y);
     find_room_exit(&rooms[room2], room1_center_x, room1_center_y, &exit2_x, &exit2_y);
 
-    // Build the full corridor path first
-    #include "door_placement.h"
-    CorridorPath path;
-    path.length = 0;
+    // Use static struct for path
+    corridor_path_static.length = 0;
 
-    int dx = 0, dy = 0;
     if (exit1_x == rooms[room1].x - 1) { dx = -1; dy = 0; }
     else if (exit1_x == rooms[room1].x + rooms[room1].w) { dx = 1; dy = 0; }
     else if (exit1_y == rooms[room1].y - 1) { dx = 0; dy = -1; }
     else if (exit1_y == rooms[room1].y + rooms[room1].h) { dx = 0; dy = 1; }
 
-    int x = exit1_x + dx;
-    int y = exit1_y + dy;
+    x = exit1_x + dx;
+    y = exit1_y + dy;
     // Store the first corridor tile position for later door placement
     corridor_endpoint_override = 1;
     if (can_place_corridor_tile(x, y)) {
         set_tile_raw(x, y, TILE_FLOOR);
-        if (path.length < MAX_PATH_LENGTH) {
-            path.x[path.length] = x;
-            path.y[path.length] = y;
-            path.length++;
+        if (corridor_path_static.length < MAX_PATH_LENGTH) {
+            corridor_path_static.x[corridor_path_static.length] = x;
+            corridor_path_static.y[corridor_path_static.length] = y;
+            corridor_path_static.length++;
         }
     }
     corridor_endpoint_override = 0;
@@ -177,39 +185,41 @@ unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2)
         y += dy;
         if (can_place_corridor_tile(x, y)) {
             set_tile_raw(x, y, TILE_FLOOR);
-            if (path.length < MAX_PATH_LENGTH) {
-                path.x[path.length] = x;
-                path.y[path.length] = y;
-                path.length++;
+            if (corridor_path_static.length < MAX_PATH_LENGTH) {
+                corridor_path_static.x[corridor_path_static.length] = x;
+                corridor_path_static.y[corridor_path_static.length] = y;
+                corridor_path_static.length++;
             }
         }
     }
     // Bend: move along the other axis
     while (x != exit2_x) {
-        x += (x < exit2_x) ? 1 : -1;
+        if (x < exit2_x) x++;
+        else x--;
         if (can_place_corridor_tile(x, y)) {
             set_tile_raw(x, y, TILE_FLOOR);
-            if (path.length < MAX_PATH_LENGTH) {
-                path.x[path.length] = x;
-                path.y[path.length] = y;
-                path.length++;
+            if (corridor_path_static.length < MAX_PATH_LENGTH) {
+                corridor_path_static.x[corridor_path_static.length] = x;
+                corridor_path_static.y[corridor_path_static.length] = y;
+                corridor_path_static.length++;
             }
         }
     }
     while (y != exit2_y) {
-        y += (y < exit2_y) ? 1 : -1;
+        if (y < exit2_y) y++;
+        else y--;
         if (can_place_corridor_tile(x, y)) {
             set_tile_raw(x, y, TILE_FLOOR);
-            if (path.length < MAX_PATH_LENGTH) {
-                path.x[path.length] = x;
-                path.y[path.length] = y;
-                path.length++;
+            if (corridor_path_static.length < MAX_PATH_LENGTH) {
+                corridor_path_static.x[corridor_path_static.length] = x;
+                corridor_path_static.y[corridor_path_static.length] = y;
+                corridor_path_static.length++;
             }
         }
     }
 
     // Place doors using the improved logic
-    place_doors_along_corridor(&path);
+    place_doors_along_corridor(&corridor_path_static);
 
     return 1; // Success
 }
@@ -279,26 +289,27 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
     unsigned char closest_corridor_x1 = 255, closest_corridor_y1 = 255;
     unsigned char closest_corridor_x2 = 255, closest_corridor_y2 = 255;
     unsigned char min_dist1 = 255, min_dist2 = 255;
-    
-    // Scan a limited area for nearby corridors (optimization)
-    unsigned char search_x1 = (room1_center_x > 10) ? room1_center_x - 10 : 0;
-    unsigned char search_y1 = (room1_center_y > 10) ? room1_center_y - 10 : 0;
-    unsigned char search_x2 = (room1_center_x + 10 < MAP_W) ? room1_center_x + 10 : MAP_W - 1;
-    unsigned char search_y2 = (room1_center_y + 10 < MAP_H) ? room1_center_y + 10 : MAP_H - 1;
-    
-    for (unsigned char y = search_y1; y <= search_y2; y++) {
-        for (unsigned char x = search_x1; x <= search_x2; x++) {
+    // Hardware-optimized: use unsigned char for all coordinates
+    unsigned char search_x1, search_y1, search_x2, search_y2;
+    unsigned char y, x;
+    // Calculate search bounds (C64-optimized, avoid int math)
+    if (room1_center_x > 10) search_x1 = room1_center_x - 10; else search_x1 = 0;
+    if (room1_center_y > 10) search_y1 = room1_center_y - 10; else search_y1 = 0;
+    if ((room1_center_x + 10) < MAP_W) search_x2 = room1_center_x + 10; else search_x2 = MAP_W - 1;
+    if ((room1_center_y + 10) < MAP_H) search_y2 = room1_center_y + 10; else search_y2 = MAP_H - 1;
+    // Scan a limited area for nearby corridors (C64-optimized nested loop)
+    for (y = search_y1; y <= search_y2; y++) {
+        for (x = search_x1; x <= search_x2; x++) {
             if (tile_is_floor(x, y) && is_outside_any_room(x, y)) {
                 // This is a corridor cell
                 unsigned char dist1 = fast_abs_diff(x, exit1_x) + fast_abs_diff(y, exit1_y);
                 unsigned char dist2 = fast_abs_diff(x, exit2_x) + fast_abs_diff(y, exit2_y);
-                
+                // Find the closest corridor cell to each exit
                 if (dist1 < min_dist1) {
                     min_dist1 = dist1;
                     closest_corridor_x1 = x;
                     closest_corridor_y1 = y;
                 }
-                
                 if (dist2 < min_dist2) {
                     min_dist2 = dist2;
                     closest_corridor_x2 = x;
@@ -317,7 +328,7 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
         #include "door_placement.h"
         CorridorPath path1;
         path1.length = 0;
-        int dx1 = 0, dy1 = 0;
+        signed char dx1 = 0, dy1 = 0; // C64-optimized: use signed char for deltas
         if (exit1_x == rooms[room1].x - 1) { dx1 = -1; dy1 = 0; }
         else if (exit1_x == rooms[room1].x + rooms[room1].w) { dx1 = 1; dy1 = 0; }
         else if (exit1_y == rooms[room1].y - 1) { dx1 = 0; dy1 = -1; }
@@ -336,10 +347,13 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
         unsigned char current1_y = corridor1_y;
         unsigned char step_limit1 = 64;
         while ((current1_x != closest_corridor_x1 || current1_y != closest_corridor_y1) && step_limit1--) {
+            // C64-optimized: avoid int math, use only unsigned char
             if (current1_x != closest_corridor_x1) {
-                current1_x += (current1_x < closest_corridor_x1) ? 1 : -1;
+                if (current1_x < closest_corridor_x1) current1_x++;
+                else current1_x--;
             } else if (current1_y != closest_corridor_y1) {
-                current1_y += (current1_y < closest_corridor_y1) ? 1 : -1;
+                if (current1_y < closest_corridor_y1) current1_y++;
+                else current1_y--;
             } else {
                 break;
             }
@@ -357,7 +371,7 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
         // --- TARGET ROOM SIDE (exit2) ---
         CorridorPath path2;
         path2.length = 0;
-        int dx2 = 0, dy2 = 0;
+        signed char dx2 = 0, dy2 = 0; // C64-optimized: use signed char for deltas
         if (exit2_x == rooms[room2].x - 1) { dx2 = -1; dy2 = 0; }
         else if (exit2_x == rooms[room2].x + rooms[room2].w) { dx2 = 1; dy2 = 0; }
         else if (exit2_y == rooms[room2].y - 1) { dx2 = 0; dy2 = -1; }
@@ -376,10 +390,13 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
         unsigned char current2_y = corridor2_y;
         unsigned char step_limit2 = 64;
         while ((current2_x != closest_corridor_x2 || current2_y != closest_corridor_y2) && step_limit2--) {
+            // C64-optimized: avoid int math, use only unsigned char
             if (current2_x != closest_corridor_x2) {
-                current2_x += (current2_x < closest_corridor_x2) ? 1 : -1;
+                if (current2_x < closest_corridor_x2) current2_x++;
+                else current2_x--;
             } else if (current2_y != closest_corridor_y2) {
-                current2_y += (current2_y < closest_corridor_y2) ? 1 : -1;
+                if (current2_y < closest_corridor_y2) current2_y++;
+                else current2_y--;
             } else {
                 break;
             }
@@ -416,21 +433,21 @@ unsigned char rule_based_connect_rooms(unsigned char room1, unsigned char room2)
     }
 
     // 2b. Check if already reachable through other rooms (avoid redundant corridors)
-    // This is a simple DFS using a local stack and visited array, all inside this function
-    unsigned char visited[MAX_ROOMS] = {0};
-    unsigned char stack[MAX_ROOMS];
+    // Use static arrays to avoid stack overflow on C64
+    unsigned char i;
     unsigned char sp = 0;
-    stack[sp++] = room1;
-    visited[room1] = 1;
+    for (i = 0; i < MAX_ROOMS; i++) visited_global[i] = 0;
+    stack_global[sp++] = room1;
+    visited_global[room1] = 1;
     while (sp > 0) {
-        unsigned char current = stack[--sp];
-        for (unsigned char i = 0; i < room_count; i++) {
-            if (connection_matrix[current][i] && !visited[i]) {
+        unsigned char current = stack_global[--sp];
+        for (i = 0; i < room_count; i++) {
+            if (connection_matrix[current][i] && !visited_global[i]) {
                 if (i == room2) {
                     return 1; // Already reachable, do not build redundant corridor
                 }
-                visited[i] = 1;
-                stack[sp++] = i;
+                visited_global[i] = 1;
+                stack_global[sp++] = i;
             }
         }
     }
