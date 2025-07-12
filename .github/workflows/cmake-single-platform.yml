@@ -57,7 +57,7 @@ jobs:
         if: success()
         shell: pwsh
         run: |
-          $debuggerDir = $env:GITHUB_WORKSPACE
+          $debuggerDir = Join-Path $env:GITHUB_WORKSPACE 
           New-Item -ItemType Directory -Force -Path $debuggerDir | Out-Null
           $zipPath = Join-Path $debuggerDir 'RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
           $url = 'https://github.com/slajerek/RetroDebugger/releases/download/v0.64.72/RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
