@@ -86,8 +86,8 @@ jobs:
           $reset = "`e[0m"
           if ("${{ job.status }}" -eq "success") {
             Write-Host ("${green}BUILD SUCCESSFUL!${reset}")
-            Write-Host ("${red}Download the build artifact from the Actions run page:${reset}")
-            Write-Host ("${red}https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}${reset}")
+            Write-Host ("${green}Download the build artifact from the Actions run page:${reset}")
+            Write-Host ("https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}")
           } else {
             Write-Host ("${red}BUILD FAILED!${reset}")
           }
