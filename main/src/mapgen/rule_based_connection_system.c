@@ -138,16 +138,13 @@ unsigned char can_place_corridor_tile(unsigned char x, unsigned char y) {
 }
 
 // =============================================================================
-// SIMPLE CORRIDOR DRAWING
+// CORRIDOR DRAWING
 // =============================================================================
-
-// Simple L-shaped corridor drawing with rule enforcement
-// Oscar64/C64: Use static struct to avoid stack usage
-static CorridorPath corridor_path_static;
+// L-shaped corridor drawing with rule enforcement
+// Improved L-corridor logic: always start in the direction of the exit wall,
+// then bend towards the target exit. Doors are placed only after the full corridor path is generated.
+static CorridorPath corridor_path_static; // Oscar64/C64: Use static struct to avoid stack usage
 unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2) {
-    // Improved L-corridor logic: always start in the direction of the exit wall,
-    // then bend towards the target exit. Doors are placed only after the full corridor path is generated.
-
     unsigned char exit1_x, exit1_y, exit2_x, exit2_y;
     unsigned char room1_center_x, room1_center_y, room2_center_x, room2_center_y;
     signed char dx = 0, dy = 0;
@@ -218,8 +215,13 @@ unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2)
         }
     }
 
-    // Place doors using the improved logic
-    place_doors_along_corridor(&corridor_path_static);
+    // Place doors at the start and end of the corridor path
+    if (corridor_path_static.length > 0) {
+        place_door(corridor_path_static.x[0], corridor_path_static.y[0]);
+    }
+    if (corridor_path_static.length > 1) {
+        place_door(corridor_path_static.x[corridor_path_static.length - 1], corridor_path_static.y[corridor_path_static.length - 1]);
+    }
 
     return 1; // Success
 }
@@ -366,7 +368,13 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
                 }
             }
         }
-        place_doors_along_corridor(&path1);
+        // Place doors at the start and end of the path
+        if (path1.length > 0) {
+            place_door(path1.x[0], path1.y[0]);
+        }
+        if (path1.length > 1) {
+            place_door(path1.x[path1.length - 1], path1.y[path1.length - 1]);
+        }
 
         // --- TARGET ROOM SIDE (exit2) ---
         CorridorPath path2;
@@ -409,7 +417,13 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
                 }
             }
         }
-        place_doors_along_corridor(&path2);
+        // Place doors at the start and end of the path
+        if (path2.length > 0) {
+            place_door(path2.x[0], path2.y[0]);
+        }
+        if (path2.length > 1) {
+            place_door(path2.x[path2.length - 1], path2.y[path2.length - 1]);
+        }
         return 1; // Successful reuse
     }
     
