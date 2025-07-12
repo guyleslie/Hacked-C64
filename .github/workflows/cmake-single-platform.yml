@@ -80,7 +80,6 @@ jobs:
         run: |
           Write-Host ""
           $orange = "`e[38;5;214m"
-          Write-Host ("${orange}================================================================${reset}")
           $green = "`e[32m"
           $red = "`e[31m"
           $reset = "`e[0m"
