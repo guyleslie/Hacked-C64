@@ -63,7 +63,10 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $zipPath
           Write-Host "Extracting Retro Debugger to workspace root..."
           Expand-Archive -Path $zipPath -DestinationPath $env:GITHUB_WORKSPACE
-          Write-Host "Retro Debugger ready."
+          Write-Host "Moving Retro Debugger files to workspace root..."
+          $extractedDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger.v0.64.72-windows-x64-notsigned'
+          Get-ChildItem -Path $extractedDir -Recurse | Move-Item -Destination $env:GITHUB_WORKSPACE -Force
+          Remove-Item -Recurse -Force $extractedDir
           # Remove the zip file so only the extracted files remain
           Remove-Item -Force $zipPath
 
@@ -82,7 +85,29 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
-            RetroDebugger.v0.64.72-windows-x64-notsigned/**
+            RetroDebugger.exe
+            RetroDebugger.pdb
+            RetroDebugger.dll
+            SDL2.dll
+            SDL2_ttf.dll
+            SDL2_mixer.dll
+            SDL2_image.dll
+            SDL2_net.dll
+            SDL2_gfx.dll
+            LICENSE.txt
+            README.md
+            *.bin
+            *.cfg
+            *.ini
+            *.json
+            *.ico
+            *.png
+            *.bmp
+            *.wav
+            *.mod
+            *.s3m
+            *.xm
+            *.it
       - name: List build output
         run: |
           dir build
