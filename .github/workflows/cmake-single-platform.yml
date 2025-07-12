@@ -90,7 +90,7 @@ jobs:
             Write-Host ("${green}BUILD SUCCESSFUL!${reset}")
             Write-Host "Latest build files:"
             Write-Host ("https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}")
-            Write-Host "${green}Artifact download URL is above in Upload build output as artifact section"
+            Write-Host ("${red}ARTIFACT DOWNLOAD URL IS ABOVE IN UPLOAD BUILD OUTPUT AS ARTIFACT SECTION${reset}")
             Write-Host ("${orange}=======================================================================================${reset}")
           } else {
             Write-Host ("${orange}=======================================================================================${reset}")
