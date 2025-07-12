@@ -84,7 +84,7 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
-            RetroDebugger/**
+            build/**
       - name: List build output
         run: |
           dir build
