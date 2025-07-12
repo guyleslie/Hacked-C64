@@ -66,6 +66,8 @@ jobs:
           Write-Host "Extracting Retro Debugger..."
           Expand-Archive -Path $zipPath -DestinationPath $debuggerDir
           Write-Host "Retro Debugger ready."
+          # Remove the zip file so only the extracted files remain
+          Remove-Item -Force $zipPath
 
       - name: Cleanup Oscar64
         if: always()
@@ -82,7 +84,7 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
-            RetroDebugger/RetroDebugger.v0.64.72-windows-x64-notsigned.zip
+            RetroDebugger/**
       - name: List build output
         run: |
           dir build
