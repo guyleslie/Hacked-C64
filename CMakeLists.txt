@@ -30,7 +30,6 @@ set(SRC_FILES
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/rule_based_connection_system.c
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/testdisplay.c
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/utility.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/door_placement.c
 )
 
 # Output directory and file

@@ -34,11 +34,8 @@ jobs:
             Write-Error "No oscar64.zip asset found in latest release."
             exit 1
           }
-          Write-Host "Downloading oscar64.zip..."
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "oscar64.zip"
-          Write-Host "Extracting oscar64.zip..."
           Expand-Archive -Path "oscar64.zip" -DestinationPath $oscarDir
-          Write-Host "Oscar64 ready."
 
       - name: Configure CMake
         shell: pwsh
