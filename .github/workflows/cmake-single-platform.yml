@@ -71,15 +71,28 @@ jobs:
           dir build
         shell: cmd
 
+
+
+  # Build summary job, runs after build job completes
+  summary:
+    needs: [build]
+    runs-on: windows-latest
+    if: always()
+    steps:
       - name: Build summary
-        if: always()
+        shell: pwsh
         run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "### ✅ Build completed successfully!" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Build failed!" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "#### Download the build artifact here:" >> $GITHUB_STEP_SUMMARY
-          echo "[Artifact link](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
-        shell: bash
+          $allSucceeded = $true
+          $statuses = @()
+          $statuses += "build: ${{ needs.build.result }}"
+          if ($statuses -contains "build: failure" -or $statuses -contains "build: cancelled") {
+            $allSucceeded = $false
+          }
+          if ($allSucceeded) {
+            echo "# <span style='font-size:1.5em'><b>✅ <strong>ALL JOBS COMPLETED SUCCESSFULLY!</strong></b></span>" >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            echo "# <span style='font-size:1.5em'><b>❌ <strong>ONE OR MORE JOBS FAILED OR WERE CANCELLED!</strong></b></span>" >> $env:GITHUB_STEP_SUMMARY
+          }
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "#### Download the build artifact here:" >> $env:GITHUB_STEP_SUMMARY
+          echo "[Artifact link](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $env:GITHUB_STEP_SUMMARY
