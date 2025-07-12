@@ -70,3 +70,16 @@ jobs:
         run: |
           dir build
         shell: cmd
+
+      - name: Build summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ Build completed successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Build failed!" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Download the build artifact here:" >> $GITHUB_STEP_SUMMARY
+          echo "[Artifact link](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+        shell: bash
