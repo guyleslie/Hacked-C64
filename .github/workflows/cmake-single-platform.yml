@@ -57,14 +57,12 @@ jobs:
         if: success()
         shell: pwsh
         run: |
-          $debuggerDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger'
-          New-Item -ItemType Directory -Force -Path $debuggerDir | Out-Null
-          $zipPath = Join-Path $debuggerDir 'RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
+          $zipPath = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
           $url = 'https://github.com/slajerek/RetroDebugger/releases/download/v0.64.72/RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
           Write-Host "Downloading Retro Debugger..."
           Invoke-WebRequest -Uri $url -OutFile $zipPath
-          Write-Host "Extracting Retro Debugger..."
-          Expand-Archive -Path $zipPath -DestinationPath $debuggerDir
+          Write-Host "Extracting Retro Debugger to workspace root..."
+          Expand-Archive -Path $zipPath -DestinationPath $env:GITHUB_WORKSPACE
           Write-Host "Retro Debugger ready."
           # Remove the zip file so only the extracted files remain
           Remove-Item -Force $zipPath
@@ -84,7 +82,7 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
-            build/**
+            RetroDebugger.v0.64.72-windows-x64-notsigned/**
       - name: List build output
         run: |
           dir build
