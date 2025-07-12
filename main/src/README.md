@@ -1,88 +1,87 @@
-# Map Generation Logic (C64 Oscar64 Project)
 
-This document describes the dungeon map generation process as implemented in the project, based on a detailed code analysis (2025.07.08).
+# Source Directory Logic and File Responsibilities
 
-## 1. Initialization
-
-- **reset_all_generation_data**: Clears the map, resets the room list, invalidates caches, and initializes the rule-based connection system.
-- **init_rule_based_connection_system**: Zeros the connection matrix, resets memory pools, and precomputes room distances.
-
-## 2. Room Placement
-
-- **create_rooms**: Places rooms using a grid-based approach with random offsets for organic, non-uniform layouts.
-- The map area is divided into a fixed-size grid (typically 4x4 or similar, see `GRID_SIZE` in the code), and each grid cell can host at most one room.
-- For each room, a grid cell is chosen, and the room's position within the cell is randomized to avoid strict alignment and create a more natural dungeon feel.
-- This method ensures good room distribution, prevents excessive overlap, and makes it easy to control the maximum number of rooms.
-- Each room's center is cached for fast access by other algorithms (corridor generation, stairs placement, etc.).
-
-## 3. Room Connection (Corridor Generation)
-
-- **generate_level**: Main pipeline function.
-- Uses a Minimum Spanning Tree (MST) approach:
-  - Starts with one connected room.
-  - Iteratively connects the closest unconnected room to the connected set, always obeying connection rules.
-  - Uses `rule_based_connect_rooms` for each connection.
-
-### Room Connections and Corridors
-
-- In this project, every room connection is always realized as a physical corridor ("corridor" in the strict sense).
-- There are no abstract or logical-only connections: if two rooms are connected, there is always a corridor tile path between them.
-- The connection process either reuses an existing corridor (if possible and allowed by the rules), or creates a new one.
-- The connection matrix and related logic (see `rule_based_connect_rooms` and `draw_rule_based_corridor`) ensure that all connections are represented by actual corridors on the map.
-
-### rule_based_connect_rooms
-
-- Checks if rooms can be safely connected (no overlap, minimum distance, etc.).
-- Avoids redundant connections (direct or indirect).
-- Tries to reuse existing corridors if possible.
-- If not, calls `draw_rule_based_corridor` to create a new corridor.
-
-### draw_rule_based_corridor
-
-- Determines the exit point for each room using `find_room_exit`:
-  - **Corridors always start and end on a tile just outside the room wall**, not from the room's interior.
-  - The exit is chosen based on the direction to the target room's center.
-- Draws an L-shaped corridor:
-  - First moves straight from the starting wall exit until aligned with the target exit on one axis.
-  - Then bends and continues to the target exit.
-- After the corridor is drawn, doors are placed at both ends (on the wall tile between the room and corridor), if valid.
-
-## 4. Wall Placement
-
-- **add_walls**: Scans all floor and door tiles, placing walls on adjacent empty tiles. This is highly optimized for the C64.
-
-## 5. Stairs Placement
-
-- **add_stairs**: Places up and down stairs in the highest-priority rooms (usually start and end rooms), at their center.
-
-## Key Points
-
-- **Corridors never start from the room's interior**; they always begin and end just outside the room wall, with doors placed at the wall.
-- The system is fully rule-based, with no exceptions or random corridor carving.
-- All steps are optimized for the Commodore 64 and Oscar64 toolchain.
+This document describes the detailed logic and file responsibilities within the `src` directory of the C64 Oscar64 dungeon map generator. It is intended as a technical reference for developers working on or extending the map generation system.
 
 ---
 
- For further details, see the following key functions:
+## Map Generation Pipeline: Detailed Logic
 
-- `generate_level` (main/src/mapgen/map_generation.c)
-- `rule_based_connect_rooms` (main/src/mapgen/rule_based_connection_system.c)
-- `draw_rule_based_corridor` (main/src/mapgen/rule_based_connection_system.c)
-- `find_room_exit` (main/src/mapgen/room_management.c)
-- `add_walls` (main/src/mapgen/map_generation.c)
-- `add_stairs` (main/src/mapgen/map_generation.c)
+The map generation process is a multi-stage pipeline, designed for both organic dungeon layouts and strict C64 memory constraints. Each step is implemented in a dedicated module and function, with all logic optimized for Oscar64.
+
+### 1. Initialization
+
+- **`mapgen_init()`**: Clears the map, resets all room and corridor data, and invalidates caches. This ensures a clean state for each new map.
+- **`init_rule_based_connection_system()`**: Initializes the connection matrix (tracks which rooms are connected), resets static memory pools for corridors, and precomputes pairwise room distances for efficient corridor planning.
+
+### 2. Room Placement (Organic Grid-Based)
+
+- **Grid Division**: The map is divided into a fixed grid (see `GRID_SIZE`), with each cell able to host at most one room. This prevents clustering and ensures even distribution.
+- **Randomized Placement**: For each room, a grid cell is chosen, and the room's position within the cell is randomized (with a small offset) to avoid strict alignment and create a natural, non-uniform dungeon feel.
+- **Validation**: Before placing a room, `can_place_room()` checks for overlap and minimum distance to other rooms. If valid, `place_room()` commits the room to the map.
+- **Room Center Caching**: Each room's center is cached for fast access by corridor and stairs algorithms.
+
+### 3. Room Connection & Corridor Generation (MST-Based)
+
+- **Pipeline Control**: The main function `generate_level()` orchestrates the connection of all rooms.
+- **Minimum Spanning Tree (MST) Algorithm**: Starting from one room, the algorithm iteratively connects the closest unconnected room to the connected set, always choosing the shortest valid connection and obeying all rules.
+- **Connection Rules**: `rule_based_connect_rooms()` ensures:
+  - No overlap or illegal adjacency between rooms/corridors.
+  - No redundant (direct or indirect) connections.
+  - Existing corridors are reused if possible (`can_reuse_existing_path()`).
+  - If not, a new corridor is created with `draw_rule_based_corridor()`.
+- **Corridor Drawing**: `draw_rule_based_corridor()`:
+  - Determines the exit point for each room using `find_room_exit()`. Exits are always just outside the room wall, never inside.
+  - Draws an L-shaped corridor: first straight from the starting exit until aligned with the target, then bends and continues to the target exit.
+  - The corridor path is stored as a sequence of tiles.
+- **Door Placement**: After the corridor is drawn, `place_door_between_rooms()` places doors at both ends of the corridor (the first and last walkable tiles), ensuring every connection is physically realized and accessible.
+
+### 4. Stairs Placement
+
+- **`add_stairs()`**: Places up and down stairs in the highest-priority rooms (usually the start and end rooms), always at the room center. Room priorities are assigned based on their position in the MST and other heuristics.
+
+### 5. Wall and Door Placement
+
+- **Wall Placement**: `add_walls()` scans all floor and door tiles, placing walls on any adjacent empty tile. This is highly optimized for C64 memory and speed, and ensures all rooms and corridors are properly enclosed.
+- **Door Placement**: (see above) is always at the interface between a room and a corridor, never inside the room or deep in the corridor. The logic is robust for all corridor shapes, including corners.
+
+### 6. Display
+
+- **Display**: `mapgen_display.c` handles rendering the map to the C64 screen, including viewport navigation and user interaction.
+
+### 7. Map Export (not yet used)
+
+- **Export**: `map_export.c` provides routines for saving the generated map in Oscar64/C64-compatible binary format, using Oscar64 KERNAL routines for file I/O.\
+  **Note:** The export functionality exists, but is not yet called or integrated into the current pipeline.
+
+## Key Design Points
+
+- **Corridors always start/end just outside room walls**; never from the room interior. Doors are placed at the wall boundary using a robust, symmetric algorithm.
+- **All connections are physical corridors**; no abstract/logical-only links. Every connection is realized as a walkable path on the map.
+- **Rule-based, deterministic system**: No random corridor carving; all steps follow strict rules for reproducibility and C64 compatibility.
+- **Oscar64/C64 optimizations**: Static memory pools, compact map storage (3 bits/tile), and minimal stack usage. All algorithms are designed for speed and memory efficiency on real hardware.
+
+## C Source Files in 'main/src/'
+
+- `main/src/main.c`: `main()`; Oscar64 file I/O; top-level control and user interaction
+- `main/src/mapgen/map_generation.c`: `generate_level()`, `add_walls()`, `add_stairs()`
+- `main/src/mapgen/rule_based_connection_system.c`: `rule_based_connect_rooms()`, `draw_rule_based_corridor()`, `can_reuse_existing_path()`
+- `main/src/mapgen/room_management.c`: `create_rooms()`, `find_room_exit()`, and room placement helpers
+- `main/src/mapgen/door_placement.c`: `place_door()`, `place_door_between_rooms()` (handles all door logic)
+- `main/src/mapgen/map_export.c`: Map export routines
+- `main/src/mapgen/mapgen_display.c`: Map rendering and navigation
+
+## Header Files in 'main/src/'
+
+- `common.h`: Shared constants, macros, and utility functions used throughout the codebase.
+- `mapgen_types.h`: Data structures for rooms, corridors, map tiles, and related types.
+- `mapgen_api.h`: Public API for initializing and generating dungeons.
+- `mapgen_internal.h`: Internal state, helpers, and private definitions for map generation.
+- `mapgen_utility.h`: Math, randomization, and C64-specific helper routines.
+- `mapgen_display.h`: API for rendering and navigation on the C64 screen.
+- `map_export.h`: API for exporting maps in Oscar64/C64-compatible formats.
+- `oscar64_console.h`: Oscar64-specific console/graphics routines for C64 display.
 
 ---
 
-## Header Files in `main/src/`
-
-The following header files are available in the `main/src` directory and provide the main API and internal definitions for the map generation system:
-
-- `common.h`
-- `map_export.h`
-- `mapgen_api.h`
-- `mapgen_display.h`
-- `mapgen_internal.h`
-- `mapgen_types.h`
-- `mapgen_utility.h`
-- `oscar64_console.h`
+For further details, see the code and comments in each module. All code is fully commented for C64/Oscar64 compatibility and clarity.
