@@ -53,19 +53,19 @@ jobs:
           cmake --build build --target oscar64_build
         shell: cmd
 
-      - name: Download and extract c64-debugger
+      - name: Download and extract Retro Debugger
         if: success()
         shell: pwsh
         run: |
-          $debuggerDir = Join-Path $env:GITHUB_WORKSPACE 'build/c64-debugger'
+          $debuggerDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger'
           New-Item -ItemType Directory -Force -Path $debuggerDir | Out-Null
-          $zipPath = Join-Path $debuggerDir 'c64-debugger.zip'
-          $url = 'https://github.com/sunsided/c64-debugger/releases/download/v0.64.58.6/c64-debugger-win64-v0.64.58.6.zip'
-          Write-Host "Downloading c64-debugger..."
+          $zipPath = Join-Path $debuggerDir 'RetroDebugger_win64_v0.64.72.zip'
+          $url = 'https://github.com/slajerek/RetroDebugger/releases/download/v0.64.72/RetroDebugger_win64_v0.64.72.zip'
+          Write-Host "Downloading Retro Debugger..."
           Invoke-WebRequest -Uri $url -OutFile $zipPath
-          Write-Host "Extracting c64-debugger..."
+          Write-Host "Extracting Retro Debugger..."
           Expand-Archive -Path $zipPath -DestinationPath $debuggerDir
-          Write-Host "c64-debugger ready."
+          Write-Host "Retro Debugger ready."
 
       - name: Cleanup Oscar64
         if: always()
@@ -82,6 +82,7 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
+            RetroDebugger/RetroDebugger_win64_v0.64.72.zip
       - name: List build output
         run: |
           dir build
@@ -103,7 +104,7 @@ jobs:
             Write-Host "Latest build files:"
             Write-Host ("https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}")
             Write-Host ("${red}ARTIFACT DOWNLOAD URL IS ABOVE IN UPLOAD BUILD OUTPUT AS ARTIFACT SECTION${reset}")
-            Write-Host ("c64-debugger downloaded to build/c64-debugger directory")
+            Write-Host ("Retro Debugger downloaded to RetroDebugger directory")
             Write-Host ("${orange}=======================================================================================${reset}")
           } else {
             Write-Host ("${orange}=======================================================================================${reset}")
