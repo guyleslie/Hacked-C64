@@ -57,7 +57,8 @@ jobs:
         if: success()
         shell: pwsh
         run: |
-          $debuggerDir = "$env:GITHUB_WORKSPACE"
+          $debuggerDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger'
+          New-Item -ItemType Directory -Force -Path $debuggerDir | Out-Null
           $zipPath = Join-Path $debuggerDir 'RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
           $url = 'https://github.com/slajerek/RetroDebugger/releases/download/v0.64.72/RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
           Write-Host "Downloading Retro Debugger..."
@@ -65,6 +66,7 @@ jobs:
           Write-Host "Extracting Retro Debugger..."
           Expand-Archive -Path $zipPath -DestinationPath $debuggerDir
           Write-Host "Retro Debugger ready."
+          # Remove the zip file so only the extracted files remain
           Remove-Item -Force $zipPath
 
       - name: Cleanup Oscar64
