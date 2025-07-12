@@ -74,25 +74,17 @@ jobs:
 
 
   # Build summary job, runs after build job completes
-  summary:
-    needs: [build]
-    runs-on: windows-latest
-    if: always()
-    steps:
-      - name: Build summary
+      - name: Build result and artifact info
+        if: always()
         shell: pwsh
         run: |
-          $allSucceeded = $true
-          $statuses = @()
-          $statuses += "build: ${{ needs.build.result }}"
-          if ($statuses -contains "build: failure" -or $statuses -contains "build: cancelled") {
-            $allSucceeded = $false
-          }
-          if ($allSucceeded) {
-            echo "# <span style='font-size:1.5em'><b><strong>ALL JOBS COMPLETED SUCCESSFULLY!</strong></b></span>" >> $env:GITHUB_STEP_SUMMARY
+          Write-Host ""
+          Write-Host "==============================================="
+          if ("${{ job.status }}" -eq "success") {
+            Write-Host "BUILD SUCCESSFUL!"
           } else {
-            echo "# <span style='font-size:1.5em'><b><strong>ONE OR MORE JOBS FAILED OR WERE CANCELLED!</strong></b></span>" >> $env:GITHUB_STEP_SUMMARY
+            Write-Host "BUILD FAILED!"
           }
-          echo "" >> $env:GITHUB_STEP_SUMMARY
-          echo "#### Download the build artifact here:" >> $env:GITHUB_STEP_SUMMARY
-          echo "[Artifact link](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $env:GITHUB_STEP_SUMMARY
+          Write-Host "Download the build artifact from the Actions run page:"
+          Write-Host "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          Write-Host "==============================================="
