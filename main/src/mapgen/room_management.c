@@ -11,11 +11,11 @@ extern unsigned char room_count;
 extern unsigned char camera_center_x, camera_center_y;
 extern Viewport view;
 
-// Enhanced room placement validation with improved boundary and overlap checking
+// Enhanced room placement validation with improved edge (perimeter) and overlap checking
 unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     unsigned char ix, iy;
     
-    // Enhanced boundary checks - ensure adequate space from map edges
+    // Enhanced edge checks - ensure adequate space from map edges
     if (x < 3 || y < 3 || x + w + 3 >= MAP_W || y + h + 3 >= MAP_H) 
         return 0;
       // Enhanced overlap checking with more thorough distance validation
@@ -154,51 +154,42 @@ unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char ro
     return 1; // Outside the room
 }
 
-// Simple function to check if a point is at a room corner (exact corners only)
-unsigned char is_at_room_corner(unsigned char x, unsigned char y) {
-    unsigned char i;
-    for (i = 0; i < room_count; i++) {
-        // Check if point is at any of the 4 exact corners of this room
-        if ((x == rooms[i].x && y == rooms[i].y) ||                                    // Top-left
-            (x == rooms[i].x + rooms[i].w - 1 && y == rooms[i].y) ||                   // Top-right
-            (x == rooms[i].x && y == rooms[i].y + rooms[i].h - 1) ||                   // Bottom-left
-            (x == rooms[i].x + rooms[i].w - 1 && y == rooms[i].y + rooms[i].h - 1)) {  // Bottom-right
-            return 1;
-        }
-    }
-    return 0;
-}
 
 // OPTIMIZED room exit finding - avoids room corners and existing doors
+// Finds the exit point on the room edge (perimeter) closest to the target position.
+// The exit is always placed just outside the standardized room edge:
+//   Left:   x == room->x - 1
+//   Right:  x == room->x + room->w
+//   Top:    y == room->y - 1
+//   Bottom: y == room->y + room->h
+// This ensures corridors and doors always connect at the perimeter, not inside the room.
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, unsigned char *exit_x, unsigned char *exit_y) {
     unsigned char room_center_x, room_center_y;
-    // Use optimized room center calculation - need room ID for the function
     unsigned char room_id = room - rooms; // Calculate room index from pointer
     get_room_center(room_id, &room_center_x, &room_center_y);
-    // Calculate direction to target using optimized functions
     unsigned char dx = fast_abs_diff(target_x, room_center_x);
     unsigned char dy = fast_abs_diff(target_y, room_center_y);
-    // Place exit OUTSIDE the room (on the wall, not on the last floor tile)
+    // Decide which edge (perimeter) to use for the exit
     if (dx > dy) {
-        // Horizontal movement preferred - exit from left/right side
+        // Horizontal movement preferred - exit from left/right edge
         if (target_x > room_center_x) {
-            // Exit from room right side - outside the edge
-            *exit_x = room->x + room->w; // One tile right of the room
+            // Exit from room right edge (perimeter)
+            *exit_x = room->x + room->w; // One tile right of the room edge
             *exit_y = room_center_y;
         } else {
-            // Exit from room left side - outside the edge
-            *exit_x = room->x - 1; // One tile left of the room
+            // Exit from room left edge (perimeter)
+            *exit_x = room->x - 1; // One tile left of the room edge
             *exit_y = room_center_y;
         }
     } else {
-        // Vertical movement preferred - exit from top/bottom side
+        // Vertical movement preferred - exit from top/bottom edge
         if (target_y > room_center_y) {
-            // Exit from room bottom side - outside the edge
-            *exit_y = room->y + room->h; // One tile below the room
+            // Exit from room bottom edge (perimeter)
+            *exit_y = room->y + room->h; // One tile below the room edge
             *exit_x = room_center_x;
         } else {
-            // Exit from room top side - outside the edge
-            *exit_y = room->y - 1; // One tile above the room
+            // Exit from room top edge (perimeter)
+            *exit_y = room->y - 1; // One tile above the room edge
             *exit_x = room_center_x;
         }
     }

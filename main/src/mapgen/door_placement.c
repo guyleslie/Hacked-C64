@@ -11,13 +11,13 @@ typedef struct {
     unsigned char length;
 } CorridorPath;
 
-// Place a door at (x, y) unconditionally
+// Place a door at (x, y) (assumes caller ensures correct edge/perimeter placement)
 void place_door(unsigned char x, unsigned char y) {
     set_tile_raw(x, y, TILE_DOOR);
 }
 
 
-// Place doors at the first and last walkable tiles of the corridor path between two rooms
+// Place doors at the first and last walkable tiles of the corridor path between two rooms (on the room edge/perimeter)
 void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path) {
     // Place door at the first walkable tile of the corridor
     unsigned char start_x = path->x[0];

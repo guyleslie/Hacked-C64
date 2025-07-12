@@ -1,5 +1,5 @@
 // Global flag to allow endpoint override for corridor placement
-// Set to 1 when placing corridor at a room wall endpoint
+// Set to 1 when placing corridor at a room edge (perimeter) endpoint
 unsigned char corridor_endpoint_override = 0;
 
 // Oscar64: include door placement prototypes at the top of the file
@@ -107,8 +107,10 @@ unsigned char can_place_corridor_tile(unsigned char x, unsigned char y) {
     // Overload: allow endpoint override for corridor placement
     // If endpoint override is set, allow placement even if buffer/adjacency rules would block
     if (corridor_endpoint_override) {
+        // Corridor endpoint override: allow placement only if on the room edge (perimeter)
         if (!coords_in_bounds_fast(x, y)) return 0;
         if (!is_outside_any_room(x, y)) return 0;
+        if (!is_on_room_edge(x, y)) return 0;
         return 1;
     }
     if (!coords_in_bounds_fast(x, y)) return 0;
@@ -141,8 +143,8 @@ unsigned char can_place_corridor_tile(unsigned char x, unsigned char y) {
 // CORRIDOR DRAWING
 // =============================================================================
 // L-shaped corridor drawing with rule enforcement
-// Improved L-corridor logic: always start in the direction of the exit wall,
-// then bend towards the target exit. Doors are placed only after the full corridor path is generated.
+// Improved L-corridor logic: always start in the direction of the exit edge (perimeter),
+// then bend towards the target exit edge. Doors are placed only after the full corridor path is generated.
 static CorridorPath corridor_path_static; // Oscar64/C64: Use static struct to avoid stack usage
 unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2) {
     unsigned char exit1_x, exit1_y, exit2_x, exit2_y;

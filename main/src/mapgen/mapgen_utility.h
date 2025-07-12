@@ -1,5 +1,5 @@
-// Returns 1 if (x, y) is a valid room wall tile for door placement (not a corner)
-unsigned char is_valid_room_wall(unsigned char x, unsigned char y);
+// Returns 1 if (x, y) is on the edge (perimeter) of any room (not a corner)
+unsigned char is_on_room_edge(unsigned char x, unsigned char y);
 #ifndef MAPGEN_UTILITY_H
 #define MAPGEN_UTILITY_H
 

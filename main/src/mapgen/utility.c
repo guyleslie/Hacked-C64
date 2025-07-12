@@ -9,23 +9,28 @@
 #include "mapgen_utility.h"    // For utility/math/cache functions
 #include "mapgen_internal.h"   // For internal helpers if needed
 
+// =============================================================================
+// ROOM EDGE (PERIMETER) VALIDATION
+// =============================================================================
+// Checks if the given coordinate is on the edge (perimeter) of any room.
+// Returns 1 if (x, y) is on the standardized room edge:
+//   Left:   x == room->x
+//   Right:  x == room->x + room->w - 1
+//   Top:    y == room->y
+//   Bottom: y == room->y + room->h - 1
+// This function is used for door placement and corridor connections.
 
-// =============================================================================
-// DOOR PLACEMENT VALIDATION
-// =============================================================================
-// Checks if the given coordinate is a valid room wall tile for door placement
-// Returns 1 if (x, y) is on the outermost walkable tile (the room's edge/perimeter)
-unsigned char is_valid_room_wall(unsigned char x, unsigned char y) {
+unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
     unsigned char i;
     for (i = 0; i < room_count; i++) {
         Room *room = &rooms[i];
-        // Top edge
+        // Top edge (perimeter)
         if (y == room->y && x >= room->x && x < room->x + room->w) return 1;
-        // Bottom edge
+        // Bottom edge (perimeter)
         if (y == room->y + room->h - 1 && x >= room->x && x < room->x + room->w) return 1;
-        // Left edge
+        // Left edge (perimeter)
         if (x == room->x && y >= room->y && y < room->y + room->h) return 1;
-        // Right edge
+        // Right edge (perimeter)
         if (x == room->x + room->w - 1 && y >= room->y && y < room->y + room->h) return 1;
     }
     return 0;
@@ -480,7 +485,7 @@ void clamp_to_bounds(unsigned char *x, unsigned char *y) {
     if (*y == UNDERFLOW_CHECK_VALUE) *y = 0; // Handle underflow
 }
 
-// Fast room boundary checking
+// Fast room edge (perimeter) checking
 unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room_id) {
     return (x >= rooms[room_id].x && x < rooms[room_id].x + rooms[room_id].w &&
             y >= rooms[room_id].y && y < rooms[room_id].y + rooms[room_id].h);

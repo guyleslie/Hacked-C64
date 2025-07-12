@@ -24,7 +24,6 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
 unsigned char is_inside_room(unsigned char x, unsigned char y);
 unsigned char is_outside_any_room(unsigned char x, unsigned char y);
 unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char room_id);
-unsigned char is_at_room_corner(unsigned char x, unsigned char y);
 unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char min_distance);
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y);
