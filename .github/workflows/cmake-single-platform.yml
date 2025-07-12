@@ -87,19 +87,13 @@ jobs:
           $reset = "`e[0m"
           if ("${{ job.status }}" -eq "success") {
             Write-Host ("${orange}=======================================================================================${reset}")
-            Write-Host "`n"
             Write-Host ("${green}BUILD SUCCESSFUL!${reset}")
-            Write-Host "`n"
             Write-Host "Latest build files:"
             Write-Host ("https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}")
-            Write-Host "`n"
             Write-Host "${green}Artifact download URL is above in Upload build output as artifact section"
-            Write-Host "`n"
             Write-Host ("${orange}=======================================================================================${reset}")
           } else {
             Write-Host ("${orange}=======================================================================================${reset}")
-            Write-Host "`n"
             Write-Host ("${red}BUILD FAILED!${reset}")
-            Write-Output ""
             Write-Host ("${orange}=======================================================================================${reset}")
           }
