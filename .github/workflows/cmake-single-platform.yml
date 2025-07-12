@@ -84,20 +84,20 @@ jobs:
           $red = "`e[31m"
           $reset = "`e[0m"
           if ("${{ job.status }}" -eq "success") {
-            Write-Host ("${orange}================================================================${reset}")
-            Write-Host ""
+            Write-Host ("${orange}=======================================================================================${reset}")
+            Write-Output ""
             Write-Host ("${green}BUILD SUCCESSFUL!${reset}")
-            Write-Host ""
+            Write-Output ""
             Write-Host "Download the build artifact from the Actions run page:"
             Write-Host ("https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}")
-            Write-Host ""
-            Write-Host "The artifact download URL is a little bit upper at the 'Upload build output as artifact' section."
-            Write-Host ""
-            Write-Host ("${orange}================================================================${reset}")
+            Write-Output ""
+            Write-Host "${green}You can download the build artifacts from the 'Upload build output as artifact' step above."
+            Write-Output ""
+            Write-Host ("${orange}=======================================================================================${reset}")
           } else {
-            Write-Host ("${orange}================================================================${reset}")
-            Write-Host ""
+            Write-Host ("${orange}=======================================================================================${reset}")
+            Write-Output ""
             Write-Host ("${red}BUILD FAILED!${reset}")
-            Write-Host ""
-            Write-Host ("${orange}================================================================${reset}")
+            Write-Output ""
+            Write-Host ("${orange}=======================================================================================${reset}")
           }
