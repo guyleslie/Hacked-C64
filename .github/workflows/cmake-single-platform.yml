@@ -59,8 +59,8 @@ jobs:
         run: |
           $debuggerDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger'
           New-Item -ItemType Directory -Force -Path $debuggerDir | Out-Null
-          $zipPath = Join-Path $debuggerDir 'RetroDebugger_win64_v0.64.72.zip'
-          $url = 'https://github.com/slajerek/RetroDebugger/releases/download/v0.64.72/RetroDebugger_win64_v0.64.72.zip'
+          $zipPath = Join-Path $debuggerDir 'RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
+          $url = 'https://github.com/slajerek/RetroDebugger/releases/download/v0.64.72/RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
           Write-Host "Downloading Retro Debugger..."
           Invoke-WebRequest -Uri $url -OutFile $zipPath
           Write-Host "Extracting Retro Debugger..."
@@ -82,7 +82,7 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
-            RetroDebugger/RetroDebugger_win64_v0.64.72.zip
+            RetroDebugger/RetroDebugger.v0.64.72-windows-x64-notsigned.zip
       - name: List build output
         run: |
           dir build
