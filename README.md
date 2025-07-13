@@ -13,13 +13,68 @@ Generation debug indicators:
 
 <img width="1192" height="902" alt="image" src="https://github.com/user-attachments/assets/9fb38995-9d2a-451d-a6cc-183752275dc5" />
 
-
 ---
 
 Generated map test display:
 
 <img width="1194" height="903" alt="image" src="https://github.com/user-attachments/assets/83f7092e-ebe4-4211-b90d-4914bf295301" />
 
+---
+
+## Map Data Structure
+
+The map is represented as a 2D grid of tiles, with each tile encoded using 3 bits for compact storage. The map dimensions are defined as 64x64 tiles (MAP_W x MAP_H). Each tile can represent different features such as empty space, wall, floor, door, stairs, or corner.
+
+### Tile Types and Encoding
+
+| Tile Type      | Symbol Name | PETSCII Code | Display Character | Description                |
+|----------------|-------------|--------------|-------------------|----------------------------|
+| Empty space    | EMPTY       | 32           | (space)           | Blank/empty tile           |
+| Wall           | WALL        | 160          | █                 | Solid block                |
+| Corner         | CORNER      | 230          | ▓                 | Shaded block/corner        |
+| Floor (path)   | FLOOR       | 46           | .                 | Walkable path              |
+| Door           | DOOR        | 171          | + (inverse)       | Inverse plus (door)        |
+| Stairs up      | UP          | 60           | <                 | Up stairs                  |
+| Stairs down    | DOWN        | 62           | >                 | Down stairs                |
+
+*Note: The door is displayed as an inverse plus (+) character, PETSCII code 171 ($AB), not as a block.*
+
+### Tile Encoding (mapgen_types.h)
+
+```c
+#define EMPTY   32
+#define WALL    160
+#define CORNER  230
+#define FLOOR   46
+#define DOOR    171 // Inverse plus (+)
+#define UP      60
+#define DOWN    62
+```
+
+### Compact Tile Type Encoding
+
+```c
+#define TILE_EMPTY   0
+#define TILE_WALL    1
+#define TILE_FLOOR   2
+#define TILE_DOOR    3
+#define TILE_UP      4
+#define TILE_DOWN    5
+#define TILE_CORNER  6
+```
+
+## Map Display
+
+The map is displayed on the Commodore 64 screen using PETSCII characters. Each tile type is mapped to its corresponding PETSCII code for visual representation. The display routines are optimized for Oscar64 and C64 hardware, using direct screen memory access for fast updates.
+
+- Walls are shown as solid blocks.
+- Corners are shown as shaded blocks.
+- Doors are shown as inverse plus (+) characters.
+- Walkable paths are shown as dots (.)
+- Empty spaces are shown as blank characters.
+- Stairs are shown as < (up) and > (down).
+
+For more details, see the implementation in `testdisplay.c` and the tile definitions in `mapgen_types.h`.
 
 ---
 
