@@ -156,6 +156,7 @@ unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2)
     find_room_exit(&rooms[room1], room2_center_x, room2_center_y, &exit1_x, &exit1_y);
     find_room_exit(&rooms[room2], room1_center_x, room1_center_y, &exit2_x, &exit2_y);
 
+
     // Use static struct for path
     corridor_path_static.length = 0;
 
@@ -164,10 +165,18 @@ unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2)
     else if (exit1_y == rooms[room1].y - 1) { dx = 0; dy = -1; }
     else if (exit1_y == rooms[room1].y + rooms[room1].h) { dx = 0; dy = 1; }
 
+    // Place corridor tile at the exit tile (room edge) to visually connect corridor to the room
+    corridor_endpoint_override = 1;
+    set_tile_raw(exit1_x, exit1_y, TILE_FLOOR);
+    if (corridor_path_static.length < MAX_PATH_LENGTH) {
+        corridor_path_static.x[corridor_path_static.length] = exit1_x;
+        corridor_path_static.y[corridor_path_static.length] = exit1_y;
+        corridor_path_static.length++;
+    }
+    corridor_endpoint_override = 0;
+
     x = exit1_x + dx;
     y = exit1_y + dy;
-    // Store the first corridor tile position for later door placement
-    corridor_endpoint_override = 1;
     if (can_place_corridor_tile(x, y)) {
         set_tile_raw(x, y, TILE_FLOOR);
         if (corridor_path_static.length < MAX_PATH_LENGTH) {
@@ -176,7 +185,6 @@ unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2)
             corridor_path_static.length++;
         }
     }
-    corridor_endpoint_override = 0;
 
     // Go straight until aligned with target exit
     while (x != exit2_x && y != exit2_y) {
@@ -217,13 +225,10 @@ unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2)
         }
     }
 
-    // Place doors at the start and end of the corridor path
-    if (corridor_path_static.length > 0) {
-        place_door(corridor_path_static.x[0], corridor_path_static.y[0]);
-    }
-    if (corridor_path_static.length > 1) {
-        place_door(corridor_path_static.x[corridor_path_static.length - 1], corridor_path_static.y[corridor_path_static.length - 1]);
-    }
+    // Place doors one tile closer to the room at both ends of the corridor
+    // Place doors at the actual room exit tiles to ensure no gap between corridor and room
+    place_door(exit1_x, exit1_y); // Door at the first room's exit
+    place_door(exit2_x, exit2_y); // Door at the second room's exit
 
     return 1; // Success
 }

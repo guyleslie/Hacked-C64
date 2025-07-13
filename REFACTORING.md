@@ -187,7 +187,29 @@ Implements and exposes the public API for map generation.
 
 ---
 
-## Summary of Refactor Impact
+## Corridor and Door Placement Refactor (2025-07-13)
+
+### Summary of Changes
+
+1. **Door Placement Logic Fixed:**
+   - Doors are now placed directly at the actual room exit tiles (`exit1_x, exit1_y` and `exit2_x, exit2_y`), instead of extrapolating from the corridor direction. This eliminates any gap between the corridor and the room.
+
+2. **Corridor Drawing Logic Improved:**
+   - The corridor now starts directly at the room edge (exit tile), so the corridor visually connects right up to the door and the room, with no empty space in between.
+
+3. **Endpoint Override Usage:**
+   - The `corridor_endpoint_override` flag is used to allow placing a corridor tile on the room edge for the first tile, ensuring the corridor can legally start at the room boundary.
+
+4. **Known Limitation – Door Placement at Room Outside Corners:**
+   - In cases where corridors connect to rooms at the corners of the room perimeter, the doors may not be placed at the ideal or intended positions.  The current logic always places doors at the exit tile, which is on the straight edge on the outside of room paths where the corridor started or where the corridor ended. The doors therefore appear further away from the end of the corridor in these cases.
+
+- Doors are now always placed to the exact location on both of exit points. The logic of corridors does not follow this implementation, but stops one space before the rooms.
+
+- Door placement at room outside corners is not yet handled and require further logic to ensure doors and corridor exit points are handled in these special cases differently when corridors pass through the corners of the outer edges of rooms.
+
+---
+
+## Summary of Refactor Impact (except for the above)
 
 - **All modules** now use a single, clear definition of the room edge (perimeter).
 - **All placement, validation, and rendering logic** is consistent and robust.
