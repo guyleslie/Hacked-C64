@@ -1,27 +1,28 @@
 
-# Source Directory Logic and File Responsibilities
+# Source Directory Logic and Module Responsibilities (Refactored)
 
-This document describes the detailed logic and file responsibilities within the `src` directory of the C64 Oscar64 dungeon map generator. It is intended as a technical reference for developers working on or extending the map generation system.
+This document details the logic, pipeline, and file responsibilities within the `src` directory of the Oscar64/C64 dungeon map generator. It reflects the 2025 refactor, which unified all edge/perimeter logic, door/corridor placement, and module responsibilities. All code is fully commented for Oscar64 and C64 hardware compatibility, with static memory usage throughout.
 
 ---
 
-## Map Generation Pipeline: Detailed Logic
+## Map Generation Pipeline: Refactored Overview
 
-The map generation process is a multi-stage pipeline, designed for both organic dungeon layouts and strict C64 memory constraints. Each step is implemented in a dedicated module and function, with all logic optimized for Oscar64.
+The map generation process is a multi-stage, rule-based pipeline, designed for organic dungeon layouts and strict C64 memory constraints. Each step is implemented in a dedicated module, with all logic optimized for Oscar64 and static memory (no malloc/free, all arrays are fixed size).
 
 ### 1. Initialization
 
-- **`mapgen_init()`**: Clears the map, resets all room and corridor data, and invalidates caches. This ensures a clean state for each new map.
+- **`mapgen_init()`**: Clears the map, resets all room and corridor data, and invalidates caches. Ensures a clean state for each new map.
 - **`init_rule_based_connection_system()`**: Initializes the connection matrix (tracks which rooms are connected), resets static memory pools for corridors, and precomputes pairwise room distances for efficient corridor planning.
 
-### 2. Room Placement (Organic Grid-Based)
+### 2. Room Placement (Grid-Based, Perimeter-Defined)
 
 - **Grid Division**: The map is divided into a fixed grid (see `GRID_SIZE`), with each cell able to host at most one room. This prevents clustering and ensures even distribution.
 - **Randomized Placement**: For each room, a grid cell is chosen, and the room's position within the cell is randomized (with a small offset) to avoid strict alignment and create a natural, non-uniform dungeon feel.
 - **Validation**: Before placing a room, `can_place_room()` checks for overlap and minimum distance to other rooms. If valid, `place_room()` commits the room to the map.
 - **Room Center Caching**: Each room's center is cached for fast access by corridor and stairs algorithms.
+- **Unified Perimeter Logic**: All edge/perimeter checks use the new, standardized definition. All placement and validation routines are consistent and robust.
 
-### 3. Room Connection & Corridor Generation (MST-Based)
+### 3. Room Connection & Corridor Generation (MST-Based, Perimeter-Defined)
 
 - **Pipeline Control**: The main function `generate_level()` orchestrates the connection of all rooms.
 - **Minimum Spanning Tree (MST) Algorithm**: Starting from one room, the algorithm iteratively connects the closest unconnected room to the connected set, always choosing the shortest valid connection and obeying all rules.
@@ -31,57 +32,68 @@ The map generation process is a multi-stage pipeline, designed for both organic 
   - Existing corridors are reused if possible (`can_reuse_existing_path()`).
   - If not, a new corridor is created with `draw_rule_based_corridor()`.
 - **Corridor Drawing**: `draw_rule_based_corridor()`:
-  - Determines the exit point for each room using `find_room_exit()`. Exits are always just outside the room wall, never inside.
-  - Draws an L-shaped corridor: first straight from the starting exit until aligned with the target, then bends and continues to the target exit.
-  - The corridor path is stored as a sequence of tiles.
-- **Door Placement**: After the corridor is drawn, `place_door_between_rooms()` places doors at both ends of the corridor (the first and last walkable tiles), ensuring every connection is physically realized and accessible.
+  - Determines the exact exit tile for each room using `find_room_exit()`. **Exit points are always placed exactly 2 tiles away from the room perimeter.** The corridor path always starts and ends at these exit tiles.
+  - The corridor is constructed as a sequence of tiles, typically in an L-shape (or Z-shape if needed), using a greedy Manhattan path with a possible pivot point for variety.
+  - The `corridor_endpoint_override` flag is used to allow the first tile of the corridor to be placed on the room edge, ensuring a seamless connection.
+  - All adjacency and overlap rules are strictly enforced, and the logic is robust for all room shapes and orientations.
+- **Door Placement**: After the full corridor path is generated, `place_door_between_rooms()` places doors at the first and last walkable tiles of the path, which are always **exactly 1 tile away from the room perimeter**. This ensures there is never a gap between the corridor and the room, and doors are always at the correct, visually consistent position, even for corners and edge cases.
 
 ### 4. Stairs Placement
 
 - **`add_stairs()`**: Places up and down stairs in the highest-priority rooms (usually the start and end rooms), always at the room center. Room priorities are assigned based on their position in the MST and other heuristics.
 
-### 5. Wall and Door Placement
+### 5. Wall and Door Placement (Unified Perimeter Logic)
 
 - **Wall Placement**: `add_walls()` scans all floor and door tiles, placing walls on any adjacent empty tile. This is highly optimized for C64 memory and speed, and ensures all rooms and corridors are properly enclosed.
-- **Door Placement**: (see above) is always at the interface between a room and a corridor, never inside the room or deep in the corridor. The logic is robust for all corridor shapes, including corners.
+- **Door Placement**: (see above) is always at the interface between a room and a corridor, never inside the room or deep in the corridor. The logic is robust for all corridor shapes, including corners. Doors are always placed at the exact perimeter tile where the corridor meets the room.
 
 ### 6. Display
 
-- **Display**: `mapgen_display.c` handles rendering the map to the C64 screen, including viewport navigation and user interaction.
+- **Display**: `testdisplay.c` and `mapgen_display.c` handle rendering the map to the C64 screen, including viewport navigation, user interaction, and delta screen refresh for performance. Visual output now matches the new edge/perimeter logic.
 
-### 7. Map Export (not yet used)
+### 7. Map Export (not yet integrated)
 
-- **Export**: `map_export.c` provides routines for saving the generated map in Oscar64/C64-compatible binary format, using Oscar64 KERNAL routines for file I/O.\
-  **Note:** The export functionality exists, but is not yet called or integrated into the current pipeline.
-
-## Key Design Points
-
-- **Corridors always start/end just outside room walls**; never from the room interior. Doors are placed at the wall boundary using a robust, symmetric algorithm.
-- **All connections are physical corridors**; no abstract/logical-only links. Every connection is realized as a walkable path on the map.
-- **Rule-based, deterministic system**: No random corridor carving; all steps follow strict rules for reproducibility and C64 compatibility.
-- **Oscar64/C64 optimizations**: Static memory pools, compact map storage (3 bits/tile), and minimal stack usage. All algorithms are designed for speed and memory efficiency on real hardware.
-
-## C Source Files in 'main/src/'
-
-- `main/src/main.c`: `main()`; Oscar64 file I/O; top-level control and user interaction
-- `main/src/mapgen/map_generation.c`: `generate_level()`, `add_walls()`, `add_stairs()`
-- `main/src/mapgen/rule_based_connection_system.c`: `rule_based_connect_rooms()`, `draw_rule_based_corridor()`, `can_reuse_existing_path()`
-- `main/src/mapgen/room_management.c`: `create_rooms()`, `find_room_exit()`, and room placement helpers
-- `main/src/mapgen/door_placement.c`: `place_door()`, `place_door_between_rooms()` (handles all door logic)
-- `main/src/mapgen/map_export.c`: Map export routines
-- `main/src/mapgen/mapgen_display.c`: Map rendering and navigation
-
-## Header Files in 'main/src/'
-
-- `common.h`: Shared constants, macros, and utility functions used throughout the codebase.
-- `mapgen_types.h`: Data structures for rooms, corridors, map tiles, and related types.
-- `mapgen_api.h`: Public API for initializing and generating dungeons.
-- `mapgen_internal.h`: Internal state, helpers, and private definitions for map generation.
-- `mapgen_utility.h`: Math, randomization, and C64-specific helper routines.
-- `mapgen_display.h`: API for rendering and navigation on the C64 screen.
-- `map_export.h`: API for exporting maps in Oscar64/C64-compatible formats.
-- `oscar64_console.h`: Oscar64-specific console/graphics routines for C64 display.
+- **Export**: `map_export.c` provides routines for saving the generated map in Oscar64/C64-compatible binary format, using Oscar64 KERNAL routines for file I/O.
+  **Note:** The export functionality is implemented, but not yet called or integrated into the main pipeline.
 
 ---
 
-For further details, see the code and comments in each module. All code is fully commented for C64/Oscar64 compatibility and clarity.
+## Refactoring Key Design Points
+
+- **Unified Perimeter Logic**: All modules now use a single, clear definition of the room edge (perimeter). All placement, validation, and rendering logic is consistent and robust.
+- **Door and Corridor Placement**: **Exit points for corridors are always placed exactly 2 tiles away from the room perimeter, and doors are always placed exactly 1 tile away from the perimeter.** Doors never appear inside the room or deep in the corridor. There is never a gap between the corridor and the room. The `corridor_endpoint_override` flag allows the corridor to legally start at the room boundary.
+- **Physical Connections Only**: All connections are realized as walkable corridors; no abstract or logical-only links.
+- **Rule-based, Deterministic System**: No random corridor carving; all steps follow strict rules for reproducibility and C64 compatibility.
+- **Oscar64/C64 Optimizations**: Static memory pools, compact map storage (3 bits/tile), and minimal stack usage. All algorithms are designed for speed and memory efficiency on real hardware. No dynamic memory allocation is used anywhere.
+- **Known Limitation – Door Placement at Room Outside Corners**: In cases where corridors connect to rooms at the corners of the room perimeter, doors may not be placed at the ideal or intended positions. The current logic always places doors at the exit tile, which is on the straight edge. This is a known limitation and will be improved in future updates.
+
+---
+
+## C Source Files in 'main/src/' (Refactored Responsibilities)
+
+- `main.c`: Entry point; Oscar64 file I/O; top-level control and user interaction
+- `mapgen/map_generation.c`: Orchestrates the full pipeline (`generate_level()`), wall and stair placement (`add_walls()`, `add_stairs()`), and ensures all steps use the unified perimeter logic.
+- `mapgen/rule_based_connection_system.c`: Implements the MST-based connection system, rule-based corridor and door generation, and all connection validation. All corridor endpoints and door placements are strictly at the perimeter.
+- `mapgen/room_management.c`: Handles room placement, sizing, and exit calculation. All logic referencing room boundaries uses the standardized edge definition.
+- `mapgen/door_placement.c`: Handles all door placement logic. Doors are always placed at the interface between a room and a corridor, on the perimeter.
+- `mapgen/map_export.c`: Map export routines (not yet integrated into the main pipeline).
+- `mapgen/testdisplay.c`: Map rendering, viewport, input, delta refresh. Visual output now matches the new edge/perimeter logic.
+- `mapgen/utility.c`: Math, random, cache, and helper functions. All edge/perimeter checks use the new definition.
+- `mapgen/public.c`: Public API for mapgen. API now guarantees consistent, unambiguous behavior for all mapgen operations.
+
+## Header Files in 'main/src/'
+
+- `common.h`: Shared constants, macros, and utility functions used throughout the codebase
+- `mapgen_types.h`: Data structures for rooms, corridors, map tiles, and related types. All core types, constants, and macros for map generation.
+- `mapgen_api.h`: Public API for initializing and generating dungeons
+- `mapgen_internal.h`: Internal state, helpers, and private definitions for map generation
+- `mapgen_utility.h`: Math, randomization, coordinate, and C64-specific helper routines. All edge/perimeter checks use the new definition.
+- `mapgen_display.h`: API for rendering and navigation on the C64 screen
+- `map_export.h`: API for exporting maps in Oscar64/C64-compatible formats
+- `oscar64_console.h`: Oscar64-specific console/graphics routines for C64 display
+
+---
+
+## Developer Workflow
+
+All code is fully commented for C64/Oscar64 compatibility and clarity. For build instructions, see the root `README.md`. For further details, see the code and comments in each module.

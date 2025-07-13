@@ -146,24 +146,86 @@ unsigned char can_place_corridor_tile(unsigned char x, unsigned char y) {
 // Improved L-corridor logic: always start in the direction of the exit edge (perimeter),
 // then bend towards the target exit edge. Doors are placed only after the full corridor path is generated.
 static CorridorPath corridor_path_static; // Oscar64/C64: Use static struct to avoid stack usage
+// Corridor drawing with Z-shape support using a greedy Manhattan path with a pivot point.
+// The corridor first goes from room1's exit to a pivot, then from the pivot to room2's exit.
+// The pivot is chosen as the midpoint between the two exits, but can be randomized for more variety.
+// Oscar64/C64: Uses static struct to avoid stack usage.
+
+// Helper: greedy Manhattan path from (sx,sy) to (ex,ey), appending to corridor_path_static
+
+// Draw a corridor in two straight segments: first along X, then along Y (or vice versa)
+// This prevents zig-zag corridors. Used for both L and Z shapes.
+static void straight_corridor_path(signed char sx, signed char sy, signed char ex, signed char ey, unsigned char xy_first) {
+    signed char x = sx;
+    signed char y = sy;
+    if (xy_first) {
+        // Move along X first
+        while (x != ex) {
+            if (x < ex) x++;
+            else x--;
+            if (can_place_corridor_tile(x, y)) {
+                set_tile_raw(x, y, TILE_FLOOR);
+                if (corridor_path_static.length < MAX_PATH_LENGTH) {
+                    corridor_path_static.x[corridor_path_static.length] = x;
+                    corridor_path_static.y[corridor_path_static.length] = y;
+                    corridor_path_static.length++;
+                }
+            }
+        }
+        // Then along Y
+        while (y != ey) {
+            if (y < ey) y++;
+            else y--;
+            if (can_place_corridor_tile(x, y)) {
+                set_tile_raw(x, y, TILE_FLOOR);
+                if (corridor_path_static.length < MAX_PATH_LENGTH) {
+                    corridor_path_static.x[corridor_path_static.length] = x;
+                    corridor_path_static.y[corridor_path_static.length] = y;
+                    corridor_path_static.length++;
+                }
+            }
+        }
+    } else {
+        // Move along Y first
+        while (y != ey) {
+            if (y < ey) y++;
+            else y--;
+            if (can_place_corridor_tile(x, y)) {
+                set_tile_raw(x, y, TILE_FLOOR);
+                if (corridor_path_static.length < MAX_PATH_LENGTH) {
+                    corridor_path_static.x[corridor_path_static.length] = x;
+                    corridor_path_static.y[corridor_path_static.length] = y;
+                    corridor_path_static.length++;
+                }
+            }
+        }
+        // Then along X
+        while (x != ex) {
+            if (x < ex) x++;
+            else x--;
+            if (can_place_corridor_tile(x, y)) {
+                set_tile_raw(x, y, TILE_FLOOR);
+                if (corridor_path_static.length < MAX_PATH_LENGTH) {
+                    corridor_path_static.x[corridor_path_static.length] = x;
+                    corridor_path_static.y[corridor_path_static.length] = y;
+                    corridor_path_static.length++;
+                }
+            }
+        }
+    }
+}
+
 unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2) {
     unsigned char exit1_x, exit1_y, exit2_x, exit2_y;
     unsigned char room1_center_x, room1_center_y, room2_center_x, room2_center_y;
-    signed char dx = 0, dy = 0;
-    signed char x, y;
+    signed char pivot_x, pivot_y;
     get_room_center(room1, &room1_center_x, &room1_center_y);
     get_room_center(room2, &room2_center_x, &room2_center_y);
     find_room_exit(&rooms[room1], room2_center_x, room2_center_y, &exit1_x, &exit1_y);
     find_room_exit(&rooms[room2], room1_center_x, room1_center_y, &exit2_x, &exit2_y);
 
-
     // Use static struct for path
     corridor_path_static.length = 0;
-
-    if (exit1_x == rooms[room1].x - 1) { dx = -1; dy = 0; }
-    else if (exit1_x == rooms[room1].x + rooms[room1].w) { dx = 1; dy = 0; }
-    else if (exit1_y == rooms[room1].y - 1) { dx = 0; dy = -1; }
-    else if (exit1_y == rooms[room1].y + rooms[room1].h) { dx = 0; dy = 1; }
 
     // Place corridor tile at the exit tile (room edge) to visually connect corridor to the room
     corridor_endpoint_override = 1;
@@ -175,60 +237,47 @@ unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2)
     }
     corridor_endpoint_override = 0;
 
-    x = exit1_x + dx;
-    y = exit1_y + dy;
-    if (can_place_corridor_tile(x, y)) {
-        set_tile_raw(x, y, TILE_FLOOR);
-        if (corridor_path_static.length < MAX_PATH_LENGTH) {
-            corridor_path_static.x[corridor_path_static.length] = x;
-            corridor_path_static.y[corridor_path_static.length] = y;
-            corridor_path_static.length++;
-        }
+    // Choose a pivot point for Z-shape: midpoint between exits (can be randomized for more variety)
+    pivot_x = (exit1_x + exit2_x) / 2;
+    pivot_y = (exit1_y + exit2_y) / 2;
+
+
+    // First leg: from exit1 to pivot (randomize axis order for variety)
+    straight_corridor_path(exit1_x, exit1_y, pivot_x, pivot_y, (room1 + room2) % 2);
+    // Second leg: from pivot to exit2 (randomize axis order for variety)
+    straight_corridor_path(pivot_x, pivot_y, exit2_x, exit2_y, (room1 + room2 + 1) % 2);
+
+    // Place doors 1 tile closer to the room than the corridor endpoint, for both ends
+    // This ensures doors are always at the room perimeter +1 tile, not at the corridor endpoint
+    unsigned char door1_x = exit1_x;
+    unsigned char door1_y = exit1_y;
+    unsigned char door2_x = exit2_x;
+    unsigned char door2_y = exit2_y;
+
+    // Determine direction for door1 (room1)
+    if (exit1_x == rooms[room1].x - 2) {
+        door1_x = rooms[room1].x - 1;
+    } else if (exit1_x == rooms[room1].x + rooms[room1].w + 1) {
+        door1_x = rooms[room1].x + rooms[room1].w;
+    } else if (exit1_y == rooms[room1].y - 2) {
+        door1_y = rooms[room1].y - 1;
+    } else if (exit1_y == rooms[room1].y + rooms[room1].h + 1) {
+        door1_y = rooms[room1].y + rooms[room1].h;
     }
 
-    // Go straight until aligned with target exit
-    while (x != exit2_x && y != exit2_y) {
-        x += dx;
-        y += dy;
-        if (can_place_corridor_tile(x, y)) {
-            set_tile_raw(x, y, TILE_FLOOR);
-            if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                corridor_path_static.x[corridor_path_static.length] = x;
-                corridor_path_static.y[corridor_path_static.length] = y;
-                corridor_path_static.length++;
-            }
-        }
-    }
-    // Bend: move along the other axis
-    while (x != exit2_x) {
-        if (x < exit2_x) x++;
-        else x--;
-        if (can_place_corridor_tile(x, y)) {
-            set_tile_raw(x, y, TILE_FLOOR);
-            if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                corridor_path_static.x[corridor_path_static.length] = x;
-                corridor_path_static.y[corridor_path_static.length] = y;
-                corridor_path_static.length++;
-            }
-        }
-    }
-    while (y != exit2_y) {
-        if (y < exit2_y) y++;
-        else y--;
-        if (can_place_corridor_tile(x, y)) {
-            set_tile_raw(x, y, TILE_FLOOR);
-            if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                corridor_path_static.x[corridor_path_static.length] = x;
-                corridor_path_static.y[corridor_path_static.length] = y;
-                corridor_path_static.length++;
-            }
-        }
+    // Determine direction for door2 (room2)
+    if (exit2_x == rooms[room2].x - 2) {
+        door2_x = rooms[room2].x - 1;
+    } else if (exit2_x == rooms[room2].x + rooms[room2].w + 1) {
+        door2_x = rooms[room2].x + rooms[room2].w;
+    } else if (exit2_y == rooms[room2].y - 2) {
+        door2_y = rooms[room2].y - 1;
+    } else if (exit2_y == rooms[room2].y + rooms[room2].h + 1) {
+        door2_y = rooms[room2].y + rooms[room2].h;
     }
 
-    // Place doors one tile closer to the room at both ends of the corridor
-    // Place doors at the actual room exit tiles to ensure no gap between corridor and room
-    place_door(exit1_x, exit1_y); // Door at the first room's exit
-    place_door(exit2_x, exit2_y); // Door at the second room's exit
+    place_door(door1_x, door1_y); // Door at the first room's perimeter +1
+    place_door(door2_x, door2_y); // Door at the second room's perimeter +1
 
     return 1; // Success
 }

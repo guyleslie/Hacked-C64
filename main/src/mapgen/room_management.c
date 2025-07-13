@@ -170,29 +170,31 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
     unsigned char dx = fast_abs_diff(target_x, room_center_x);
     unsigned char dy = fast_abs_diff(target_y, room_center_y);
     // Decide which edge (perimeter) to use for the exit
+    // The exit will be placed 2 tiles away from the room perimeter, not directly adjacent
     if (dx > dy) {
         // Horizontal movement preferred - exit from left/right edge
         if (target_x > room_center_x) {
-            // Exit from room right edge (perimeter)
-            *exit_x = room->x + room->w; // One tile right of the room edge
+            // Exit from room right edge (perimeter +2)
+            *exit_x = room->x + room->w + 1; // Two tiles right of the room edge
             *exit_y = room_center_y;
         } else {
-            // Exit from room left edge (perimeter)
-            *exit_x = room->x - 1; // One tile left of the room edge
+            // Exit from room left edge (perimeter -2)
+            *exit_x = room->x - 2; // Two tiles left of the room edge
             *exit_y = room_center_y;
         }
     } else {
         // Vertical movement preferred - exit from top/bottom edge
         if (target_y > room_center_y) {
-            // Exit from room bottom edge (perimeter)
-            *exit_y = room->y + room->h; // One tile below the room edge
+            // Exit from room bottom edge (perimeter +2)
+            *exit_y = room->y + room->h + 1; // Two tiles below the room edge
             *exit_x = room_center_x;
         } else {
-            // Exit from room top edge (perimeter)
-            *exit_y = room->y - 1; // One tile above the room edge
+            // Exit from room top edge (perimeter -2)
+            *exit_y = room->y - 2; // Two tiles above the room edge
             *exit_x = room_center_x;
         }
     }
+    // Now all corridor endpoints are always 2 tiles away from the room perimeter, as required.
 }
 
 
