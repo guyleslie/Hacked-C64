@@ -7,6 +7,16 @@ Oscar64/C64 Dungeon Map Generator – Modern, Modular, and Fully Commented
 
 This project is an optimized, modular dungeon map generator for the Commodore 64, written entirely in C and tailored for the Oscar64 cross-assembler. The program generates random maps with rooms, corridors, walls, and stairs, featuring real-time navigation and C64-specific screen handling. All algorithms, memory usage, and display routines are optimized for C64 hardware and Oscar64 compatibility.
 
+## Screnshots:
+
+Generation debug indicators:
+
+<img width="1195" height="906" alt="image" src="https://github.com/user-attachments/assets/119f89cc-0bb5-4612-8b85-3ef19d8db38a" />
+
+Generated map test display:
+
+<img width="1200" height="906" alt="image" src="https://github.com/user-attachments/assets/8b10909f-9965-4bdf-aaa5-4910b5e94192" />
+
 ## Main Directories and Files
 
 Complete list of the main directories and files in this project:
