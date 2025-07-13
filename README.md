@@ -11,13 +11,15 @@ This project is an optimized, modular dungeon map generator for the Commodore 64
 
 Generation debug indicators:
 
-<img width="1195" height="906" alt="image" src="https://github.com/user-attachments/assets/119f89cc-0bb5-4612-8b85-3ef19d8db38a" />
+<img width="1192" height="902" alt="image" src="https://github.com/user-attachments/assets/9fb38995-9d2a-451d-a6cc-183752275dc5" />
+
 
 ---
 
 Generated map test display:
 
-<img width="1200" height="906" alt="image" src="https://github.com/user-attachments/assets/8b10909f-9965-4bdf-aaa5-4910b5e94192" />
+<img width="1194" height="903" alt="image" src="https://github.com/user-attachments/assets/83f7092e-ebe4-4211-b90d-4914bf295301" />
+
 
 ---
 
