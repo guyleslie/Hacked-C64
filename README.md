@@ -27,17 +27,17 @@ The map is represented as a 2D grid of tiles, with each tile encoded using 3 bit
 
 ### Tile Types and Encoding
 
-| Tile Type      | Symbol Name | PETSCII Code | Display Character | Description                |
-|----------------|-------------|--------------|-------------------|----------------------------|
-| Empty space    | EMPTY       | 32           | (space)           | Blank/empty tile           |
-| Wall           | WALL        | 160          | █                 | Solid block                |
-| Corner         | CORNER      | 230          | ▓                 | Shaded block/corner        |
-| Floor (path)   | FLOOR       | 46           | .                 | Walkable path              |
-| Door           | DOOR        | 171          | + (inverse)       | Inverse plus (door)        |
-| Stairs up      | UP          | 60           | <                 | Up stairs                  |
-| Stairs down    | DOWN        | 62           | >                 | Down stairs                |
+| Tile Type      | Symbol Name | PETSCII Code | PETSCII Character  | Description         |
+|----------------|-------------|--------------|--------------------|---------------------|
+| Empty space    | EMPTY       | 32           | (space)            | Blank/empty tile    |
+| Wall           | WALL        | 160          |' █ '               | Solid block         |
+| Corner         | CORNER      | 230          |' ▓ '               | Shaded block/corner |
+| Floor (path)   | FLOOR       | 46           |' . '               | Walkable path       |
+| Door           | DOOR        | 171          |' + ' (invers char) | Door                |
+| Stairs up      | UP          | 60           |' < '               | Up stairs           |
+| Stairs down    | DOWN        | 62           |' > '               | Down stairs         |
 
-*Note: The door is displayed as an inverse plus (+) character, PETSCII code 171 ($AB), not as a block.*
+*Note: The door is displayed as an inverse plus (+) character, PETSCII code 171.*
 
 ### Tile Encoding (mapgen_types.h)
 
