@@ -130,6 +130,7 @@ static unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y)
         case TILE_DOOR:  return DOOR;  // 43
         case TILE_UP:    return UP;    // 60
         case TILE_DOWN:  return DOWN;  // 62
+        case TILE_CORNER: return CORNER; // 67 ('C')
         default: return EMPTY; // Safety fallback
     }
 }

@@ -23,12 +23,13 @@
 #define MIN_L_CORRIDOR_STRAIGHT 1
 
 // Map tile characters (PETSCII)
-#define EMPTY 32
-#define WALL  35
-#define FLOOR 46
-#define DOOR  43
-#define UP    60
-#define DOWN  62
+#define EMPTY  32
+#define WALL   160
+#define CORNER 230
+#define FLOOR  46
+#define DOOR   219
+#define UP     60
+#define DOWN   62
 
 // Compact tile type encoding
 #define TILE_EMPTY  0
@@ -37,6 +38,7 @@
 #define TILE_DOOR   3
 #define TILE_UP     4
 #define TILE_DOWN   5
+#define TILE_CORNER 6
 #define TILE_MASK   7
 
 // Conversion macro from compact tile to PETSCII
@@ -45,7 +47,8 @@
                                (tile) == TILE_FLOOR ? FLOOR : \
                                (tile) == TILE_DOOR ? DOOR : \
                                (tile) == TILE_UP ? UP : \
-                               (tile) == TILE_DOWN ? DOWN : EMPTY)
+                               (tile) == TILE_DOWN ? DOWN : \
+                               (tile) == TILE_CORNER ? CORNER : EMPTY)
 
 // Tile validation bit flags
 #define TILE_CHECK_EMPTY  0x01

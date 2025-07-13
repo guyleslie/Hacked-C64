@@ -671,22 +671,26 @@ unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y, unsign
 }
 
 // Memory-efficient text output function (uses assembly code for direct KERNAL calls)
+// Converts ASCII upper/lowercase to correct mixed charset code for C64 display
+static unsigned char to_mixed_charset(unsigned char c) {
+    if (c >= 'A' && c <= 'Z') return c + 32; // 'A'-'Z' to C64 lowercase
+    if (c >= 'a' && c <= 'z') return c - 32; // 'a'-'z' to C64 uppercase
+    return c;
+}
+
 void print_text(const char* text) {
     unsigned char i = 0;
     while (text[i] != '\0') {
+        unsigned char outc;
         if (text[i] == '\n') {
-            // Handle newline properly on C64 using direct KERNAL call
-            __asm {
-                lda #13    // CR character
-                jsr $ffd2  // CHROUT KERNAL routine
-            }
+            outc = 13; // CR for newline
         } else {
-            // Output regular character using direct KERNAL call
-            __asm {
-                ldy i      // Load index into Y register
-                lda (text),y // Load character from text[i]
-                jsr $ffd2  // CHROUT KERNAL routine
-            }
+            outc = to_mixed_charset((unsigned char)text[i]);
+        }
+        // Output character using direct KERNAL call
+        __asm {
+            lda outc
+            jsr $ffd2
         }
         i++;
     }

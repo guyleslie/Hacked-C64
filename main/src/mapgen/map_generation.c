@@ -20,13 +20,12 @@ extern unsigned char room_count;
 void add_walls(void) {
     unsigned char x, y;
 
-    print_text("\n\nCREATING WALLS");
+    print_text("\n\nPlacing walls");
     
     // Simple approach: scan for floor/door tiles and place walls around them
     for (y = 0; y < MAP_H; y++) {
         for (x = 0; x < MAP_W; x++) {
             unsigned char tile = get_tile_raw(x, y);
-            
             // Only process floor and door tiles
             if (tile == TILE_FLOOR || tile == TILE_DOOR) {
                 // Check all 4 neighbors and place walls where needed
@@ -34,23 +33,72 @@ void add_walls(void) {
                 if (y > 0 && get_tile_raw(x, y-1) == TILE_EMPTY) {
                     set_tile_raw(x, y-1, TILE_WALL);
                 }
-                
                 // South
                 if (y < MAP_H-1 && get_tile_raw(x, y+1) == TILE_EMPTY) {
                     set_tile_raw(x, y+1, TILE_WALL);
                 }
-                
                 // West
                 if (x > 0 && get_tile_raw(x-1, y) == TILE_EMPTY) {
                     set_tile_raw(x-1, y, TILE_WALL);
                 }
-                
                 // East
                 if (x < MAP_W-1 && get_tile_raw(x+1, y) == TILE_EMPTY) {
                     set_tile_raw(x+1, y, TILE_WALL);
                 }
-            }        }
+            }
+        }
         if (y % 16 == 0) print_text("."); // Progress indicator every 16 rows
+    }
+
+    // Second pass: place corner tiles diagonally from walkable tiles (külső és belső sarkok)
+    for (y = 1; y < MAP_H-1; y++) {
+        for (x = 1; x < MAP_W-1; x++) {
+            unsigned char tile = get_tile_raw(x, y);
+            if (tile == TILE_FLOOR || tile == TILE_DOOR) {
+                // Outer corner: two adjacent walls, diagonal is empty
+                if (get_tile_raw(x+1, y) == TILE_WALL && get_tile_raw(x, y+1) == TILE_WALL && get_tile_raw(x+1, y+1) == TILE_EMPTY) {
+                    set_tile_raw(x+1, y+1, TILE_CORNER);
+                }
+                if (get_tile_raw(x-1, y) == TILE_WALL && get_tile_raw(x, y+1) == TILE_WALL && get_tile_raw(x-1, y+1) == TILE_EMPTY) {
+                    set_tile_raw(x-1, y+1, TILE_CORNER);
+                }
+                if (get_tile_raw(x+1, y) == TILE_WALL && get_tile_raw(x, y-1) == TILE_WALL && get_tile_raw(x+1, y-1) == TILE_EMPTY) {
+                    set_tile_raw(x+1, y-1, TILE_CORNER);
+                }
+                if (get_tile_raw(x-1, y) == TILE_WALL && get_tile_raw(x, y-1) == TILE_WALL && get_tile_raw(x-1, y-1) == TILE_EMPTY) {
+                    set_tile_raw(x-1, y-1, TILE_CORNER);
+                }
+                // Inner corner: two adjacent walkable tiles, diagonal is a wall, and the two tiles behind the wall are also walls
+                // NE inner corner
+                if ((get_tile_raw(x+1, y) == TILE_FLOOR || get_tile_raw(x+1, y) == TILE_DOOR) &&
+                    (get_tile_raw(x, y+1) == TILE_FLOOR || get_tile_raw(x, y+1) == TILE_DOOR) &&
+                    get_tile_raw(x+1, y+1) == TILE_WALL &&
+                    get_tile_raw(x+2, y+1) == TILE_WALL && get_tile_raw(x+1, y+2) == TILE_WALL) {
+                    set_tile_raw(x+1, y+1, TILE_CORNER);
+                }
+                // NW inner corner
+                if ((get_tile_raw(x-1, y) == TILE_FLOOR || get_tile_raw(x-1, y) == TILE_DOOR) &&
+                    (get_tile_raw(x, y+1) == TILE_FLOOR || get_tile_raw(x, y+1) == TILE_DOOR) &&
+                    get_tile_raw(x-1, y+1) == TILE_WALL &&
+                    get_tile_raw(x-2, y+1) == TILE_WALL && get_tile_raw(x-1, y+2) == TILE_WALL) {
+                    set_tile_raw(x-1, y+1, TILE_CORNER);
+                }
+                // SE inner corner
+                if ((get_tile_raw(x+1, y) == TILE_FLOOR || get_tile_raw(x+1, y) == TILE_DOOR) &&
+                    (get_tile_raw(x, y-1) == TILE_FLOOR || get_tile_raw(x, y-1) == TILE_DOOR) &&
+                    get_tile_raw(x+1, y-1) == TILE_WALL &&
+                    get_tile_raw(x+2, y-1) == TILE_WALL && get_tile_raw(x+1, y-2) == TILE_WALL) {
+                    set_tile_raw(x+1, y-1, TILE_CORNER);
+                }
+                // SW inner corner
+                if ((get_tile_raw(x-1, y) == TILE_FLOOR || get_tile_raw(x-1, y) == TILE_DOOR) &&
+                    (get_tile_raw(x, y-1) == TILE_FLOOR || get_tile_raw(x, y-1) == TILE_DOOR) &&
+                    get_tile_raw(x-1, y-1) == TILE_WALL &&
+                    get_tile_raw(x-2, y-1) == TILE_WALL && get_tile_raw(x-1, y-2) == TILE_WALL) {
+                    set_tile_raw(x-1, y-1, TILE_CORNER);
+                }
+            }
+        }
     }
 }
 
@@ -61,7 +109,7 @@ void add_walls(void) {
 // Place stairs in appropriate rooms based on priority
 void add_stairs(void) {
 
-    print_text("\n\nPLACING STAIRS");
+    print_text("\n\nPlacing stairs");
 
     if (room_count < 2) return; // Need at least 2 rooms for stairs
     
@@ -108,7 +156,7 @@ void add_stairs(void) {
 unsigned char generate_level(void) {
     // Display map generation progress message
     // Print the map generation message centered horizontally (40 columns)
-    print_text("          ===GENERATING MAP===\n");
+    print_text("      *** Hacked Map Generator ***\n");
     
     // Phase 1: Reset is now handled in mapgen_generate_dungeon()
     // This prevents double initialization issues with corridor reuse
@@ -120,7 +168,7 @@ unsigned char generate_level(void) {
         return 0; // Generation failed
     }
       // Phase 3: Connect rooms with simple, rule-based system
-    print_text("\n\nCONNECTING ROOMS WITH CORRIDORS");
+    print_text("\n\nCreating corridors");
     unsigned char connected[MAX_ROOMS];
     unsigned char connections_made = 0;
     unsigned char i;

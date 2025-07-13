@@ -1,3 +1,15 @@
+
+
+// Set C64 to mixed (lowercase/uppercase) character set
+#define VIC_BASE 0xD000
+#define VIC_MEM  (*(unsigned char *)(VIC_BASE + 0x18))
+
+// Switches the C64 to the mixed (lowercase/uppercase) character set
+void set_mixed_charset() {
+    // Set bit 1 of $D018 to 1 to select mixed charset
+    VIC_MEM |= 0x02;
+}
+
 // Main program for Modular Map Generator for C64 - Oscar64 compatible version
 
 #include <conio.h>
@@ -29,6 +41,8 @@ unsigned int rng_seed = 1;
 
 // Main function with complete dungeon generation and interactive navigation
 int main(void) {
+    // Switch to mixed (lowercase/uppercase) character set for C64
+    set_mixed_charset();
     unsigned char key;
     
     // Initialize the map generator system

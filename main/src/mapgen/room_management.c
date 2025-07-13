@@ -207,7 +207,7 @@ void create_rooms(void) {
     unsigned char grid_positions[16]; // Max 4x4 grid positions
     unsigned char grid_count = 0;
 
-    print_text("\nCREATING ROOMS");
+    print_text("\nBuilding rooms");
     
     // Initialize available grid positions
     for (i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
