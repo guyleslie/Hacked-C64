@@ -25,6 +25,7 @@ Hacked-C64/
         ├─ main.c                             // Entry point, input, Oscar64 file I/O, main control
         ├─ oscar64_console.h                  // Oscar64/C64-specific screen routines
         ├─ README.md                          // Source folder documentation
+        ├─ REFACTORING.md                     // Refactoring notes
         └─ mapgen/
             ├─ corridor_and_door_mechanism.md // Design notes for corridor/door logic
             ├─ door_placement.c               // Door placement, symmetric logic
@@ -38,7 +39,6 @@ Hacked-C64/
             ├─ mapgen_types.h                 // Type definitions for mapgen
             ├─ mapgen_utility.h               // Utility functions for mapgen
             ├─ public.c                       // Mapgen public API implementation
-            ├─ REFACTORING.md                 // Refactoring notes
             ├─ room_management.c              // Room placement, validation, priority
             ├─ rule_based_connection_system.c // Minimum Spanning Tree, rule-based connections
             ├─ testdisplay.c                  // Screen handling, viewport, input, delta refresh
