@@ -4,7 +4,7 @@ Dungeon Map Generator for Commodore 64 – Implemented with Oscar64
 
 ## Overview
 
-This project is an optimized, modular dungeon map generator for the Commodore 64, written entirely in C and tailored for the Oscar64 cross-assembler. The program generates random maps with rooms, corridors, walls, and stairs, featuring real-time navigation and C64-specific screen handling. All algorithms, memory usage, and display routines are optimized for C64 hardware and Oscar64 compatibility.
+This project is written entirely in C and tailored for the Oscar64 cross-assembler. The program generates random maps with rooms, corridors, walls, and stairs, featuring real-time navigation and C64-specific screen handling. All algorithms, memory usage, and display routines are optimized for C64 hardware and Oscar64 compatibility.
 
 ## Screnshots
 
@@ -87,7 +87,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ## Key Features and Architecture
 
-- **Static memory usage:** All data structures (rooms, corridors, caches, screen buffer) are fixed-size arrays, no malloc/free, fully optimized for C64 memory constraints.
+- **Static memory usage:** All data structures (rooms, corridors, caches, screen buffer) are fixed-size arrays, no malloc/free.
 - **3-bit tile storage:** 64x64 grid, each tile uses 3 bits, entire map fits in 1536 bytes.
 - **Room placement:** 4x4 grid, Fisher-Yates shuffle, validation, random size (4-8 tiles), minimum distance, collision avoidance.
 - **Rule-based room connection:** Minimum Spanning Tree (MST) algorithm connects all rooms with the shortest valid corridors, always following strict rules. Corridors are only reused if all constraints are satisfied.
@@ -95,12 +95,11 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Stairs:** Placed by priority, centered in two rooms (UP/DOWN).
 - **Walls:**
   - Wall generation uses a two-pass algorithm:
-    - **First pass:** Places wall tiles around all walkable (floor, door, stairs) tiles, ensuring every path and room is enclosed.
-    - **Second pass:** Adds corner tiles at junctions for a visually correct enclosure, using minimal checks for speed.
-  - Only walkable tiles are scanned, maximizing performance for C64 hardware.
+    - **First pass:** Wall tiles are placed around every walkable tile (floor, door, stairs), so all rooms and corridors are fully enclosed. This pass scans the map and sets wall tiles wherever a walkable tile borders empty space.
+    - **Second pass:** Corner tiles are added at junctions and turns for proper visual enclosure. This uses fast checks to identify corners, optimizing for C64 performance.
+  - Only walkable tiles are scanned.
   - Walls and corners always tightly surround all rooms and corridors, with no gaps or overlaps.
-  - Fully optimized for Oscar64 and C64 memory layout.
-- **Screen handling:** 40x25 viewport, delta refresh, direct $0400-$07E7 memory access, Oscar64 assembly acceleration.
+  - **Screen handling:** 40x25 viewport, delta refresh, direct $0400-$07E7 memory access, Oscar64 assembly acceleration.
 - **Map export:** Press 'M' during runtime to export the compact map (3 bits/tile) via `save_compact_map()`. The program saves the map as `MAPDATA.BIN` to device 8 (disk drive). The PRG file contains only map data.
 
 ## Developer Pipeline and Module Responsibilities
