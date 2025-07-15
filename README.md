@@ -130,8 +130,6 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ## Developer Pipeline and Module Responsibilities
 
-See details in: `main/src/README.md` (per-module pipeline, API, types, developer summary)
-
 - `main.c`: Entry point, Oscar64 file I/O, main control, input
 - `map_generation.c`: Main generation pipeline (rooms, corridors, walls, stairs)
 - `rule_based_connection_system.c`: MST, rule-based connections, corridor reuse
