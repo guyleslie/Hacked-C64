@@ -1,5 +1,3 @@
-**Map export:** Oscar64/C64 binary export is implemented and triggered manually by pressing the 'M' key during runtime, using the dedicated utility function `save_compact_map()`. The exported PRG file contains only the compact map data (3 bits/tile), making it efficient and directly usable on the C64.
-
 # Hacked-C64
 
 Oscar64/C64 Dungeon Map Generator – Modern, Modular, and Fully Commented
