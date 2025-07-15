@@ -5,7 +5,7 @@ This document details the logic, pipeline, and file responsibilities within the 
 
 ---
 
-## Map Generation Pipeline: Refactored Overview
+## Map Generation Pipeline
 
 The map generation process is a multi-stage, rule-based pipeline, designed for organic dungeon layouts and strict C64 memory constraints. Each step is implemented in a dedicated module, with all logic optimized for Oscar64 and static memory (no malloc/free, all arrays are fixed size).
 
