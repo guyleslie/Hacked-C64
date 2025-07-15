@@ -23,6 +23,7 @@ void set_mixed_charset() {
 #include "mapgen/mapgen_api.h"        // For mapgen_init, mapgen_generate_dungeon, etc.
 #include "mapgen/mapgen_display.h"    // For render_map_viewport, process_navigation_input
 #include "oscar64_console.h"   // For oscar_clrscr
+#include "mapgen/map_export.h" // For save_compact_map (map export)
 
 
 
