@@ -130,13 +130,14 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Static memory usage:** All data structures (rooms, corridors, caches, screen buffer) are fixed-size arrays, no malloc/free, fully optimized for C64 memory constraints.
 - **3-bit tile storage:** 64x64 grid, each tile uses 3 bits, entire map fits in 1536 bytes.
 - **Room placement:** 4x4 grid, Fisher-Yates shuffle, validation, random size (4-8 tiles), minimum distance, collision avoidance.
-- **Rule-based connections:** Minimum Spanning Tree (MST), all connections validated, corridors and doors always at room edge, corridor reuse with strict rules.
-- **Door placement:** Always on the room perimeter, symmetric, at both ends of every corridor.
+- **Rule-based room connection:** Minimum Spanning Tree (MST) algorithm connects all rooms with the shortest valid corridors, always following strict rules. Corridors are only reused if all constraints are satisfied.
+- **Corridor and door placement:** Corridors always start and end exactly 2 tiles away from the room perimeter, never inside the room. Doors are placed at the perimeter, at both ends of every corridor, ensuring seamless and visually consistent connections.
 - **Stairs:** Placed by priority, centered in two rooms (UP/DOWN).
-- **Walls:** Only around floor/door tiles, fast algorithm (~20x faster than full map scan).
+- **Walls:**
+  - Highly optimized two-pass algorithm: first pass places walls around walkable tiles, second pass places corners for compact, visually correct enclosure. Only walkable tiles are scanned for speed.
+  - Walls and corners always tightly surround all rooms and corridors, fully optimized for C64 hardware.
 - **Screen handling:** 40x25 viewport, delta refresh, direct $0400-$07E7 memory access, Oscar64 assembly acceleration.
-- **Input:** WASD movement, SPACE for new map, Q to quit, instant feedback.
-- **Map export:** Oscar64/C64 binary export already implemented, but not yet integrated in the main pipeline.
+- **Map export:** Oscar64/C64 binary export is implemented and automatically called after map generation. (functionality not yet tested)
 
 ## Developer Pipeline and Module Responsibilities
 

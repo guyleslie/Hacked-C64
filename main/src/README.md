@@ -24,19 +24,20 @@ The map generation process is a multi-stage, rule-based pipeline, designed for o
 
 ### 3. Room Connection & Corridor Generation (MST-Based, Perimeter-Defined)
 
-- **Pipeline Control**: The main function `generate_level()` orchestrates the connection of all rooms.
-- **Minimum Spanning Tree (MST) Algorithm**: Starting from one room, the algorithm iteratively connects the closest unconnected room to the connected set, always choosing the shortest valid connection and obeying all rules.
-- **Connection Rules**: `rule_based_connect_rooms()` ensures:
-  - No overlap or illegal adjacency between rooms/corridors.
+- **Pipeline Control**: The main function `generate_level()` manages the connection of all rooms using a strict, rule-based system.
+- **Minimum Spanning Tree (MST) Algorithm**: Rooms are connected using an MST approach—always connecting the closest unconnected room, ensuring all connections are as short as possible and follow all rules.
+- **Connection Rules**: `rule_based_connect_rooms()` enforces:
+  - No overlap or illegal adjacency between rooms or corridors.
   - No redundant (direct or indirect) connections.
-  - Existing corridors are reused if possible (`can_reuse_existing_path()`).
-  - If not, a new corridor is created with `draw_rule_based_corridor()`.
+  - Existing corridors are reused only if all rules are satisfied (`can_reuse_existing_path()`).
+  - Otherwise, a new corridor is created with `draw_rule_based_corridor()`.
 - **Corridor Drawing**: `draw_rule_based_corridor()`:
-  - Determines the exact exit tile for each room using `find_room_exit()`. **Exit points are always placed exactly 2 tiles away from the room perimeter.** The corridor path always starts and ends at these exit tiles.
-  - The corridor is constructed as a sequence of tiles, typically in an L-shape (or Z-shape if needed), using a greedy Manhattan path with a possible pivot point for variety.
-  - The `corridor_endpoint_override` flag is used to allow the first tile of the corridor to be placed on the room edge, ensuring a seamless connection.
+  - Calculates the exit point for each room using `find_room_exit()`. **Exit points are always placed exactly 2 tiles away from the room perimeter, never inside the room or directly on the edge.**
+  - Constructs the corridor path (typically L- or Z-shaped) between these exit points, using a greedy Manhattan path. The `corridor_endpoint_override` flag allows the corridor to legally start at the room boundary if needed.
   - All adjacency and overlap rules are strictly enforced, and the logic is robust for all room shapes and orientations.
-- **Door Placement**: After the full corridor path is generated, `place_door_between_rooms()` places doors at the first and last walkable tiles of the path, which are always **exactly 1 tile away from the room perimeter**. This ensures there is never a gap between the corridor and the room, and doors are always at the correct, visually consistent position, even for corners and edge cases.
+- **Door Placement**: After the corridor is generated, `place_door_between_rooms()` places doors at the first and last walkable tiles of the corridor path—these are always on the room perimeter, ensuring a seamless and visually consistent connection, even for corners and edge cases.
+
+This logic guarantees that all corridors and doors are placed according to the unified perimeter definition, with no dynamic memory allocation and full compatibility with Oscar64 and C64 hardware.
 
 ### 4. Stairs Placement
 
@@ -44,17 +45,21 @@ The map generation process is a multi-stage, rule-based pipeline, designed for o
 
 ### 5. Wall and Door Placement (Unified Perimeter Logic)
 
-- **Wall Placement**: `add_walls()` scans all floor and door tiles, placing walls on any adjacent empty tile. This is highly optimized for C64 memory and speed, and ensures all rooms and corridors are properly enclosed.
-- **Door Placement**: (see above) is always at the interface between a room and a corridor, never inside the room or deep in the corridor. The logic is robust for all corridor shapes, including corners. Doors are always placed at the exact perimeter tile where the corridor meets the room.
+- **Wall Generation**: Walls and corners are placed in two fast passes around all walkable areas, ensuring tight and visually correct enclosure. (See above for details.)
+
+- **Door Placement**: Always at the interface between a room and a corridor, never inside the room or deep in the corridor. The logic is robust for all corridor shapes, including corners. Doors are always placed at the exact perimeter tile where the corridor meets the room. (See above for details.)
 
 ### 6. Display
 
 - **Display**: `testdisplay.c` and `mapgen_display.c` handle rendering the map to the C64 screen, including viewport navigation, user interaction, and delta screen refresh for performance. Visual output now matches the new edge/perimeter logic.
 
-### 7. Map Export (not yet integrated)
+### 7. Map Export
 
-- **Export**: `map_export.c` provides routines for saving the generated map in Oscar64/C64-compatible binary format, using Oscar64 KERNAL routines for file I/O.
-  **Note:** The export functionality is implemented, but not yet called or integrated into the main pipeline.
+The project includes a dedicated Oscar64/C64 binary export function implemented in `map_export.c` as `save_compact_map(const char* filename)`. This function saves the compact 3-bit-per-tile map (`compact_map`) directly to disk in a C64-compatible binary format using KERNAL routines (device 8, e.g., disk drive).
+
+- `save_compact_map` is called after map generation, when the map is finalized and ready for export. The filename is `MAPDATA.BIN`.
+- The export will write the map to the C64 disk drive (device 8) as a PRG file with the given name.
+- The function is not yet integrated into the main pipeline, so it must be called manually from your code (for example, after map generation or via a dedicated export command).
 
 ---
 
