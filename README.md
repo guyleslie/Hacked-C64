@@ -143,13 +143,14 @@ See details in: `main/src/README.md` (per-module pipeline, API, types, developer
 
 ## Technical Data
 
-- **Map size:** 64x64 tiles, 3 bits/tile, 1536 bytes
+- **Map size:** 64x64 tiles, 3 bits/tile, 1536 bytes (leaves ~62 KB of RAM free)
 - **Room count:** max. 20
 - **Room size:** 4x4 – 8x8 tiles
 - **Corridor segments:** max. 32
 - **Connection cache:** max. 24
 - **Screen buffer:** 40x25 characters
-- **Total memory usage:** ~3.6 KB (fits C64 RAM)
+- **Total memory usage:** ~3.6 KB
+- **Compiled PRG size:** 11,382 bytes (includes code, data, and buffers)
 
 ## Quality Assurance
 
@@ -158,12 +159,12 @@ See details in: `main/src/README.md` (per-module pipeline, API, types, developer
 - **Connectivity Check**: Ensures all rooms are reachable from any other room.
 - **Rule Compliance**: All spacing and distance requirements are validated after generation.
 - **Boundary Verification**: The generator never writes outside the map bounds.
-- **Emergency Fallbacks**: Edge cases (e.g., failed room placement) are handled gracefully with fallback logic.
+- **Emergency Fallbacks**: Edge cases (e.g., failed room placement) are handled by the MST-based connection system, which repeatedly attempts valid connections. There are no special "force" or "emergency" connection functions; all connections follow the same rule-based logic.
 
 ### Error Handling
 
 - **Graceful Degradation**: The program continues even if not all rooms can be placed.
-- **Isolation Prevention**: Multiple fallback systems ensure no room is left isolated.
+- **Isolation Prevention**: The MST-based connection logic ensures all rooms are connected if possible. There are no separate isolation-prevention or force-connect routines; all rooms are connected using the same rule-based system.
 - **Boundary Protection**: Comprehensive bounds checking is performed throughout the code.
 
 ## Usage (Build & Run)
@@ -181,10 +182,25 @@ See details in: `main/src/README.md` (per-module pipeline, API, types, developer
 - Compile the project with Oscar64 (see build.bat for parameters)
 - The .prg can be run in any C64 emulator or on real hardware
 
-## CI/CD (GitHub Actions)
+## CI/CD Workflow: Automated Build, Emulator, and Artifact Packaging (GitHub Actions)
 
-After every build, the `build/` directory is available as a downloadable artifact on the GitHub Actions page (see `.github/workflows/cmake-single-platform.yml`).
+This project includes a GitHub Actions workflow (`cmake-single-platform.yml`) that automates the build and packaging process for developers:
 
----
+- **Oscar64 Compiler & Retro Debugger Download:**  
+  The workflow automatically downloads the latest Oscar64 cross-assembler and the Retro Debugger (C64 emulator and debugger) for each build.
+
+- **CMake Configuration & Build:**  
+  The workflow runs CMake to configure the project and builds all targets using the latest toolchain.
+
+- **Artifact Upload:**  
+  After a successful build, the workflow uploads the build output as a downloadable GitHub artifact. This ensures that developers always have access to the latest compiled binaries and essential debug files.
+
+### Packaged Artifact Contents
+
+The downloadable artifact includes:
+
+- `build/*.prg` – Compiled C64 program files
+- `build/*.map`, `build/*.lbl`, `build/*.asm` – Additional Oscar64 build files (map, label, assembly)
+- `RetroDebugger/**` – Downloaded Retro Debugger tool (C64 emulator and debugger)
 
 **For developer documentation, pipeline, API, and detailed module responsibilities: see `main/src/README.md`!**
