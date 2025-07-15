@@ -1,3 +1,4 @@
+**Map export:** Oscar64/C64 binary export is implemented and triggered manually by pressing the 'M' key during runtime, using the dedicated utility function `save_compact_map()`. The exported PRG file contains only the compact map data (3 bits/tile), making it efficient and directly usable on the C64.
 
 # Hacked-C64
 
@@ -38,30 +39,6 @@ The map is represented as a 2D grid of tiles, with each tile encoded using 3 bit
 | Stairs down    | DOWN        | 62           |' > '               | Down stairs         |
 
 *Note: The door is displayed as an inverse plus (+) character, PETSCII code 171.*
-
-### Tile Encoding (mapgen_types.h)
-
-```c
-#define EMPTY   32
-#define WALL    160
-#define CORNER  230
-#define FLOOR   46
-#define DOOR    171 // Inverse plus (+)
-#define UP      60
-#define DOWN    62
-```
-
-### Compact Tile Type Encoding (mapgen_types.h)
-
-```c
-#define TILE_EMPTY   0
-#define TILE_WALL    1
-#define TILE_FLOOR   2
-#define TILE_DOOR    3
-#define TILE_UP      4
-#define TILE_DOWN    5
-#define TILE_CORNER  6
-```
 
 ## Main Directories and Files
 
@@ -126,7 +103,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
   - Walls and corners always tightly surround all rooms and corridors, with no gaps or overlaps.
   - Fully optimized for Oscar64 and C64 memory layout.
 - **Screen handling:** 40x25 viewport, delta refresh, direct $0400-$07E7 memory access, Oscar64 assembly acceleration.
-- **Map export:** Oscar64/C64 binary export is implemented and automatically called after map generation. (functionality not yet tested)
+- **Map export:** Press 'M' during runtime to export the compact map (3 bits/tile) via `save_compact_map()`. The program saves the map as `MAPDATA.BIN` to device 8 (disk drive). The PRG file contains only map data.
 
 ## Developer Pipeline and Module Responsibilities
 
@@ -135,7 +112,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - `rule_based_connection_system.c`: MST, rule-based connections, corridor reuse
 - `room_management.c`: Room placement, validation, priority
 - `door_placement.c`: Door placement, symmetric logic
-- `map_export.c`: Map export to Oscar64/C64 binary format (not yet integrated in pipeline)
+- `map_export.c`: Map export to C64 PRG format, using Oscar64's knio file I/O functions.
 - `testdisplay.c`: Screen handling, viewport, input, delta refresh
 - `utility.c`: Math, random, cache, helper functions
 

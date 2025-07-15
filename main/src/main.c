@@ -50,21 +50,14 @@ int main(void) {
     oscar_clrscr();
     // Generate complete level
     mapgen_generate_dungeon();
-    // Save the generated map to a binary file for C64/Oscar64 using Oscar64 KERNAL routines
-    krnio_setnam("MAPDATA.BIN"); // Set the filename
-    // Save the compact_map array to device 8 (disk/SD2IEC)
-    if (!krnio_save(8, (const char*)compact_map, (const char*)(compact_map + sizeof(compact_map)))) {
-        // Print error if file could not be saved
-        puts("File save error!");
-    }
     // Refresh point of view
     render_map_viewport(1);
     
     // Interactive loop
     while (1) {
         key = getch();
-        
-        if (key == 'Q') {
+
+        if (key == 'Q' || key == 'q') {
             oscar_clrscr();
             break;
 
@@ -72,15 +65,12 @@ int main(void) {
             oscar_clrscr();
             // Generate new level
             mapgen_generate_dungeon();
-            // Save the generated map to a binary file for C64/Oscar64 using Oscar64 KERNAL routines
-            krnio_setnam("MAPDATA.BIN"); // Set the filename
-            if (!krnio_save(8, (const char*)compact_map, (const char*)(compact_map + sizeof(compact_map)))) {
-                // Print error if file could not be saved
-                puts("File save error!");
-            }
             // Refresh point of view
             render_map_viewport(1);
 
+        } else if (key == 'M' || key == 'm') {
+            // Save the current map to disk
+            save_compact_map("MAPDATA.BIN");
         } else {
             // Handle movement input (WASD)
             process_navigation_input(key);
