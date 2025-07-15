@@ -1,6 +1,6 @@
 # Hacked-C64
 
-Oscar64/C64 Dungeon Map Generator – Modern, Modular, and Fully Commented
+Dungeon Map Generator for Commodore 64 – Implemented with Oscar64
 
 ## Overview
 
