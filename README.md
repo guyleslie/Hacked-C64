@@ -51,7 +51,7 @@ The map is represented as a 2D grid of tiles, with each tile encoded using 3 bit
 #define DOWN    62
 ```
 
-### Compact Tile Type Encoding
+### Compact Tile Type Encoding (mapgen_types.h)
 
 ```c
 #define TILE_EMPTY   0
@@ -62,21 +62,6 @@ The map is represented as a 2D grid of tiles, with each tile encoded using 3 bit
 #define TILE_DOWN    5
 #define TILE_CORNER  6
 ```
-
-## Map Display
-
-The map is displayed on the Commodore 64 screen using PETSCII characters. Each tile type is mapped to its corresponding PETSCII code for visual representation. The display routines are optimized for Oscar64 and C64 hardware, using direct screen memory access for fast updates.
-
-- Walls are shown as solid blocks.
-- Corners are shown as shaded blocks.
-- Doors are shown as inverse plus (+) characters.
-- Walkable paths are shown as dots (.)
-- Empty spaces are shown as blank characters.
-- Stairs are shown as < (up) and > (down).
-
-For more details, see the implementation in `testdisplay.c` and the tile definitions in `mapgen_types.h`.
-
----
 
 ## Main Directories and Files
 
@@ -134,8 +119,12 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Corridor and door placement:** Corridors always start and end exactly 2 tiles away from the room perimeter, never inside the room. Doors are placed at the perimeter, at both ends of every corridor, ensuring seamless and visually consistent connections.
 - **Stairs:** Placed by priority, centered in two rooms (UP/DOWN).
 - **Walls:**
-  - Highly optimized two-pass algorithm: first pass places walls around walkable tiles, second pass places corners for compact, visually correct enclosure. Only walkable tiles are scanned for speed.
-  - Walls and corners always tightly surround all rooms and corridors, fully optimized for C64 hardware.
+  - Wall generation uses a two-pass algorithm:
+    - **First pass:** Places wall tiles around all walkable (floor, door, stairs) tiles, ensuring every path and room is enclosed.
+    - **Second pass:** Adds corner tiles at junctions for a visually correct enclosure, using minimal checks for speed.
+  - Only walkable tiles are scanned, maximizing performance for C64 hardware.
+  - Walls and corners always tightly surround all rooms and corridors, with no gaps or overlaps.
+  - Fully optimized for Oscar64 and C64 memory layout.
 - **Screen handling:** 40x25 viewport, delta refresh, direct $0400-$07E7 memory access, Oscar64 assembly acceleration.
 - **Map export:** Oscar64/C64 binary export is implemented and automatically called after map generation. (functionality not yet tested)
 
