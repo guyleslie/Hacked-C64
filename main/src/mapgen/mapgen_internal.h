@@ -114,4 +114,15 @@ void init_rule_based_connection_system(void);
  */
 unsigned char rooms_are_connected(unsigned char room1, unsigned char room2);
 
+/**
+ * @brief Checks if room2 is reachable from room1 through existing connections.
+ * @param room1 Starting room index.
+ * @param room2 Target room index.
+ * @return 1 if room2 is reachable from room1, 0 otherwise.
+ * 
+ * Uses Depth-First Search to prevent duplicate connections by detecting
+ * indirect paths between rooms through other connections.
+ */
+unsigned char is_room_reachable(unsigned char room1, unsigned char room2);
+
 #endif // MAPGEN_INTERNAL_H

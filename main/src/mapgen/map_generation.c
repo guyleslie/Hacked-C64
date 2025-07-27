@@ -167,7 +167,7 @@ unsigned char generate_level(void) {
     if (room_count == 0) {
         return 0; // Generation failed
     }
-      // Phase 3: Connect rooms with simple, rule-based system
+      // Phase 3: Connect rooms with improved MST logic (prevents duplicate connections)
     print_text("\n\nCreating corridors");
     unsigned char connected[MAX_ROOMS];
     unsigned char connections_made = 0;
@@ -179,27 +179,25 @@ unsigned char generate_level(void) {
     for (i = 0; i < MAX_ROOMS; i++) {
         connected[i] = 0;
     }
-      // Connect rooms using simple MST logic with rule compliance
+      // Connect rooms using improved MST logic (NO DUPLICATE CONNECTIONS)
     // Start with room 0 as connected
     connected[0] = 1;
-      // For each remaining room, find the best valid connection to an already connected room
-    unsigned int max_iterations = room_count * room_count * 2;
-    unsigned int iterations = 0;
-    while (connections_made < room_count - 1 && iterations < max_iterations) {
-        // Use 255 as an invalid value (no valid room found yet), since unsigned char max is 255
-        unsigned char best_room1 = 255, best_room2 = 255; // 255 = invalid room index
-        unsigned char best_distance = 255; // 255 = maximum possible distance (no valid found yet)
+      // Connect exactly (room_count - 1) rooms for optimal spanning tree
+    while (connections_made < room_count - 1) {
+        unsigned char best_room1 = 255, best_room2 = 255;
+        unsigned char best_distance = 255;
         unsigned char connection_found = 0;
-        unsigned char failed_attempts = 0;
         
-        // Find the shortest VALID connection between connected and unconnected rooms
+        // Find shortest VALID connection between connected and unconnected rooms
         for (i = 0; i < room_count; i++) {
-            if (!connected[i]) continue; // Skip unconnected rooms
+            if (!connected[i]) continue; // Only connected rooms as source
+            
             for (unsigned char j = 0; j < room_count; j++) {
-                if (connected[j]) continue; // Skip already connected rooms
-                if (rooms_are_connected(i, j)) continue; // Skip if already connected
-                // CRITICAL: Only allow connections that comply with the rules
-                if (!can_connect_rooms_safely(i, j)) continue; // Skip unsafe connections
+                if (connected[j]) continue; // Only unconnected rooms as target
+                
+                // CRITICAL: Only allow connections that comply with rules
+                if (!can_connect_rooms_safely(i, j)) continue;
+                
                 unsigned char distance = calculate_room_distance(i, j);
                 if (distance < best_distance) {
                     best_distance = distance;
@@ -209,43 +207,18 @@ unsigned char generate_level(void) {
                 }
             }
         }
-        // If we found a good connection, make it
+        
+        // Make the best connection found
         if (connection_found && rule_based_connect_rooms(best_room1, best_room2)) {
-            connected[best_room2] = 1; // Mark the new room as connected
+            connected[best_room2] = 1; // Mark new room as connected
             connections_made++;
             if (connections_made % 1 == 0) print_text("."); // Progress every connection
         } else {
-            // Fallback: try any remaining unconnected room with any connected room
-            // STILL OBEYING THE RULES!
-            connection_found = 0;
-            for (i = 0; i < room_count && !connection_found; i++) {
-                if (!connected[i]) continue;
-                for (unsigned char j = 0; j < room_count && !connection_found; j++) {
-                    if (connected[j]) continue;
-                    if (rooms_are_connected(i, j)) continue;
-                    // Even in fallback mode, obey the rules
-                    if (can_connect_rooms_safely(i, j) && rule_based_connect_rooms(i, j)) {
-                        // Only count as a successful connection if room j was not connected before
-                        if (!connected[j]) {
-                            connected[j] = 1;
-                            connections_made++;
-                            connection_found = 1;
-                            if (connections_made % 2 == 0) print_text("."); // Progress every 2nd connection
-                        }
-                    }
-                }
-            }
-            // Only break after multiple failed attempts to avoid premature termination
-            if (!connection_found) {
-                failed_attempts++;
-                if (failed_attempts >= 3) break; // Give up only after 3 complete failed cycles
-            } else {
-                failed_attempts = 0; // Reset counter on successful connection
-            }
+            // No valid connections found - exit to prevent infinite loop
+            print_text("X"); // Indicate connection failure
+            break;
         }
-        iterations++;
     }
-    // ...existing code...
     
     // Phase 4: Add walls around all floor areas
     add_walls();

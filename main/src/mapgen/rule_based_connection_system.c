@@ -13,6 +13,7 @@ unsigned char corridor_endpoint_override = 0;
 // 2. Consistent MST (Minimum Spanning Tree) based connection
 // 3. Existing corridors are reused ONLY if all rules are satisfied
 // 4. NO exceptions - every connection is rule-based
+// 5. PREVENTS duplicate connections using reachability check
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
@@ -43,6 +44,68 @@ static ConnectionCache connection_cache = {0};
 // Quick lookup table for room distances (cache frequently used calculations)
 static unsigned char room_distance_cache[MAX_ROOMS][MAX_ROOMS];
 static unsigned char distance_cache_valid = 0;
+
+// =============================================================================
+// DUPLICATE CONNECTION PREVENTION - REACHABILITY CHECK
+// =============================================================================
+
+/**
+ * @brief Checks if room2 is reachable from room1 through existing connections
+ * @param room1 Starting room index
+ * @param room2 Target room index  
+ * @return 1 if room2 is reachable from room1, 0 otherwise
+ * 
+ * Uses Depth-First Search (DFS) with static arrays for C64 compatibility.
+ * Prevents creating duplicate connections by detecting indirect paths.
+ */
+unsigned char is_room_reachable(unsigned char room1, unsigned char room2) {
+    // Basic validation
+    if (room1 >= room_count || room2 >= room_count || room1 == room2) {
+        return 0;
+    }
+    
+    // Direct connection already exists
+    if (connection_matrix[room1][room2]) {
+        return 1;
+    }
+    
+    // Depth-First Search through existing connections
+    // Using static arrays to avoid C64 stack overflow
+    unsigned char i;
+    unsigned char sp = 0; // Stack pointer
+    
+    // Initialize visited array
+    for (i = 0; i < MAX_ROOMS; i++) {
+        visited_global[i] = 0;
+    }
+    
+    // Start DFS from room1
+    stack_global[sp++] = room1;
+    visited_global[room1] = 1;
+    
+    // DFS traversal
+    while (sp > 0) {
+        unsigned char current = stack_global[--sp];
+        
+        // Check all direct connections from current room
+        for (i = 0; i < room_count; i++) {
+            if (connection_matrix[current][i] && !visited_global[i]) {
+                // Found target room - it's reachable
+                if (i == room2) {
+                    return 1;
+                }
+                
+                // Continue search from this room
+                visited_global[i] = 1;
+                if (sp < MAX_ROOMS) {  // Stack overflow protection
+                    stack_global[sp++] = i;
+                }
+            }
+        }
+    }
+    
+    return 0; // Not reachable through existing connections
+}
 
 // =============================================================================
 // OPTIMIZED DISTANCE CALCULATION WITH CACHING
@@ -490,36 +553,25 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
 // MAIN CONNECTION LOGIC
 // =============================================================================
 
-// Rule-based room connection function
+/**
+ * @brief Enhanced room connection function that prevents duplicate connections
+ * @param room1 First room index
+ * @param room2 Second room index
+ * @return 1 if connection was made or already exists, 0 if failed
+ * 
+ * Key improvement: Uses reachability check instead of just direct connection check.
+ * This prevents creating redundant corridors while ensuring full connectivity.
+ */
 unsigned char rule_based_connect_rooms(unsigned char room1, unsigned char room2) {
-    // 1. Basic validation
+    // 1. Basic safety validation
     if (!can_connect_rooms_safely(room1, room2)) {
-        return 0; // Cannot be safely connected
+        return 0; // Cannot be safely connected due to distance/overlap rules
     }
 
-    // 2. Check if already directly connected
-    if (connection_matrix[room1][room2]) {
-        return 1; // Already directly connected
-    }
-
-    // 2b. Check if already reachable through other rooms (avoid redundant corridors)
-    // Use static arrays to avoid stack overflow on C64
-    unsigned char i;
-    unsigned char sp = 0;
-    for (i = 0; i < MAX_ROOMS; i++) visited_global[i] = 0;
-    stack_global[sp++] = room1;
-    visited_global[room1] = 1;
-    while (sp > 0) {
-        unsigned char current = stack_global[--sp];
-        for (i = 0; i < room_count; i++) {
-            if (connection_matrix[current][i] && !visited_global[i]) {
-                if (i == room2) {
-                    return 1; // Already reachable, do not build redundant corridor
-                }
-                visited_global[i] = 1;
-                stack_global[sp++] = i;
-            }
-        }
+    // 2. CRITICAL CHANGE: Check if room2 is already reachable from room1
+    // This includes both direct and indirect connections through other rooms
+    if (is_room_reachable(room1, room2)) {
+        return 1; // Already reachable - no new connection needed
     }
 
     // 3. Try to reuse existing corridors (only if all rules are satisfied)
@@ -530,7 +582,8 @@ unsigned char rule_based_connect_rooms(unsigned char room1, unsigned char room2)
             return 1; // Successful reuse
         }
     }
-    // 4. Draw new corridor
+    
+    // 4. Draw new corridor as last resort
     if (draw_rule_based_corridor(room1, room2)) {
         connection_matrix[room1][room2] = 1;
         connection_matrix[room2][room1] = 1;
