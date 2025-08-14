@@ -12,7 +12,4 @@ void update_full_screen(void);
 void process_navigation_input(unsigned char key);
 void print_text(const char* text);
 
-// Emergency connection and debug display
-void draw_emergency_corridor(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
-
 #endif // MAPGEN_DISPLAY_H

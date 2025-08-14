@@ -1,13 +1,13 @@
 // =============================================================================
-// ROOM MANAGEMENT MODULE FOR C64 MAP GENERATOR
-// Oscar64/C64 optimized room placement, validation, and exit management
+// ROOM MANAGEMENT MODULE 
+// Room placement, validation, and connection start/exit management
 // All functions use static memory allocation and C64-friendly algorithms
 // =============================================================================
 
 #include <conio.h>
 #include "mapgen_types.h"      // For Room, MAX_ROOMS, Viewport
 #include "mapgen_internal.h"   // For room placement/validation
-#include "mapgen_utility.h"    // For utility functions
+#include "mapgen_utils.h"    // For utility functions
 
 // =============================================================================
 // EXTERNAL GLOBAL REFERENCES
@@ -39,7 +39,7 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
         }
     }
     
-    // Enhanced buffer zone validation with MIN_ROOM_DISTANCE
+    // Buffer zone validation with MIN_ROOM_DISTANCE
     // Check buffer area around proposed room for conflicts
     unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE) ? x - MIN_ROOM_DISTANCE : 0;
     unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE) ? y - MIN_ROOM_DISTANCE : 0;
@@ -62,8 +62,8 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
         }
     }
     
-    // C64-optimized room-to-room distance checking
-    // Use cached room centers for faster distance calculations
+    // Room-to-room distance checking
+    // Cached room centers for faster distance calculations
     for (unsigned char i = 0; i < room_count; i++) {
         unsigned char existing_x2 = rooms[i].x + rooms[i].w;
         unsigned char existing_y2 = rooms[i].y + rooms[i].h;
@@ -83,7 +83,7 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
     return 1; // Safe to place room
 }
 
-// Place room with floor tiles only - C64 optimized for minimal memory access
+// Place room with floor tiles
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     // Fast tile placement with bounds checking
     for (unsigned char iy = y; iy < y + h; iy++) {
@@ -98,7 +98,7 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         rooms[room_count].y = y;
         rooms[room_count].w = w;
         rooms[room_count].h = h;
-        rooms[room_count].priority = 5; // Default priority
+        rooms[room_count].priority = 5;    // Default priority
         rooms[room_count].connections = 0; // Initialize connections
         room_count++;
     }
@@ -108,7 +108,7 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
 // GRID-BASED ROOM PLACEMENT SYSTEM
 // =============================================================================
 
-// Use existing get_grid_position from utility.c - no need to redefine
+// Use get_grid_position from utility.c
 
 // Grid-based room placement with enhanced randomization and multiple attempts
 unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
@@ -197,17 +197,17 @@ unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char ro
 }
 
 // =============================================================================
-// ENHANCED EXIT PLACEMENT SYSTEM
+// EXIT PLACEMENT SYSTEM
 // =============================================================================
-
-// Enhanced room exit finding with randomized positioning along room edges
+// Room exits finding with randomized positioning along room edges
 // Maintains 2-tile distance rule while providing organic variation
 // The exit is always placed 2 tiles away from the room perimeter:
 //   Left:   x == room->x - 2
 //   Right:  x == room->x + room->w + 1  
 //   Top:    y == room->y - 2
 //   Bottom: y == room->y + room->h + 1
-// NEW: Position along the edge is randomized for more natural corridors
+// Position along the edge is randomized for more natural corridors
+
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y) {
     unsigned char room_center_x, room_center_y;
@@ -217,18 +217,18 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
     unsigned char dx = fast_abs_diff(target_x, room_center_x);
     unsigned char dy = fast_abs_diff(target_y, room_center_y);
     
-    // Determine optimal edge based on target direction (same logic as original)
+    // Determine optimal edge based on target direction
     if (dx > dy) {
         // Horizontal movement preferred - exit from left/right edge
         if (target_x > room_center_x) {
             // Exit from room right edge (perimeter +2)
             *exit_x = room->x + room->w + 1; // Maintains 2-tile distance rule
-            // NEW: Random Y position along the edge instead of always center
+            // Random Y position along the edge
             *exit_y = room->y + rnd(room->h);
         } else {
             // Exit from room left edge (perimeter -2)
             *exit_x = room->x - 2; // Maintains 2-tile distance rule
-            // NEW: Random Y position along the edge instead of always center
+            // Random Y position along the edge
             *exit_y = room->y + rnd(room->h);
         }
     } else {
@@ -236,20 +236,20 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
         if (target_y > room_center_y) {
             // Exit from room bottom edge (perimeter +2)
             *exit_y = room->y + room->h + 1; // Maintains 2-tile distance rule
-            // NEW: Random X position along the edge instead of always center
+            // Random X position along the edge
             *exit_x = room->x + rnd(room->w);
         } else {
             // Exit from room top edge (perimeter -2)
             *exit_y = room->y - 2; // Maintains 2-tile distance rule
-            // NEW: Random X position along the edge instead of always center
+            // Random X position along the edge
             *exit_x = room->x + rnd(room->w);
         }
     }
-    
-    // All corridor endpoints are still exactly 2 tiles away from room perimeter
-    // Door placement logic remains unchanged - doors will be at perimeter +1
-    // All existing rules (MIN_ROOM_DISTANCE, adjacency, etc.) remain enforced
 }
+
+// All corridor endpoints are still exactly 2 tiles away from room perimeter
+// Door placement logic remains unchanged - doors will be at perimeter +1
+// All existing rules (MIN_ROOM_DISTANCE, adjacency, etc.) remain enforced
 
 // =============================================================================
 // MAIN ROOM GENERATION PIPELINE

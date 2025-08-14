@@ -24,9 +24,9 @@ if not exist "%BUILD_DIR%" (
     for /d %%D in ("%BUILD_DIR%\*") do rmdir /S /Q "%%D" 2>nul
 )
 
-REM Build the project with oscar64 (all required .c files, explicit list)
+REM Build the project with oscar64 (all required .c files, unified utilities)
 echo Building "%PROJECT_NAME%" with oscar64...
-"%OSCAR64_PATH%" -o="%OUTPUT_PATH%" -n -g -tf=prg -O0 -tm=c64 -dDEBUG -d__oscar64__ -i="E:\Apps\oscar64\include" -i="E:\Apps\oscar64\include\c64" -i="E:\Apps\oscar64\include\c128" -i="E:\Apps\oscar64\include\audio" -i="E:\Apps\oscar64\include\gfx" -i="%cd%" -i="%cd%\src" -i="%cd%\main\src\mapgen" -i="%cd%\build" "main\src\main.c" "main\src\mapgen\map_export.c" "main\src\mapgen\map_generation.c" "main\src\mapgen\public.c" "main\src\mapgen\room_management.c" "main\src\mapgen\rule_based_connection_system.c" "main\src\mapgen\testdisplay.c" "main\src\mapgen\utility.c" "main\src\mapgen\door_placement.c"
+"%OSCAR64_PATH%" -o="%OUTPUT_PATH%" -n -g -tf=prg -O0 -tm=c64 -dDEBUG -d__oscar64__ -i="E:\Apps\oscar64\include" -i="E:\Apps\oscar64\include\c64" -i="E:\Apps\oscar64\include\c128" -i="E:\Apps\oscar64\include\audio" -i="E:\Apps\oscar64\include\gfx" -i="%cd%" -i="%cd%\src" -i="%cd%\main\src\mapgen" -i="%cd%\build" "main\src\main.c" "main\src\mapgen\map_export.c" "main\src\mapgen\map_generation.c" "main\src\mapgen\mapgen_utils.c" "main\src\mapgen\room_management.c" "main\src\mapgen\connection_system.c" "main\src\mapgen\testdisplay.c"
 REM Check if build was successful
 if exist "%OUTPUT_PATH%" (
     echo Build successful! Output: "%OUTPUT_PATH%"

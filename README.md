@@ -68,10 +68,10 @@ Hacked-C64/
             ├─ mapgen_display.h               // Display helpers for mapgen
             ├─ mapgen_internal.h              // Internal helpers for mapgen
             ├─ mapgen_types.h                 // Type definitions for mapgen
-            ├─ mapgen_utility.h               // Utility functions for mapgen
+            ├─ mapgen_utils.h               // Utility functions for mapgen
             ├─ public.c                       // Mapgen public API implementation
             ├─ room_management.c              // Room placement, validation, priority
-            ├─ rule_based_connection_system.c // Minimum Spanning Tree, rule-based connections
+            ├─ connection_system.c // Minimum Spanning Tree, rule-based connections
             ├─ testdisplay.c                  // Screen handling, viewport, input, delta refresh
             └─ utility.c                      // Math, random, cache, helper functions
 ```
@@ -106,7 +106,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 - `main.c`: Entry point, Oscar64 file I/O, main control, input
 - `map_generation.c`: Main generation pipeline (rooms, corridors, walls, stairs)
-- `rule_based_connection_system.c`: MST, rule-based connections, corridor reuse
+- `connection_system.c`: MST, rule-based connections, corridor reuse
 - `room_management.c`: Room placement, validation, priority
 - `door_placement.c`: Door placement, symmetric logic
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's knio file I/O functions.

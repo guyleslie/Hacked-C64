@@ -6,11 +6,10 @@
 #include "mapgen/mapgen_types.h"
 #include "mapgen/mapgen_api.h"
 #include "mapgen/mapgen_internal.h"
-#include "mapgen/mapgen_utility.h"
+#include "mapgen/mapgen_utils.h"
 #include "mapgen_display.h"
-#include "oscar64_console.h"
 
 // Rule-based connection system include (if needed)
-#include "mapgen/rule_based_connection_system.h"
+#include "mapgen/connection_system.h"
 
 #endif // MAPGEN__H

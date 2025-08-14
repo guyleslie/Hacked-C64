@@ -27,24 +27,13 @@ unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char ro
 unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char min_distance);
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y);
-unsigned char choose_optimal_connection_pattern(void);
-void connect_rooms_grid_optimized(unsigned char *connected, unsigned char *connections_made);
-void connect_rooms_backbone_tree(unsigned char *connected, unsigned char *connections_made);
-void connect_rooms_zone_clusters(unsigned char *connected, unsigned char *connections_made);
-void connect_rooms_adaptive_network(unsigned char *connected, unsigned char *connections_made);
-void connect_rooms_spatial_spanning(unsigned char *connected, unsigned char *connections_made);
-unsigned char analyze_room_distribution(void);
-unsigned char calculate_map_density(void);
-unsigned char find_central_rooms(unsigned char *central_rooms);
-void create_minimum_spanning_tree(unsigned char *connected, unsigned char *connections_made);
-void add_strategic_loops(unsigned char connections_made);
 unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned char include_diagonals, unsigned char tile_types);
 void assign_room_priorities(void);
 void get_grid_position(unsigned char grid_index, unsigned char *x, unsigned char *y);
 unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
                                     unsigned char *result_x, unsigned char *result_y);
-unsigned char get_compact_tile_fast(unsigned char x, unsigned char y);
-void set_compact_tile_fast(unsigned char x, unsigned char y, unsigned char tile);
+unsigned char get_compact_tile(unsigned char x, unsigned char y);
+void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile);
 unsigned char get_tile_raw(unsigned char x, unsigned char y);
 void set_tile_raw(unsigned char x, unsigned char y, unsigned char tile);
 unsigned char tile_is_floor(unsigned char x, unsigned char y);
@@ -75,23 +64,7 @@ unsigned char can_place_corridor_tile(unsigned char x, unsigned char y);
  * @param room2 The second room index.
  * @return 1 if drawing was successful, 0 otherwise.
  */
-unsigned char draw_rule_based_corridor(unsigned char room1, unsigned char room2);
-
-/**
- * @brief Checks if an existing path can be reused between two rooms.
- * @param room1 The first room index.
- * @param room2 The second room index.
- * @return 1 if path can be reused, 0 otherwise.
- */
-unsigned char can_reuse_existing_path(unsigned char room1, unsigned char room2);
-
-/**
- * @brief Connects two rooms via existing corridors if possible.
- * @param room1 The first room index.
- * @param room2 The second room index.
- * @return 1 if connection was made, 0 otherwise.
- */
-unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char room2);
+unsigned char draw_corridor(unsigned char room1, unsigned char room2);
 
 /**
  * @brief Main logic for connecting rooms using rule-based system.
@@ -99,12 +72,12 @@ unsigned char connect_via_existing_corridors(unsigned char room1, unsigned char 
  * @param room2 The second room index.
  * @return 1 if connection was made, 0 otherwise.
  */
-unsigned char rule_based_connect_rooms(unsigned char room1, unsigned char room2);
+unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2);
 
 /**
  * @brief Initializes the rule-based connection system.
  */
-void init_rule_based_connection_system(void);
+void init_connection_system(void);
 
 /**
  * @brief Checks if two rooms are already connected.
@@ -124,5 +97,37 @@ unsigned char rooms_are_connected(unsigned char room1, unsigned char room2);
  * indirect paths between rooms through other connections.
  */
 unsigned char is_room_reachable(unsigned char room1, unsigned char room2);
+
+// =============================================================================
+// DOOR PLACEMENT FUNCTIONS
+// =============================================================================
+
+// Structure for a path of points (corridor)
+typedef struct {
+    unsigned char x[MAX_PATH_LENGTH];
+    unsigned char y[MAX_PATH_LENGTH];
+    unsigned char length;
+} CorridorPath;
+
+/**
+ * @brief Place a door at (x, y) on the room edge (perimeter) if valid (Oscar64/C64)
+ * @param x The x coordinate.
+ * @param y The y coordinate.
+ */
+void place_door(unsigned char x, unsigned char y);
+
+/**
+ * @brief Place doors at the first and last walkable tiles of the corridor path between two rooms
+ * @param roomA Pointer to the first room.
+ * @param roomB Pointer to the second room.
+ * @param path Pointer to the corridor path.
+ */
+void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path);
+
+/**
+ * @brief Place doors along a corridor path
+ * @param path Pointer to the corridor path.
+ */
+void place_doors_along_corridor(const CorridorPath* path);
 
 #endif // MAPGEN_INTERNAL_H

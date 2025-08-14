@@ -3,32 +3,115 @@
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
 #include "mapgen_internal.h"   // For add_walls, add_stairs, etc.
-#include "mapgen_utility.h"    // For get_room_center, coords_in_bounds, calculate_room_distance
+#include "mapgen_utils.h"    // For get_room_center, coords_in_bounds, calculate_room_distance
 
 // External global references
 extern Room rooms[MAX_ROOMS];
 extern unsigned char room_count;
 
 // =============================================================================
-// WALL PLACEMENT SYSTEM - OPTIMIZED FOR EFFICIENCY
+// WALL PLACEMENT SYSTEM - TWO PHASE APPROACH
 // =============================================================================
-// LOGIC: Instead of checking every map tile (4096 tiles), we only check 
-// floor/door tiles and place walls around them. This is typically 80-200 tiles.
-// Performance improvement: ~20x faster than full map scan!
+// PHASE 1: Place walls around walkable areas
+// PHASE 2: Place corners at true spatial corner locations
 
-// OPTIMIZED: Only checks floor and door at all 4 neighboring tiles
+// Helper function: Check if position is valid and what type of tile it is
+unsigned char get_tile_safe(unsigned char x, unsigned char y) {
+    if (x >= MAP_W || y >= MAP_H) return TILE_EMPTY;
+    return get_tile_raw(x, y);
+}
+
+// Helper function: Check if tile is walkable (floor or door)
+unsigned char is_walkable_tile(unsigned char tile) {
+    return (tile == TILE_FLOOR || tile == TILE_DOOR);
+}
+
+// Helper function: Check if position forms a NetHack-style corner
+unsigned char is_true_corner(unsigned char x, unsigned char y) {
+    // Must be a wall to be considered for corner placement
+    if (get_tile_raw(x, y) != TILE_WALL) return 0;
+    
+    // Get cardinal direction walls and doors (treat doors as walls for corner logic)
+    unsigned char n = get_tile_safe(x, y-1);     // North
+    unsigned char s = get_tile_safe(x, y+1);     // South  
+    unsigned char w = get_tile_safe(x-1, y);     // West
+    unsigned char e = get_tile_safe(x+1, y);     // East
+    
+    unsigned char wall_north = (n == TILE_WALL || n == TILE_CORNER || n == TILE_DOOR);
+    unsigned char wall_south = (s == TILE_WALL || s == TILE_CORNER || s == TILE_DOOR);
+    unsigned char wall_west = (w == TILE_WALL || w == TILE_CORNER || w == TILE_DOOR);
+    unsigned char wall_east = (e == TILE_WALL || e == TILE_CORNER || e == TILE_DOOR);
+    
+    unsigned char wall_count = wall_north + wall_south + wall_west + wall_east;
+    
+    // NetHack-style corner detection: L-shaped wall patterns only
+    
+    // L-shaped corners - exactly 2 walls in perpendicular directions
+    if (wall_count == 2) {
+        // Check for perpendicular wall patterns (90-degree turns)
+        if ((wall_north && wall_east) ||   // North-East L-corner
+            (wall_north && wall_west) ||   // North-West L-corner
+            (wall_south && wall_east) ||   // South-East L-corner
+            (wall_south && wall_west)) {   // South-West L-corner
+            return 1;
+        }
+    }
+    
+    // T-junction corners - wall branches in 3 directions
+    if (wall_count == 3) {
+        return 1;
+    }
+    
+    // Door adjacent corners - any wall directly touching a door
+    // Important for visual consistency around doorways
+    if (n == TILE_DOOR || s == TILE_DOOR || w == TILE_DOOR || e == TILE_DOOR) {
+        return 1;
+    }
+    
+    return 0; // Not a corner in NetHack style
+}
+
+// Helper function: Check if position is part of straight wall run
+unsigned char is_straight_wall_run(unsigned char x, unsigned char y) {
+    if (get_tile_raw(x, y) != TILE_WALL) return 0;
+    
+    unsigned char n = get_tile_safe(x, y-1);
+    unsigned char s = get_tile_safe(x, y+1);  
+    unsigned char w = get_tile_safe(x-1, y);
+    unsigned char e = get_tile_safe(x+1, y);
+    
+    // Horizontal wall run (walls or corners to west and east)
+    if ((w == TILE_WALL || w == TILE_CORNER) && 
+        (e == TILE_WALL || e == TILE_CORNER) && 
+        n != TILE_WALL && s != TILE_WALL) {
+        return 1;
+    }
+    
+    // Vertical wall run (walls or corners to north and south)  
+    if ((n == TILE_WALL || n == TILE_CORNER) && 
+        (s == TILE_WALL || s == TILE_CORNER) && 
+        w != TILE_WALL && e != TILE_WALL) {
+        return 1;
+    }
+    
+    return 0;
+}
+
+// Two-phase wall and corner placement system
 void add_walls(void) {
     unsigned char x, y;
 
+    // =================================================================
+    // PHASE 1: PLACE WALLS AROUND WALKABLE AREAS
+    // =================================================================
     print_text("\n\nPlacing walls");
     
-    // Simple approach: scan for floor/door tiles and place walls around them
     for (y = 0; y < MAP_H; y++) {
         for (x = 0; x < MAP_W; x++) {
             unsigned char tile = get_tile_raw(x, y);
             // Only process floor and door tiles
-            if (tile == TILE_FLOOR || tile == TILE_DOOR) {
-                // Check all 4 neighbors and place walls where needed
+            if (is_walkable_tile(tile)) {
+                // Place walls in all 4 cardinal directions if empty
                 // North
                 if (y > 0 && get_tile_raw(x, y-1) == TILE_EMPTY) {
                     set_tile_raw(x, y-1, TILE_WALL);
@@ -45,60 +128,48 @@ void add_walls(void) {
                 if (x < MAP_W-1 && get_tile_raw(x+1, y) == TILE_EMPTY) {
                     set_tile_raw(x+1, y, TILE_WALL);
                 }
+                
+                // DIAGONAL WALLS: Place walls at corner positions for complete enclosure
+                // Northwest diagonal
+                if (x > 0 && y > 0 && get_tile_raw(x-1, y-1) == TILE_EMPTY) {
+                    set_tile_raw(x-1, y-1, TILE_WALL);
+                }
+                // Northeast diagonal  
+                if (x < MAP_W-1 && y > 0 && get_tile_raw(x+1, y-1) == TILE_EMPTY) {
+                    set_tile_raw(x+1, y-1, TILE_WALL);
+                }
+                // Southwest diagonal
+                if (x > 0 && y < MAP_H-1 && get_tile_raw(x-1, y+1) == TILE_EMPTY) {
+                    set_tile_raw(x-1, y+1, TILE_WALL);
+                }
+                // Southeast diagonal
+                if (x < MAP_W-1 && y < MAP_H-1 && get_tile_raw(x+1, y+1) == TILE_EMPTY) {
+                    set_tile_raw(x+1, y+1, TILE_WALL);
+                }
             }
         }
-        if (y % 16 == 0) print_text("."); // Progress indicator every 16 rows
+        if (y % 8 == 0) print_text("."); // Progress indicator
     }
 
-    // Second pass: place corner tiles diagonally from walkable tiles (külső és belső sarkok)
+    // =================================================================
+    // PHASE 2: PLACE CORNERS AT L-SHAPED WALL TURNS (NETHACK STYLE)
+    // =================================================================
+    print_text("\n\nPlacing corners");
+    
     for (y = 1; y < MAP_H-1; y++) {
         for (x = 1; x < MAP_W-1; x++) {
-            unsigned char tile = get_tile_raw(x, y);
-            if (tile == TILE_FLOOR || tile == TILE_DOOR) {
-                // Outer corner: two adjacent walls, diagonal is empty
-                if (get_tile_raw(x+1, y) == TILE_WALL && get_tile_raw(x, y+1) == TILE_WALL && get_tile_raw(x+1, y+1) == TILE_EMPTY) {
-                    set_tile_raw(x+1, y+1, TILE_CORNER);
-                }
-                if (get_tile_raw(x-1, y) == TILE_WALL && get_tile_raw(x, y+1) == TILE_WALL && get_tile_raw(x-1, y+1) == TILE_EMPTY) {
-                    set_tile_raw(x-1, y+1, TILE_CORNER);
-                }
-                if (get_tile_raw(x+1, y) == TILE_WALL && get_tile_raw(x, y-1) == TILE_WALL && get_tile_raw(x+1, y-1) == TILE_EMPTY) {
-                    set_tile_raw(x+1, y-1, TILE_CORNER);
-                }
-                if (get_tile_raw(x-1, y) == TILE_WALL && get_tile_raw(x, y-1) == TILE_WALL && get_tile_raw(x-1, y-1) == TILE_EMPTY) {
-                    set_tile_raw(x-1, y-1, TILE_CORNER);
-                }
-                // Inner corner: two adjacent walkable tiles, diagonal is a wall, and the two tiles behind the wall are also walls
-                // NE inner corner
-                if ((get_tile_raw(x+1, y) == TILE_FLOOR || get_tile_raw(x+1, y) == TILE_DOOR) &&
-                    (get_tile_raw(x, y+1) == TILE_FLOOR || get_tile_raw(x, y+1) == TILE_DOOR) &&
-                    get_tile_raw(x+1, y+1) == TILE_WALL &&
-                    get_tile_raw(x+2, y+1) == TILE_WALL && get_tile_raw(x+1, y+2) == TILE_WALL) {
-                    set_tile_raw(x+1, y+1, TILE_CORNER);
-                }
-                // NW inner corner
-                if ((get_tile_raw(x-1, y) == TILE_FLOOR || get_tile_raw(x-1, y) == TILE_DOOR) &&
-                    (get_tile_raw(x, y+1) == TILE_FLOOR || get_tile_raw(x, y+1) == TILE_DOOR) &&
-                    get_tile_raw(x-1, y+1) == TILE_WALL &&
-                    get_tile_raw(x-2, y+1) == TILE_WALL && get_tile_raw(x-1, y+2) == TILE_WALL) {
-                    set_tile_raw(x-1, y+1, TILE_CORNER);
-                }
-                // SE inner corner
-                if ((get_tile_raw(x+1, y) == TILE_FLOOR || get_tile_raw(x+1, y) == TILE_DOOR) &&
-                    (get_tile_raw(x, y-1) == TILE_FLOOR || get_tile_raw(x, y-1) == TILE_DOOR) &&
-                    get_tile_raw(x+1, y-1) == TILE_WALL &&
-                    get_tile_raw(x+2, y-1) == TILE_WALL && get_tile_raw(x+1, y-2) == TILE_WALL) {
-                    set_tile_raw(x+1, y-1, TILE_CORNER);
-                }
-                // SW inner corner
-                if ((get_tile_raw(x-1, y) == TILE_FLOOR || get_tile_raw(x-1, y) == TILE_DOOR) &&
-                    (get_tile_raw(x, y-1) == TILE_FLOOR || get_tile_raw(x, y-1) == TILE_DOOR) &&
-                    get_tile_raw(x-1, y-1) == TILE_WALL &&
-                    get_tile_raw(x-2, y-1) == TILE_WALL && get_tile_raw(x-1, y-2) == TILE_WALL) {
-                    set_tile_raw(x-1, y-1, TILE_CORNER);
-                }
+            // Skip if not a wall or already processed
+            if (get_tile_raw(x, y) != TILE_WALL) continue;
+            
+            // Skip walls that are part of straight runs - these don't need corners
+            if (is_straight_wall_run(x, y)) continue;
+            
+            // Check if this position forms a NetHack-style corner
+            if (is_true_corner(x, y)) {
+                set_tile_raw(x, y, TILE_CORNER);
             }
         }
+        if (y % 8 == 0) print_text("."); // Progress indicator
     }
 }
 
@@ -152,37 +223,34 @@ void add_stairs(void) {
 // MAIN MAP GENERATION
 // =============================================================================
 
-// Complete level generation pipeline optimized for C64
+// Complete level generation pipeline 
 unsigned char generate_level(void) {
     // Display map generation progress message
     // Print the map generation message centered horizontally (40 columns)
     print_text("      *** Hacked Map Generator ***\n");
     
-    // Phase 1: Reset is now handled in mapgen_generate_dungeon()
-    // This prevents double initialization issues with corridor reuse
-    
-    // Phase 2: Create rooms using efficient grid-based placement
+    // Phase 1: Create rooms using efficient grid-based placement
     create_rooms();
     // Early exit if no rooms were created
     if (room_count == 0) {
         return 0; // Generation failed
     }
-      // Phase 3: Connect rooms with improved MST logic (prevents duplicate connections)
+    
+    // Phase 2: Connect rooms with improved MST logic (prevents duplicate connections)
     print_text("\n\nCreating corridors");
     unsigned char connected[MAX_ROOMS];
     unsigned char connections_made = 0;
     unsigned char i;
-      // Initialize simple connection system
-    init_rule_based_connection_system();
+    // Initialize simple connection system
+    init_connection_system();
     
     // Initialize connection tracking
     for (i = 0; i < MAX_ROOMS; i++) {
         connected[i] = 0;
     }
-      // Connect rooms using improved MST logic (NO DUPLICATE CONNECTIONS)
     // Start with room 0 as connected
     connected[0] = 1;
-      // Connect exactly (room_count - 1) rooms for optimal spanning tree
+    // Connect exactly (room_count - 1) rooms for optimal spanning tree
     while (connections_made < room_count - 1) {
         unsigned char best_room1 = 255, best_room2 = 255;
         unsigned char best_distance = 255;
@@ -193,9 +261,10 @@ unsigned char generate_level(void) {
             if (!connected[i]) continue; // Only connected rooms as source
             
             for (unsigned char j = 0; j < room_count; j++) {
-                if (connected[j]) continue; // Only unconnected rooms as target
+                // Only unconnected rooms as target
+                if (connected[j]) continue; 
                 
-                // CRITICAL: Only allow connections that comply with rules
+                // Only allow connections that comply with rules
                 if (!can_connect_rooms_safely(i, j)) continue;
                 
                 unsigned char distance = calculate_room_distance(i, j);
@@ -209,9 +278,20 @@ unsigned char generate_level(void) {
         }
         
         // Make the best connection found
-        if (connection_found && rule_based_connect_rooms(best_room1, best_room2)) {
+        if (connection_found && connect_rooms_directly(best_room1, best_room2)) {
             connected[best_room2] = 1; // Mark new room as connected
             connections_made++;
+            
+            // Verify connection_matrix consistency
+            // Ensure both MST tracking and connection_matrix are synchronized
+            if (!rooms_are_connected(best_room1, best_room2)) {
+                // Connection failed in reality - rollback MST state
+                connected[best_room2] = 0;
+                connections_made--;
+                print_text("F"); // Indicate sync failure
+                continue;
+            }
+            
             if (connections_made % 1 == 0) print_text("."); // Progress every connection
         } else {
             // No valid connections found - exit to prevent infinite loop

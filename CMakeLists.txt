@@ -20,17 +20,15 @@ set(OSCAR64_INCLUDE_C128 "${OSCAR64_PATH}/oscar64/include/c128")
 set(OSCAR64_INCLUDE_AUDIO "${OSCAR64_PATH}/oscar64/include/audio")
 set(OSCAR64_INCLUDE_GFX "${OSCAR64_PATH}/oscar64/include/gfx")
 
-# Source files (explicit list, as in build.bat)
+# Source files (explicit list, unified utilities)
 set(SRC_FILES
     ${CMAKE_SOURCE_DIR}/main/src/main.c
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/map_export.c
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/map_generation.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/public.c
+    ${CMAKE_SOURCE_DIR}/main/src/mapgen/mapgen_utils.c
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/room_management.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/rule_based_connection_system.c
+    ${CMAKE_SOURCE_DIR}/main/src/mapgen/connection_system.c
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/testdisplay.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/utility.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/door_placement.c
 )
 
 # Output directory and file

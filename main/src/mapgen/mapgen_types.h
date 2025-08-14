@@ -19,9 +19,6 @@
 #define MAX_ROOM_DIS 10
 #define GRID_SIZE 4
 
-// Minimum straight segment length before L-corner in corridor (user configurable)
-#define MIN_L_CORRIDOR_STRAIGHT 1
-
 // Map tile characters (PETSCII)
 #define EMPTY  32
 #define WALL   160
@@ -61,10 +58,8 @@
 
 // Corridor and connection parameters
 #define MAX_PATH_LENGTH 20
-#define MAX_SHARED_SEGMENTS 12
 #define ROOM_UNCONNECTED 0
 #define ROOM_CONNECTED   1
-#define ROOM_IS_HUB      2
 #define MAX_CORRIDOR_SEGMENTS 32
 #define MAX_CONNECTION_CACHE  24
 

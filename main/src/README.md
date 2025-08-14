@@ -49,14 +49,14 @@ The map generation process is a multi-stage, rule-based pipeline designed for or
 
 ### 1.1 Initialization
 
-Initialization is split between two functions: `mapgen_init()` and `init_rule_based_connection_system()`.
+Initialization is split between two functions: `mapgen_init()` and `init_connection_system()`.
 
 - `mapgen_init()` (see `mapgen/public.c`):
   - Seeds the random number generator for Oscar64/C64 compatibility using `init_rng()`.
   - Does not reset map or room data directly; this is deferred to the main generation function to avoid double initialization.
   - Ensures the system is ready for map generation, but leaves memory pool and display buffer resets to later steps.
 
-- `init_rule_based_connection_system()` (see `mapgen/rule_based_connection_system.c`):
+- `init_connection_system()` (see `mapgen/connection_system.c`):
   - Zeros out the room-to-room connection matrix for MST and corridor logic, using Oscar64-optimized loops for static memory.
   - Sets all room distance cache entries to `255` (invalid marker), ensuring no stale data.
   - Resets corridor memory pools (`active_count`, `next_free_index`) and connection caches for deterministic corridor reuse.
@@ -94,12 +94,12 @@ Room connections and corridor generation are handled by a strict, rule-based sys
   - All connections must comply with strict rules: no overlap, no illegal adjacency, and no redundant corridors.
   - Connection attempts fallback to any remaining unconnected room, but always obey the rules.
 
-- The function `rule_based_connect_rooms(room1, room2)` (see `rule_based_connection_system.c`):
+- The function `connect_rooms(room1, room2)` (see `connection_system.c`):
   - Validates that rooms can be safely connected and are not already directly or indirectly connected.
-  - Attempts to reuse existing corridors if all rules are satisfied (`can_reuse_existing_path()` and `connect_via_existing_corridors()`).
-  - If reuse is not possible, creates a new corridor using `draw_rule_based_corridor()`.
+  - Attempts to connect to nearby existing corridors if available (`has_nearby_corridors()` and `connect_to_nearby_corridors()`).
+  - If nearby connection is not possible, creates a new corridor using `draw_corridor()`.
 
-- The function `draw_rule_based_corridor(room1, room2)`:
+- The function `draw_corridor(room1, room2)`:
   - Calculates exit points for each room using `find_room_exit()`, always 2 tiles away from the perimeter for robust connections.
   - Constructs the corridor path using a Z-shaped or L-shaped greedy Manhattan path, with axis order randomized for variety.
   - Places corridor tiles at the exit points and along the path, using static memory for all path data.
@@ -191,7 +191,7 @@ The file `map_export.c` implements `save_compact_map(const char* filename)`, whi
 
 - `main.c`: Entry point; Oscar64 file I/O; top-level control and user interaction
 - `mapgen/map_generation.c`: Orchestrates the full pipeline (`generate_level()`), wall and stair placement (`add_walls()`, `add_stairs()`), ensures unified perimeter logic
-- `mapgen/rule_based_connection_system.c`: Implements MST-based connection system, rule-based corridor and door generation, connection validation
+- `mapgen/connection_system.c`: Implements MST-based connection system, rule-based corridor and door generation, connection validation
 - `mapgen/room_management.c`: Handles room placement, sizing, exit calculation, using standardized edge definition
 - `mapgen/door_placement.c`: Handles all door placement logic; doors always at room/corridor interface, on perimeter
 - `mapgen/map_export.c`: Map export routines
@@ -205,7 +205,7 @@ The file `map_export.c` implements `save_compact_map(const char* filename)`, whi
 - `mapgen_types.h`: Data structures for rooms, corridors, map tiles, and related types; core types, constants, macros
 - `mapgen_api.h`: Public API for initializing and generating dungeons
 - `mapgen_internal.h`: Internal state, helpers, private definitions
-- `mapgen_utility.h`: Math, randomization, coordinate, C64-specific helpers; all edge/perimeter checks use new definition
+- `mapgen_utils.h`: Math, randomization, coordinate, C64-specific helpers; all edge/perimeter checks use new definition
 - `mapgen_display.h`: API for rendering and navigation on C64 screen
 - `map_export.h`: API for exporting maps in Oscar64/C64-compatible formats
 - `oscar64_console.h`: Oscar64-specific console/graphics routines for C64 display
