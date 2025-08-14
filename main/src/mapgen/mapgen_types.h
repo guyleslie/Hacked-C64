@@ -1,8 +1,8 @@
-#define BITS_PER_TILE 3           // Number of bits per tile in compact encoding
-#define THREE_BIT_MASK 0x07       // 3-bit mask for tile extraction
+#define BITS_PER_TILE 3             // Number of bits per tile in compact encoding
+#define THREE_BIT_MASK 0x07         // 3-bit mask for tile extraction
 #define MAX_BIT_POSITION_FOR_TILE 5 // Max bit position for a tile in a byte (8-3=5)
-#define BITS_PER_BYTE 8           // Number of bits in a byte
-#define UNDERFLOW_CHECK_VALUE 0xFF // Used for underflow/invalid checks
+#define BITS_PER_BYTE 8             // Number of bits in a byte
+#define UNDERFLOW_CHECK_VALUE 0xFF  // Used for underflow/invalid checks
 #ifndef MAPGEN_TYPES_H
 #define MAPGEN_TYPES_H
 

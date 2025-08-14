@@ -214,8 +214,8 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
     unsigned char room_id = room - rooms; // Calculate room index from pointer
     get_room_center(room_id, &room_center_x, &room_center_y);
     
-    unsigned char dx = fast_abs_diff(target_x, room_center_x);
-    unsigned char dy = fast_abs_diff(target_y, room_center_y);
+    unsigned char dx = abs_diff(target_x, room_center_x);
+    unsigned char dy = abs_diff(target_y, room_center_y);
     
     // Determine optimal edge based on target direction
     if (dx > dy) {

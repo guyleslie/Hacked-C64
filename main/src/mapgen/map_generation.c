@@ -1,5 +1,7 @@
+// =============================================================================
 // Map Generation Module for C64 Map Generator
 // Contains wall placement, stair generation, and main map generation logic
+// =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
 #include "mapgen_internal.h"   // For add_walls, add_stairs, etc.

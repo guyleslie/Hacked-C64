@@ -37,7 +37,7 @@ unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room
 unsigned char is_on_room_edge(unsigned char x, unsigned char y);
 
 // Mathematical and computational utilities
-unsigned char fast_abs_diff(unsigned char a, unsigned char b);
+unsigned char abs_diff(unsigned char a, unsigned char b);
 unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
 unsigned char calculate_direction(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
 

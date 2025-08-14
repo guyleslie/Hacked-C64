@@ -135,10 +135,6 @@ unsigned char rnd(unsigned char max) {
 }
 
 // =============================================================================
-// SCREEN OPERATIONS
-// =============================================================================
-
-// =============================================================================
 // TILE ACCESS AND MANIPULATION
 // =============================================================================
 
@@ -312,20 +308,20 @@ unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
 // MATHEMATICAL AND COMPUTATIONAL UTILITIES
 // =============================================================================
 
-// Fast absolute difference calculation (Oscar64 optimized)
-inline unsigned char fast_abs_diff(unsigned char a, unsigned char b) {
+// Absolute difference calculation (Oscar64 optimized)
+inline unsigned char abs_diff(unsigned char a, unsigned char b) {
     return (a > b) ? a - b : b - a;
 }
 
 // Optimized Manhattan distance calculation between two points
 inline unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2) {
-    return fast_abs_diff(x1, x2) + fast_abs_diff(y1, y2);
+    return abs_diff(x1, x2) + abs_diff(y1, y2);
 }
 
 // Fast direction calculation between two points (0=E, 1=NE, 2=N, 3=NW, 4=W, 5=SW, 6=S, 7=SE)
 unsigned char calculate_direction(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2) {
-    unsigned char dx = fast_abs_diff(x1, x2);
-    unsigned char dy = fast_abs_diff(y1, y2);
+    unsigned char dx = abs_diff(x1, x2);
+    unsigned char dy = abs_diff(y1, y2);
     
     // Determine primary direction
     if (dx > dy) {
@@ -548,11 +544,11 @@ unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y, unsign
     return found;
 }
 
-// Optimized adjacency checker - uses bit flag system for improved efficiency
+// Legacy adjacency checker
 unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned char include_diagonals, unsigned char tile_types) {
     if (!coords_in_bounds(x, y)) return 0;
     
-    // Convert old tile_types parameter to new bit flags
+    // Convert old tile type flags to new bit flag system
     unsigned char type_flags = 0;
     if (tile_types & CHECK_DOORS_ONLY) type_flags |= TILE_CHECK_DOOR;
     if (tile_types & CHECK_FLOORS_ONLY) type_flags |= TILE_CHECK_FLOOR;
@@ -780,7 +776,7 @@ unsigned char mapgen_get_room_center(unsigned char room_index, unsigned char *ce
 }
 
 // =============================================================================
-// MAP ANALYSIS FUNCTIONS
+// MAP ANALYSIS AND UTILITY FUNCTIONS (NOT USED, FOR FUTURE INTEGRATION)
 // =============================================================================
 
 // Count specific tile types in the map
@@ -828,10 +824,6 @@ unsigned char mapgen_find_tiles(unsigned char tile_type, unsigned char *x_positi
     
     return found;
 }
-
-// =============================================================================
-// UTILITY FUNCTIONS FOR INTEGRATION
-// =============================================================================
 
 // Validate the current map for logical consistency
 unsigned char mapgen_validate_map(void) {

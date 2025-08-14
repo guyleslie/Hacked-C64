@@ -1,5 +1,7 @@
+// =============================================================================
 // Display and Navigation Module for C64 Map Generator
 // Contains viewport management, input handling, and map display
+// =============================================================================
 
 #include <c64/vic.h>
 #include <c64/cia.h>

@@ -1,5 +1,7 @@
+// =============================================================================
 // Main Module for C64 Map Generator
 // Contains: main program loop, VIC-II setup, global variables, and user input handling
+// =============================================================================
 
 #include <conio.h>
 #include <c64/kernalio.h>
