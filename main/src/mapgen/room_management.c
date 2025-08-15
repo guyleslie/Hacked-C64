@@ -21,67 +21,8 @@ extern Viewport view;
 // =============================================================================
 // ROOM VALIDATION AND PLACEMENT CORE FUNCTIONS
 // =============================================================================
-
-// Enhanced room placement validation with C64-optimized edge and overlap checking
-// Uses minimal loops and early exits for maximum C64 performance
-unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
-    // Fast edge boundary checks - ensure adequate space from map edges
-    if (x < 3 || y < 3) return 0;
-    if (x + w + 3 >= MAP_W || y + h + 3 >= MAP_H) return 0;
-    
-    // C64-optimized: Check proposed room area for existing tiles first
-    // This early check saves time before expensive distance calculations
-    for (unsigned char iy = y; iy < y + h; iy++) {
-        for (unsigned char ix = x; ix < x + w; ix++) {
-            if (!tile_is_empty(ix, iy)) {
-                return 0; // Found existing structure
-            }
-        }
-    }
-    
-    // Buffer zone validation with MIN_ROOM_DISTANCE
-    // Check buffer area around proposed room for conflicts
-    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE) ? x - MIN_ROOM_DISTANCE : 0;
-    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE) ? y - MIN_ROOM_DISTANCE : 0;
-    unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
-    unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
-    
-    // Clamp buffer zone to map boundaries
-    if (buffer_x2 >= MAP_W) buffer_x2 = MAP_W - 1;
-    if (buffer_y2 >= MAP_H) buffer_y2 = MAP_H - 1;
-    
-    // Scan buffer zone for existing structures (excluding the room area itself)
-    for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
-        for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
-            // Skip the actual room area - we already checked it above
-            if (ix >= x && ix < x + w && iy >= y && iy < y + h) continue;
-            
-            if (!tile_is_empty(ix, iy)) {
-                return 0; // Buffer zone conflict
-            }
-        }
-    }
-    
-    // Room-to-room distance checking
-    // Cached room centers for faster distance calculations
-    for (unsigned char i = 0; i < room_count; i++) {
-        unsigned char existing_x2 = rooms[i].x + rooms[i].w;
-        unsigned char existing_y2 = rooms[i].y + rooms[i].h;
-        unsigned char new_x2 = x + w;
-        unsigned char new_y2 = y + h;
-        
-        // Fast bounding box proximity check with MIN_ROOM_DISTANCE
-        unsigned char min_dist = MIN_ROOM_DISTANCE + 1;
-        
-        // Check if rooms are too close using expanded bounding boxes
-        if (!(x >= existing_x2 + min_dist || new_x2 + min_dist <= rooms[i].x ||
-              y >= existing_y2 + min_dist || new_y2 + min_dist <= rooms[i].y)) {
-            return 0; // Too close to existing room
-        }
-    }
-    
-    return 1; // Safe to place room
-}
+// Note: can_place_room, try_place_room_at_grid, is_outside_room, find_room_exit 
+// and has_door_nearby functions moved to mapgen_utils.c for better accessibility
 
 // Place room with floor tiles
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
@@ -107,47 +48,7 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
 // =============================================================================
 // GRID-BASED ROOM PLACEMENT SYSTEM
 // =============================================================================
-
-// Use get_grid_position from utility.c
-
-// Grid-based room placement with enhanced randomization and multiple attempts
-unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
-                                    unsigned char *result_x, unsigned char *result_y) {
-    unsigned char attempts = 0;
-    
-    // C64-optimized: Multiple attempts with increasing variation
-    while (attempts < 15) {  // Reasonable attempt limit for C64
-        unsigned char x, y;
-        
-        // Get base grid position
-        get_grid_position(grid_index, &x, &y);
-        
-        // Add progressive variation for each attempt
-        if (attempts > 5) {
-            // Later attempts use more variation to find available space
-            unsigned char extra_variation = attempts - 5;
-            x += rnd(extra_variation * 2) - extra_variation;
-            y += rnd(extra_variation * 2) - extra_variation;
-            
-            // Keep within bounds
-            if (x < 4) x = 4;
-            if (y < 4) y = 4;
-            if (x + w + 3 >= MAP_W) x = MAP_W - w - 4;
-            if (y + h + 3 >= MAP_H) y = MAP_H - h - 4;
-        }
-        
-        // Test placement
-        if (can_place_room(x, y, w, h)) {
-            *result_x = x;
-            *result_y = y;
-            return 1; // Success
-        }
-        
-        attempts++;
-    }
-    
-    return 0; // Failed to place after all attempts
-}
+// Note: try_place_room_at_grid function moved to mapgen_utils.c
 
 // =============================================================================
 // ROOM PRIORITY AND ORGANIZATION SYSTEM
@@ -170,86 +71,8 @@ void assign_room_priorities(void) {
 // =============================================================================
 // ROOM QUERY AND VALIDATION FUNCTIONS
 // =============================================================================
-
-// Fast room containment check - C64 optimized single-pass
-unsigned char is_inside_room(unsigned char x, unsigned char y) {
-    for (unsigned char i = 0; i < room_count; i++) {
-        if (x >= rooms[i].x && x < rooms[i].x + rooms[i].w &&
-            y >= rooms[i].y && y < rooms[i].y + rooms[i].h) {
-            return 1; // Inside this room
-        }
-    }
-    return 0; // Outside all rooms
-}
-
-// Optimized inverse check - outside all rooms
-inline unsigned char is_outside_any_room(unsigned char x, unsigned char y) {
-    return !is_inside_room(x, y);
-}
-
-// Check if position is outside specific room
-unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char room_id) {
-    if (room_id >= room_count) return 1; // Invalid room ID = outside
-    
-    Room *room = &rooms[room_id];
-    return !(x >= room->x && x < room->x + room->w &&
-             y >= room->y && y < room->y + room->h);
-}
-
-// =============================================================================
-// EXIT PLACEMENT SYSTEM
-// =============================================================================
-// Room exits finding with randomized positioning along room edges
-// Maintains 2-tile distance rule while providing organic variation
-// The exit is always placed 2 tiles away from the room perimeter:
-//   Left:   x == room->x - 2
-//   Right:  x == room->x + room->w + 1  
-//   Top:    y == room->y - 2
-//   Bottom: y == room->y + room->h + 1
-// Position along the edge is randomized for more natural corridors
-
-void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
-                   unsigned char *exit_x, unsigned char *exit_y) {
-    unsigned char room_center_x, room_center_y;
-    unsigned char room_id = room - rooms; // Calculate room index from pointer
-    get_room_center(room_id, &room_center_x, &room_center_y);
-    
-    unsigned char dx = abs_diff(target_x, room_center_x);
-    unsigned char dy = abs_diff(target_y, room_center_y);
-    
-    // Determine optimal edge based on target direction
-    if (dx > dy) {
-        // Horizontal movement preferred - exit from left/right edge
-        if (target_x > room_center_x) {
-            // Exit from room right edge (perimeter +2)
-            *exit_x = room->x + room->w + 1; // Maintains 2-tile distance rule
-            // Random Y position along the edge
-            *exit_y = room->y + rnd(room->h);
-        } else {
-            // Exit from room left edge (perimeter -2)
-            *exit_x = room->x - 2; // Maintains 2-tile distance rule
-            // Random Y position along the edge
-            *exit_y = room->y + rnd(room->h);
-        }
-    } else {
-        // Vertical movement preferred - exit from top/bottom edge
-        if (target_y > room_center_y) {
-            // Exit from room bottom edge (perimeter +2)
-            *exit_y = room->y + room->h + 1; // Maintains 2-tile distance rule
-            // Random X position along the edge
-            *exit_x = room->x + rnd(room->w);
-        } else {
-            // Exit from room top edge (perimeter -2)
-            *exit_y = room->y - 2; // Maintains 2-tile distance rule
-            // Random X position along the edge
-            *exit_x = room->x + rnd(room->w);
-        }
-    }
-}
-
-// All corridor endpoints are still exactly 2 tiles away from room perimeter
-// Door placement logic remains unchanged - doors will be at perimeter +1
-// All existing rules (MIN_ROOM_DISTANCE, adjacency, etc.) remain enforced
+// Note: is_inside_any_room, is_outside_any_room, is_outside_room and find_room_exit 
+// functions moved to mapgen_utils.c for better accessibility across multiple modules
 
 // =============================================================================
 // MAIN ROOM GENERATION PIPELINE

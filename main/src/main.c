@@ -11,7 +11,8 @@
 #include <c64/cia.h>
 #include <c64/vic.h>
 #include "mapgen/mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
-#include "mapgen/mapgen_api.h"        // For mapgen_init, mapgen_generate_dungeon, etc.
+#include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon, etc.
+#include "mapgen/mapgen_utils.h"      // For init_rng
 #include "mapgen/mapgen_display.h"    // For render_map_viewport, process_navigation_input
 #include "mapgen/mapgen_utils.h"      // For utility functions
 #include "mapgen/map_export.h"        // For save_compact_map (map export)
@@ -74,8 +75,8 @@ int main(void) {
     // Switch to mixed (lowercase/uppercase) character set for C64
     set_mixed_charset();
     unsigned char key;
-    // Initialize the map generator system
-    mapgen_init();
+    // Initialize RNG (random number generator) for map generation
+    init_rng();
     // Generate complete level (includes all necessary resets)
     mapgen_generate_dungeon();
     // Refresh point of view

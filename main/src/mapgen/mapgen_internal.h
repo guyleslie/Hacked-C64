@@ -1,45 +1,16 @@
-// =============================================================================
-// MAPGEN INTERNAL HEADER
-// =============================================================================
 #ifndef MAPGEN_INTERNAL_H
 #define MAPGEN_INTERNAL_H
 
 #include "mapgen_types.h"
 
-// Internal map generation and utility functions (not part of public API)
-void init_rng(void);
-void clear_map(void);
-void reset_all_generation_data(void);
+// Core map generation algorithm functions (internal only)
 void create_rooms(void);
 void connect_rooms(void);
 void add_walls(void);
 void add_stairs(void);
 unsigned char generate_level(void);
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
-unsigned char rnd(unsigned char max);
-unsigned int get_hardware_entropy(void);
-void shuffle_room_indices(unsigned char *indices, unsigned char count);
-void create_random_room_order(unsigned char *order);
-unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
-unsigned char is_inside_room(unsigned char x, unsigned char y);
-unsigned char is_outside_any_room(unsigned char x, unsigned char y);
-unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char room_id);
-unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char min_distance);
-void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
-                   unsigned char *exit_x, unsigned char *exit_y);
-unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned char include_diagonals, unsigned char tile_types);
 void assign_room_priorities(void);
-void get_grid_position(unsigned char grid_index, unsigned char *x, unsigned char *y);
-unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
-                                    unsigned char *result_x, unsigned char *result_y);
-unsigned char get_compact_tile(unsigned char x, unsigned char y);
-void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile);
-unsigned char get_tile_raw(unsigned char x, unsigned char y);
-void set_tile_raw(unsigned char x, unsigned char y, unsigned char tile);
-unsigned char tile_is_floor(unsigned char x, unsigned char y);
-unsigned char tile_is_wall(unsigned char x, unsigned char y);
-unsigned char tile_is_door(unsigned char x, unsigned char y);
-unsigned char tile_is_empty(unsigned char x, unsigned char y);
 
 
 /**

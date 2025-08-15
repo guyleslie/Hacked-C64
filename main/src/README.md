@@ -49,12 +49,12 @@ The map generation process is a multi-stage, rule-based pipeline designed for or
 
 ### 1.1 Initialization
 
-Initialization is split between two functions: `mapgen_init()` and `init_connection_system()`.
+Initialization is simplified to use `init_rng()` directly where needed, primarily in `reset_all_generation_data()`. The initialization process involves two main components:
 
-- `mapgen_init()` (see `mapgen/public.c`):
-  - Seeds the random number generator for Oscar64/C64 compatibility using `init_rng()`.
-  - Does not reset map or room data directly; this is deferred to the main generation function to avoid double initialization.
-  - Ensures the system is ready for map generation, but leaves memory pool and display buffer resets to later steps.
+- `init_rng()` (see `mapgen/mapgen_utils.c`):
+  - Seeds the random number generator for Oscar64/C64 compatibility using hardware entropy.
+  - Called automatically by `reset_all_generation_data()` before each map generation.
+  - Can be called directly from main application code for initial setup.
 
 - `init_connection_system()` (see `mapgen/connection_system.c`):
   - Zeros out the room-to-room connection matrix for MST and corridor logic, using Oscar64-optimized loops for static memory.

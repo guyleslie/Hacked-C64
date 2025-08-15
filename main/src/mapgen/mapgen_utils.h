@@ -3,11 +3,6 @@
 
 #include "mapgen_types.h"
 
-// =============================================================================
-// UTILITY FUNCTIONS HEADER - Unified utilities for mapgen system
-// Contains all internal utility functions previously split between files
-// =============================================================================
-
 // Hardware and RNG functions
 unsigned int get_hardware_entropy(void);
 void init_rng(void);
@@ -31,7 +26,20 @@ void clear_map(void);
 unsigned char coords_in_bounds(unsigned char x, unsigned char y);
 unsigned char is_within_map_bounds(unsigned char x, unsigned char y);
 void clamp_to_bounds(unsigned char *x, unsigned char *y);
+
+// Room containment functions - available for all modules
 unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room_id);
+unsigned char is_inside_any_room(unsigned char x, unsigned char y);
+unsigned char is_outside_any_room(unsigned char x, unsigned char y);
+unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char room_id);
+
+// Room placement and validation utilities
+unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
+unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
+                                    unsigned char *result_x, unsigned char *result_y);
+void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
+                   unsigned char *exit_x, unsigned char *exit_y);
+unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char min_distance);
 
 // Room edge validation
 unsigned char is_on_room_edge(unsigned char x, unsigned char y);
