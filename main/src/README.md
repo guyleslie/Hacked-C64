@@ -7,28 +7,6 @@ This document provides comprehensive documentation for the source code architect
 
 The project follows a modular, layered architecture designed specifically for C64 hardware constraints while maintaining code clarity and maintainability. All modules are written in C and optimized for Oscar64 compilation, with extensive use of static memory allocation and hardware-specific optimizations.
 
-## Current Project Structure
-
-```ascii
-main/src/
-├─ main.c                             // Application entry point, VIC-II setup, main control loop, user input
-├─ README.md                          // This comprehensive documentation
-└─ mapgen/                           // Complete map generation system (modular architecture)
-    ├─ connection_system.c            // MST algorithm, room connections, corridor generation logic
-    ├─ map_export.c                   // Map export to C64 PRG format using Oscar64 KERNAL I/O
-    ├─ map_export.h                   // Map export function declarations and constants
-    ├─ map_generation.c               // Main generation pipeline orchestration and coordination
-    ├─ mapgen_api.h                   // Public API interface for map generation system
-    ├─ mapgen_display.h               // Display and rendering function declarations
-    ├─ mapgen_globals.h               // Global variables and shared state management
-    ├─ mapgen_internal.h              // Internal helper functions and private declarations
-    ├─ mapgen_types.h                 // Core data structures, constants, and type definitions
-    ├─ mapgen_utils.c                 // Mathematical utilities, random generation, helper functions
-    ├─ mapgen_utils.h                 // Utility function declarations and mathematical constants
-    ├─ room_management.c              // Room placement, validation, and priority systems
-    └─ testdisplay.c                  // Screen handling, viewport management, user input processing
-```
-
 ### Module Responsibility Matrix
 
 | Module | Primary Function | Key Algorithms | C64 Optimizations |
