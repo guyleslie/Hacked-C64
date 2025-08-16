@@ -4,7 +4,7 @@ Advanced Dungeon Map Generator for Commodore 64 – Implemented with Oscar64
 
 ## Overview
 
-This project is a sophisticated dungeon map generator written entirely in C and optimized for the Oscar64 cross-assembler. The program generates complex, interconnected dungeon layouts with rooms, corridors, walls, stairs, and doors using advanced algorithms including Minimum Spanning Tree (MST) for room connections and NetHack-style corner detection. Features include real-time navigation, interactive map exploration, compact 3-bit tile encoding, and C64 PRG map export functionality. All code is heavily optimized for C64 hardware constraints with static memory allocation and direct screen memory access.
+This project is a sophisticated dungeon map generator written entirely in C and optimized for the Oscar64 cross-assembler. The program generates complex, interconnected dungeon layouts with rooms, corridors, walls, stairs, and doors using advanced algorithms including Minimum Spanning Tree (MST) for room connections and sophisticated corner detection. Features include real-time navigation, interactive map exploration, compact 3-bit tile encoding, and C64 PRG map export functionality. All code is heavily optimized for C64 hardware constraints with static memory allocation and direct screen memory access.
 
 ## Screenshots
 
@@ -86,7 +86,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **MST-Based Connectivity**: Uses Minimum Spanning Tree algorithm to ensure all rooms are optimally connected
 - **Intelligent Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
 - **Sophisticated Corridor Types**: Straight, L-shaped, and Z-shaped corridors based on room alignment and distance
-- **NetHack-Style Wall Generation**: Two-pass algorithm with proper corner detection and visual enclosure
+- **Advanced Wall Generation**: Two-pass algorithm with proper corner detection and visual enclosure
 - **Priority-Based Stair Placement**: Stairs placed in highest-priority rooms for optimal dungeon flow
 
 ### Memory and Performance Optimization

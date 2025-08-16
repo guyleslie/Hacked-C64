@@ -180,7 +180,7 @@ The connection system implements a sophisticated Minimum Spanning Tree algorithm
 
 ## Stage 4: Advanced Wall and Corner Generation
 
-The wall generation system implements a sophisticated two-pass algorithm inspired by NetHack's architectural principles, ensuring complete visual enclosure and proper corner detection.
+The wall generation system implements a sophisticated two-pass algorithm ensuring complete visual enclosure and proper corner detection.
 
 ### Two-Pass Wall Placement Algorithm (`add_walls()`)
 
@@ -191,7 +191,7 @@ The wall generation system implements a sophisticated two-pass algorithm inspire
 - **Enclosure Guarantee**: Ensures complete wall coverage around all accessible areas
 - **Performance Optimization**: Single-pass iteration with immediate wall placement
 
-**Pass 2: NetHack-Style Corner Detection**:
+**Pass 2: Advanced Corner Detection**:
 
 - **L-Junction Recognition**: Identifies 90-degree wall intersections for corner placement
 - **T-Junction Handling**: Places corners at three-way wall intersections
