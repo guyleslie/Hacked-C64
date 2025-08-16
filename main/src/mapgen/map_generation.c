@@ -4,12 +4,9 @@
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
+#include "mapgen_globals.h"    // For global variable declarations
 #include "mapgen_internal.h"   // For add_walls, add_stairs, etc.
-#include "mapgen_utils.h"    // For get_room_center, coords_in_bounds, calculate_room_distance
-
-// External global references
-extern Room rooms[MAX_ROOMS];
-extern unsigned char room_count;
+#include "mapgen_utils.h"      // For get_room_center, coords_in_bounds, calculate_room_distance
 
 // =============================================================================
 // WALL PLACEMENT SYSTEM - TWO PHASE APPROACH
@@ -238,12 +235,12 @@ unsigned char generate_level(void) {
         return 0; // Generation failed
     }
     
-    // Phase 2: Connect rooms with improved MST logic (prevents duplicate connections)
+    // Phase 2: Connect rooms with MST logic (prevents duplicate connections)
     print_text("\n\nCreating corridors");
     unsigned char connected[MAX_ROOMS];
     unsigned char connections_made = 0;
     unsigned char i;
-    // Initialize simple connection system
+    // Initialize connection system
     init_connection_system();
     
     // Initialize connection tracking

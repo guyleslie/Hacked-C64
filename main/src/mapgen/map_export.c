@@ -1,9 +1,8 @@
 // Map export utility for C64/Oscar64 compatible binary format
 // Exports the compact_map to a .bin file for easy loading on C64
+#include <c64/kernalio.h>
 #include "mapgen_types.h"
-
-// Externally defined compact_map
-extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
+#include "mapgen_globals.h"
 
 // Save the compact map to disk using C64 KERNAL routines (device 8)
 // The filename must be a PETSCII string, max 16 chars, and reside in C64 RAM.

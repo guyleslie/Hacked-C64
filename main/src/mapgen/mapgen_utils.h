@@ -33,10 +33,7 @@ unsigned char is_inside_any_room(unsigned char x, unsigned char y);
 unsigned char is_outside_any_room(unsigned char x, unsigned char y);
 unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char room_id);
 
-// Room placement and validation utilities
-unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
-unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
-                                    unsigned char *result_x, unsigned char *result_y);
+// Room exit and validation utilities
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y);
 unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char min_distance);
@@ -49,18 +46,24 @@ unsigned char abs_diff(unsigned char a, unsigned char b);
 unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
 unsigned char calculate_direction(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
 
+// Room boundary calculation utilities (commonly used patterns)
+unsigned char get_room_right_edge(unsigned char room_id);
+unsigned char get_room_bottom_edge(unsigned char room_id);
+unsigned char get_room_center_x(unsigned char room_id);
+unsigned char get_room_center_y(unsigned char room_id);
+void get_room_bounds(unsigned char room_id, unsigned char *x1, unsigned char *y1, unsigned char *x2, unsigned char *y2);
+
+// Viewport calculation utilities (commonly used viewport patterns)
+unsigned char get_viewport_half_width(void);
+unsigned char get_viewport_half_height(void);
+unsigned char get_viewport_max_x(void);
+unsigned char get_viewport_max_y(void);
+
 // Room center cache management
 void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y);
 void init_room_center_cache(void);
 void clear_room_center_cache(void);
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2);
-
-// Grid and placement utilities
-void get_grid_position(unsigned char grid_index, unsigned char *x, unsigned char *y);
-
-// Randomization utilities
-void shuffle_room_indices(unsigned char *indices, unsigned char count);
-void create_random_room_order(unsigned char *order);
 
 // Tile validation and adjacency checking
 unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsigned char type_flags);

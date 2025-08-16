@@ -1,10 +1,12 @@
+#ifndef MAPGEN_TYPES_H
+#define MAPGEN_TYPES_H
+
+// Compact encoding constants
 #define BITS_PER_TILE 3             // Number of bits per tile in compact encoding
 #define THREE_BIT_MASK 0x07         // 3-bit mask for tile extraction
 #define MAX_BIT_POSITION_FOR_TILE 5 // Max bit position for a tile in a byte (8-3=5)
 #define BITS_PER_BYTE 8             // Number of bits in a byte
 #define UNDERFLOW_CHECK_VALUE 0xFF  // Used for underflow/invalid checks
-#ifndef MAPGEN_TYPES_H
-#define MAPGEN_TYPES_H
 
 // Map dimensions and room parameters
 
@@ -46,6 +48,16 @@
                                (tile) == TILE_UP ? UP : \
                                (tile) == TILE_DOWN ? DOWN : \
                                (tile) == TILE_CORNER ? CORNER : EMPTY)
+
+// Common coordinate calculation macros (unified patterns)
+#define ROOM_RIGHT_EDGE(room) ((room).x + (room).w - 1)
+#define ROOM_BOTTOM_EDGE(room) ((room).y + (room).h - 1)
+#define ROOM_CENTER_X(room) ((room).x + ((room).w - 1) / 2)
+#define ROOM_CENTER_Y(room) ((room).y + ((room).h - 1) / 2)
+#define VIEWPORT_HALF_W (VIEW_W / 2)
+#define VIEWPORT_HALF_H (VIEW_H / 2)
+#define VIEWPORT_MAX_X (VIEW_W - 1)
+#define VIEWPORT_MAX_Y (VIEW_H - 1)
 
 // Tile validation bit flags
 #define TILE_CHECK_EMPTY  0x01

@@ -4,8 +4,6 @@
 #include "mapgen_types.h"
 
 // Public API for map generation and query
-void reset_viewport_state(void);
-void reset_display_state(void);
 unsigned char mapgen_generate_dungeon(void);
 unsigned char mapgen_get_room_info(unsigned char room_index, unsigned char *x, unsigned char *y, 
                                   unsigned char *w, unsigned char *h, unsigned char *priority);

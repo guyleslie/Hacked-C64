@@ -1,6 +1,6 @@
 // =============================================================================
-// MAPGEN UTILITIES MODULE - Unified Utility Functions
-// Contains utility functions, API wrappers, tile access, RNG, and helper functions
+// MAPGEN UTILITIES MODULE
+// Contains utility functions, tile access, random number generation, and helper functions
 // =============================================================================
 
 #include <c64/vic.h>
@@ -10,19 +10,16 @@
 #include <string.h>
 #include <stdlib.h>
 #include "mapgen_types.h"     // For Room, MAP_W, MAP_H, MAX_ROOMS
+#include "mapgen_globals.h"   // For global variable declarations
 #include "mapgen_api.h"       // For public API
 #include "mapgen_utils.h"     // For utility/math/cache functions
 #include "mapgen_internal.h"  // For internal helpers
 #include "mapgen_display.h"   // For display/viewport reset
 
 // =============================================================================
-// EXTERNAL GLOBAL REFERENCES
+// EXTERNAL DISPLAY REFERENCES
 // =============================================================================
 
-extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
-extern unsigned int rng_seed;
-extern Room rooms[MAX_ROOMS];
-extern unsigned char room_count;
 extern unsigned char camera_center_x, camera_center_y;
 extern Viewport view;
 
@@ -38,7 +35,7 @@ extern unsigned char last_scroll_direction;
 // Static counter for additional randomness
 static unsigned int generation_counter = 0;
 
-// Room center cache - C64 optimized central cache for all modules
+// Room center cache for coordinate calculations
 static unsigned char room_center_cache[MAX_ROOMS][2]; // [room_id][0=x, 1=y]
 static unsigned char room_center_cache_valid = 0;
 
@@ -46,12 +43,12 @@ static unsigned char room_center_cache_valid = 0;
 // HARDWARE AND RNG FUNCTIONS
 // =============================================================================
 
-// Hardware entropy source for C64 with Oscar64
+// Hardware entropy source for C64 using CIA and VIC-II registers
 unsigned int get_hardware_entropy(void) {
     return cia1.ta ^ vic.raster;
 }
 
-// Enhanced RNG initialization with counter mixing
+// Initialize random number generator with hardware entropy
 void init_rng(void) {
     unsigned int entropy1, entropy2, entropy3, entropy4;
     unsigned char i;
@@ -65,7 +62,7 @@ void init_rng(void) {
     // Increment generation counter for unique seeds
     generation_counter++;
     
-    // Enhanced mixing with multiple entropy sources
+    // Combine multiple entropy sources with generation counter
     rng_seed = entropy1 ^ (entropy2 << 3) ^ (entropy3 >> 2) ^ (entropy4 << 5);
     rng_seed ^= (generation_counter << 7) ^ (generation_counter >> 1);
     rng_seed = (rng_seed << 5) ^ (rng_seed >> 11) ^ 0xAC1DU;
@@ -88,11 +85,11 @@ void init_rng(void) {
     }
 }
 
-// Fast RNG for 6502 - Enhanced for better distribution
+// Generate random number using 16-bit Linear Feedback Shift Register
 unsigned char rnd(unsigned char max) {
     if (max <= 1) return 0;
     
-    // Enhanced LFSR with better mixing
+    // LFSR implementation with polynomial feedback
     unsigned char old_high = (unsigned char)(rng_seed >> 8);
     unsigned char old_low = (unsigned char)(rng_seed & 0xFF);
     unsigned char carry_flag = (old_high & 0x80) ? 1 : 0;  // Check bit 15
@@ -100,7 +97,7 @@ unsigned char rnd(unsigned char max) {
     // 16-bit left shift 
     rng_seed <<= 1;
     
-    // XOR with polynomial if bit 15 was set (better polynomial)
+    // XOR with polynomial if bit 15 was set
     if (carry_flag) {
         rng_seed ^= 0xB400;
     }
@@ -111,7 +108,7 @@ unsigned char rnd(unsigned char max) {
     // Get result with better distribution
     unsigned char result = (unsigned char)((rng_seed ^ (rng_seed >> 8)) & 0xFF);
     
-    // Fast power-of-2 masking
+    // Power-of-2 masking for efficient modulo operation
     switch (max) {
         case 2: 
             return result & 1;    
@@ -138,7 +135,7 @@ unsigned char rnd(unsigned char max) {
 // TILE ACCESS AND MANIPULATION
 // =============================================================================
 
-// Optimized compact tile getter with direct bit manipulation
+// Retrieve tile from compact map storage using bit manipulation
 unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return TILE_EMPTY;
     
@@ -151,7 +148,7 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     
     // Handle tile reading based on bit position
     if (bit_pos <= MAX_BIT_POSITION_FOR_TILE) {
-        // Fast path: tile fits in single byte
+        // Common case: tile data fits within single byte
         return (*byte_ptr >> bit_pos) & TILE_MASK;
     }
     
@@ -163,7 +160,7 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     return (first_part | second_part) & TILE_MASK;
 }
 
-// Optimized compact tile setter with direct bit manipulation
+// Store tile in compact map storage using bit manipulation
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     if (x >= MAP_W || y >= MAP_H) return;
     
@@ -178,7 +175,7 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     
     // Handle tile writing based on bit position
     if (bit_pos <= 5) {
-        // Fast path: tile fits in single byte
+        // Common case: tile data fits within single byte
         unsigned char mask = TILE_MASK << bit_pos;
         *byte_ptr = (*byte_ptr & ~mask) | (tile << bit_pos);
     } else {
@@ -194,7 +191,7 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     }
 }
 
-// Optimized core tile reader used by all tile checking functions
+// Core tile reader used by all tile checking functions
 static inline unsigned char get_tile_core(unsigned char x, unsigned char y) {
     // Calculate bit offset: (y * 64 + x) * 3 = y * 192 + x * 3
     unsigned int bit_offset = ((unsigned int)y << 7) + ((unsigned int)y << 6) + x + x + x;
@@ -205,7 +202,7 @@ static inline unsigned char get_tile_core(unsigned char x, unsigned char y) {
     
     // Handle tile reading based on bit position
     if (bit_pos <= 5) {
-        // Fast path: tile fits in single byte
+        // Common case: tile data fits within single byte
         return (*byte_ptr >> bit_pos) & TILE_MASK;
     }
     
@@ -214,17 +211,17 @@ static inline unsigned char get_tile_core(unsigned char x, unsigned char y) {
     return ((*byte_ptr >> bit_pos) | ((*(byte_ptr + 1) & ((1 << (3 - low_bits)) - 1)) << low_bits)) & TILE_MASK;
 }
 
-// Fast tile access for generation (no PETSCII conversion)
+// Tile access for generation without PETSCII conversion
 inline unsigned char get_tile_raw(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return TILE_EMPTY;
-    return get_tile_core(x, y);  // Use shared optimized core
+    return get_tile_core(x, y);  // Use shared core function
 }
 
 inline void set_tile_raw(unsigned char x, unsigned char y, unsigned char tile) {
-    set_compact_tile(x, y, tile);  // Delegate to optimized setter
+    set_compact_tile(x, y, tile);  // Delegate to compact tile setter
 }
 
-// Fast tile type checking functions using shared core
+// Tile type checking functions using shared core
 inline unsigned char tile_is_floor(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return 0;
     return get_tile_core(x, y) == TILE_FLOOR;
@@ -259,17 +256,17 @@ void clear_map(void) {
 // COORDINATE AND BOUNDS CHECKING
 // =============================================================================
 
-// Fast coordinate validation with single bounds check
+// Coordinate validation with bounds checking
 inline unsigned char coords_in_bounds(unsigned char x, unsigned char y) {
     return (x < MAP_W && y < MAP_H && x != UNDERFLOW_CHECK_VALUE && y != UNDERFLOW_CHECK_VALUE);
 }
 
-// Simple fast bounds checking without underflow protection for performance-critical paths
+// Simple bounds checking without underflow protection for performance-critical paths
 unsigned char is_within_map_bounds(unsigned char x, unsigned char y) {
     return (x < MAP_W) && (y < MAP_H);
 }
 
-// Optimized coordinate clamping to map boundaries
+// Coordinate clamping to map boundaries
 void clamp_to_bounds(unsigned char *x, unsigned char *y) {
     if (*x >= MAP_W) *x = MAP_W - 1;
     if (*y >= MAP_H) *y = MAP_H - 1;
@@ -277,14 +274,17 @@ void clamp_to_bounds(unsigned char *x, unsigned char *y) {
     if (*y == UNDERFLOW_CHECK_VALUE) *y = 0; // Handle underflow
 }
 
-// Fast room containment check - C64 optimized with bounds checking
+// Room containment check with bounds validation
 unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room_id) {
     // Bounds check for room_id - early exit for invalid room
     if (room_id >= room_count) return 0;
     
     Room *room = &rooms[room_id];
+    unsigned char right_edge = get_room_right_edge(room_id);
+    unsigned char bottom_edge = get_room_bottom_edge(room_id);
     
-    // Single comparison chain - C64 optimized boolean logic
+    // Single comparison chain for efficient boolean logic
+    // Room interior check (exclusive boundaries for traditional room logic)
     return (x >= room->x && x < room->x + room->w &&
             y >= room->y && y < room->y + room->h);
 }
@@ -316,108 +316,8 @@ unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char ro
 }
 
 // =============================================================================
-// ROOM PLACEMENT AND VALIDATION UTILITIES
+// ROOM EXIT MANAGEMENT UTILITIES
 // =============================================================================
-
-// Enhanced room placement validation with C64-optimized edge and overlap checking
-// Uses minimal loops and early exits for maximum C64 performance
-unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
-    // Fast edge boundary checks - ensure adequate space from map edges
-    if (x < 3 || y < 3) return 0;
-    if (x + w + 3 >= MAP_W || y + h + 3 >= MAP_H) return 0;
-    
-    // C64-optimized: Check proposed room area for existing tiles first
-    // This early check saves time before expensive distance calculations
-    for (unsigned char iy = y; iy < y + h; iy++) {
-        for (unsigned char ix = x; ix < x + w; ix++) {
-            if (!tile_is_empty(ix, iy)) {
-                return 0; // Found existing structure
-            }
-        }
-    }
-    
-    // Buffer zone validation with MIN_ROOM_DISTANCE
-    // Check buffer area around proposed room for conflicts
-    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE) ? x - MIN_ROOM_DISTANCE : 0;
-    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE) ? y - MIN_ROOM_DISTANCE : 0;
-    unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
-    unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
-    
-    // Clamp buffer zone to map boundaries
-    if (buffer_x2 >= MAP_W) buffer_x2 = MAP_W - 1;
-    if (buffer_y2 >= MAP_H) buffer_y2 = MAP_H - 1;
-    
-    // Scan buffer zone for existing structures (excluding the room area itself)
-    for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
-        for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
-            // Skip the actual room area - we already checked it above
-            if (ix >= x && ix < x + w && iy >= y && iy < y + h) continue;
-            
-            if (!tile_is_empty(ix, iy)) {
-                return 0; // Buffer zone conflict
-            }
-        }
-    }
-    
-    // Room-to-room distance checking
-    // Cached room centers for faster distance calculations
-    for (unsigned char i = 0; i < room_count; i++) {
-        unsigned char existing_x2 = rooms[i].x + rooms[i].w;
-        unsigned char existing_y2 = rooms[i].y + rooms[i].h;
-        unsigned char new_x2 = x + w;
-        unsigned char new_y2 = y + h;
-        
-        // Fast bounding box proximity check with MIN_ROOM_DISTANCE
-        unsigned char min_dist = MIN_ROOM_DISTANCE + 1;
-        
-        // Check if rooms are too close using expanded bounding boxes
-        if (!(x >= existing_x2 + min_dist || new_x2 + min_dist <= rooms[i].x ||
-              y >= existing_y2 + min_dist || new_y2 + min_dist <= rooms[i].y)) {
-            return 0; // Too close to existing room
-        }
-    }
-    
-    return 1; // Safe to place room
-}
-
-// Grid-based room placement with enhanced randomization and multiple attempts
-unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
-                                    unsigned char *result_x, unsigned char *result_y) {
-    unsigned char attempts = 0;
-    
-    // C64-optimized: Multiple attempts with increasing variation
-    while (attempts < 15) {  // Reasonable attempt limit for C64
-        unsigned char x, y;
-        
-        // Get base grid position
-        get_grid_position(grid_index, &x, &y);
-        
-        // Add progressive variation for each attempt
-        if (attempts > 5) {
-            // Later attempts use more variation to find available space
-            unsigned char extra_variation = attempts - 5;
-            x += rnd(extra_variation * 2) - extra_variation;
-            y += rnd(extra_variation * 2) - extra_variation;
-            
-            // Keep within bounds
-            if (x < 4) x = 4;
-            if (y < 4) y = 4;
-            if (x + w + 3 >= MAP_W) x = MAP_W - w - 4;
-            if (y + h + 3 >= MAP_H) y = MAP_H - h - 4;
-        }
-        
-        // Test placement
-        if (can_place_room(x, y, w, h)) {
-            *result_x = x;
-            *result_y = y;
-            return 1; // Success
-        }
-        
-        attempts++;
-    }
-    
-    return 0; // Failed to place after all attempts
-}
 
 // Room exits finding with randomized positioning along room edges
 // Maintains 2-tile distance rule while providing organic variation
@@ -493,14 +393,17 @@ unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
     unsigned char i;
     for (i = 0; i < room_count; i++) {
         Room *room = &rooms[i];
+        unsigned char right_edge = get_room_right_edge(i);
+        unsigned char bottom_edge = get_room_bottom_edge(i);
+        
         // Top edge (perimeter)
-        if (y == room->y && x >= room->x && x < room->x + room->w) return 1;
+        if (y == room->y && x >= room->x && x <= right_edge) return 1;
         // Bottom edge (perimeter)
-        if (y == room->y + room->h - 1 && x >= room->x && x < room->x + room->w) return 1;
+        if (y == bottom_edge && x >= room->x && x <= right_edge) return 1;
         // Left edge (perimeter)
-        if (x == room->x && y >= room->y && y < room->y + room->h) return 1;
+        if (x == room->x && y >= room->y && y <= bottom_edge) return 1;
         // Right edge (perimeter)
-        if (x == room->x + room->w - 1 && y >= room->y && y < room->y + room->h) return 1;
+        if (x == right_edge && y >= room->y && y <= bottom_edge) return 1;
     }
     return 0;
 }
@@ -509,14 +412,80 @@ unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
 // MATHEMATICAL AND COMPUTATIONAL UTILITIES
 // =============================================================================
 
-// Absolute difference calculation (Oscar64 optimized)
+// Absolute difference calculation
 inline unsigned char abs_diff(unsigned char a, unsigned char b) {
     return (a > b) ? a - b : b - a;
 }
 
-// Optimized Manhattan distance calculation between two points
+// Manhattan distance calculation between two points
 inline unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2) {
     return abs_diff(x1, x2) + abs_diff(y1, y2);
+}
+
+// =============================================================================
+// ROOM BOUNDARY CALCULATION UTILITIES
+// =============================================================================
+// Commonly used room coordinate calculations - centralized for consistency
+
+// Get room right edge coordinate (x + w - 1)
+inline unsigned char get_room_right_edge(unsigned char room_id) {
+    if (room_id >= room_count) return 0;
+    return rooms[room_id].x + rooms[room_id].w - 1;
+}
+
+// Get room bottom edge coordinate (y + h - 1)
+inline unsigned char get_room_bottom_edge(unsigned char room_id) {
+    if (room_id >= room_count) return 0;
+    return rooms[room_id].y + rooms[room_id].h - 1;
+}
+
+// Get room center X coordinate
+inline unsigned char get_room_center_x(unsigned char room_id) {
+    if (room_id >= room_count) return 0;
+    return rooms[room_id].x + (rooms[room_id].w - 1) / 2;
+}
+
+// Get room center Y coordinate
+inline unsigned char get_room_center_y(unsigned char room_id) {
+    if (room_id >= room_count) return 0;
+    return rooms[room_id].y + (rooms[room_id].h - 1) / 2;
+}
+
+// Get room bounds (all corners) in a single call
+void get_room_bounds(unsigned char room_id, unsigned char *x1, unsigned char *y1, unsigned char *x2, unsigned char *y2) {
+    if (room_id >= room_count) {
+        *x1 = *y1 = *x2 = *y2 = 0;
+        return;
+    }
+    *x1 = rooms[room_id].x;
+    *y1 = rooms[room_id].y;
+    *x2 = rooms[room_id].x + rooms[room_id].w - 1;
+    *y2 = rooms[room_id].y + rooms[room_id].h - 1;
+}
+
+// =============================================================================
+// VIEWPORT CALCULATION UTILITIES
+// =============================================================================
+// Commonly used viewport dimension calculations - centralized for consistency
+
+// Get viewport half width (frequently used for centering calculations)
+inline unsigned char get_viewport_half_width(void) {
+    return VIEW_W / 2;
+}
+
+// Get viewport half height (frequently used for centering calculations)
+inline unsigned char get_viewport_half_height(void) {
+    return VIEW_H / 2;
+}
+
+// Get maximum viewport X coordinate (VIEW_W - 1)
+inline unsigned char get_viewport_max_x(void) {
+    return VIEW_W - 1;
+}
+
+// Get maximum viewport Y coordinate (VIEW_H - 1)
+inline unsigned char get_viewport_max_y(void) {
+    return VIEW_H - 1;
 }
 
 // Fast direction calculation between two points (0=E, 1=NE, 2=N, 3=NW, 4=W, 5=SW, 6=S, 7=SE)
@@ -543,13 +512,12 @@ unsigned char calculate_direction(unsigned char x1, unsigned char y1, unsigned c
 // ROOM CENTER CACHE MANAGEMENT
 // =============================================================================
 
-// Fast room center calculation with cache - C64 optimized central function
+// Room center calculation with caching
 inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y) {
     if (!room_center_cache_valid || room_id >= MAX_ROOMS) {
-        // Cache miss or invalid - calculate directly
-        // Use (w-1)/2 and (h-1)/2 to ensure center is always inside the room and closer to the edge
-        *center_x = rooms[room_id].x + (rooms[room_id].w - 1) / 2;
-        *center_y = rooms[room_id].y + (rooms[room_id].h - 1) / 2;
+        // Cache miss or invalid - calculate using helper functions
+        *center_x = get_room_center_x(room_id);
+        *center_y = get_room_center_y(room_id);
         // Store in cache if valid room id
         if (room_id < MAX_ROOMS) {
             room_center_cache[room_id][0] = *center_x;
@@ -566,11 +534,10 @@ inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsi
 void init_room_center_cache(void) {
     unsigned char i;
     
-    // Pre-calculate all room centers (cache warming)
+    // Pre-calculate all room centers using helper functions (cache warming)
     for (i = 0; i < room_count && i < MAX_ROOMS; i++) {
-        // Use (w-1)/2 and (h-1)/2 to ensure center is always inside the room and closer to the edge
-        room_center_cache[i][0] = rooms[i].x + (rooms[i].w - 1) / 2;
-        room_center_cache[i][1] = rooms[i].y + (rooms[i].h - 1) / 2;
+        room_center_cache[i][0] = get_room_center_x(i);
+        room_center_cache[i][1] = get_room_center_y(i);
     }
     room_center_cache_valid = 1;
 }
@@ -589,80 +556,10 @@ unsigned char calculate_room_distance(unsigned char room1, unsigned char room2) 
 }
 
 // =============================================================================
-// GRID AND PLACEMENT UTILITIES
-// =============================================================================
-
-// Grid position calculation for room placement with enhanced randomization
-void get_grid_position(unsigned char grid_index, unsigned char *x, unsigned char *y) {
-    unsigned char grid_x = grid_index % GRID_SIZE;
-    unsigned char grid_y = grid_index / GRID_SIZE;
-    unsigned char cell_w = (MAP_W - 8) / GRID_SIZE;  // Leave 8 pixels border
-    unsigned char cell_h = (MAP_H - 8) / GRID_SIZE;
-    
-    // Base grid position
-    unsigned char base_x = 4 + grid_x * cell_w;
-    unsigned char base_y = 4 + grid_y * cell_h;
-    
-    // Add much more randomness to break grid alignment
-    unsigned char extra_range_x = cell_w;      // Full cell width range for overlap
-    unsigned char extra_range_y = cell_h;      // Full cell height range for overlap
-    
-    // Enhanced random positioning with larger displacement to break grid patterns
-    unsigned char random_offset_x = rnd(extra_range_x + cell_w / 2);  // Even more randomness
-    unsigned char random_offset_y = rnd(extra_range_y + cell_h / 2);  // Even more randomness
-    
-    // Apply random displacement from grid base
-    *x = base_x + random_offset_x - (extra_range_x / 2);
-    *y = base_y + random_offset_y - (extra_range_y / 2);
-    
-    // Add additional random scatter to completely break grid alignment
-    *x += rnd(6) - 3;  // +/- 3 pixel random scatter
-    *y += rnd(6) - 3;  // +/- 3 pixel random scatter
-    
-    // Ensure we don't go outside map bounds
-    if (*x < 4) *x = 4;
-    if (*y < 4) *y = 4;
-    if (*x + MAX_SIZE + 3 >= MAP_W) *x = MAP_W - MAX_SIZE - 4;
-    if (*y + MAX_SIZE + 3 >= MAP_H) *y = MAP_H - MAX_SIZE - 4;
-}
-
-// =============================================================================
-// RANDOMIZATION UTILITIES
-// =============================================================================
-
-// Shuffle array of room indices to randomize processing order
-void shuffle_room_indices(unsigned char *indices, unsigned char count) {
-    unsigned char i, j, temp;
-    
-    for (i = count - 1; i > 0; i--) {
-        if (i % 4 == 0) print_text("."); // Progress indicator every 4th iteration
-        j = rnd(i + 1);  // Random index from 0 to i
-        // Swap indices[i] and indices[j]
-        temp = indices[i];
-        indices[i] = indices[j];
-        indices[j] = temp;
-    }
-}
-
-// Create randomized room processing order
-void create_random_room_order(unsigned char *order) {
-    unsigned char i;
-    
-    // Initialize with sequential order
-    for (i = 0; i < room_count; i++) {
-        if (i % 4 == 0) print_text("."); // Progress indicator every 4th iteration
-        order[i] = i;
-    }
-    
-    // Shuffle to randomize
-    shuffle_room_indices(order, room_count);
-}
-
-// =============================================================================
 // TILE VALIDATION AND ADJACENCY CHECKING
 // =============================================================================
 
-// Lookup table for tile type matching (1 bit per tile type) - OPTIMIZED
+// Lookup table for tile type matching (1 bit per tile type)
 static const unsigned char tile_type_masks[8] = {
     0x01,  // TILE_EMPTY -> TILE_CHECK_EMPTY
     0x02,  // TILE_WALL -> TILE_CHECK_WALL  
@@ -674,11 +571,11 @@ static const unsigned char tile_type_masks[8] = {
     0x00   // Reserved
 };
 
-// Ultra-fast tile type checking using lookup table
+// Tile type checking using lookup table
 inline unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsigned char type_flags) {
     if (x >= MAP_W || y >= MAP_H) return 0;  // Fast bounds check without underflow
     
-    unsigned char tile = get_tile_core(x, y);  // Use shared optimized core
+    unsigned char tile = get_tile_core(x, y);  // Use shared core function
     return (tile <= 3) ? (tile_type_masks[tile] & type_flags) != 0 : 0;
 }
 
@@ -754,7 +651,7 @@ unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned ch
     if (tile_types & CHECK_DOORS_ONLY) type_flags |= TILE_CHECK_DOOR;
     if (tile_types & CHECK_FLOORS_ONLY) type_flags |= TILE_CHECK_FLOOR;
     
-    // Use the new optimized bit flag adjacency system
+    // Use bit flag adjacency system
     return check_adjacent_tile_types(x, y, type_flags, include_diagonals);
 }
 
@@ -762,7 +659,7 @@ unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned ch
 // TEXT OUTPUT UTILITY
 // =============================================================================
 
-// Memory-efficient text output function (uses assembly code for direct KERNAL calls)
+// Text output function using KERNAL calls
 // Converts ASCII upper/lowercase to correct mixed charset code for C64 display
 static unsigned char to_mixed_charset(unsigned char c) {
     if (c >= 'A' && c <= 'Z') return c + 32; // 'A'-'Z' to C64 lowercase
@@ -813,7 +710,7 @@ void reset_display_state(void) {
     last_scroll_direction = 0;
 }
 
-// Central reset system - clears all generation data before each new map
+// Master reset function - clears all generation data before each new map
 void reset_all_generation_data(void) {
     // 1. RNG initialization with hardware entropy
     init_rng();
@@ -827,7 +724,7 @@ void reset_all_generation_data(void) {
     // 4. Room center cache invalidation
     clear_room_center_cache();
     
-    // 5. Rule-based connection system reset
+    // 5. Connection system reset
     init_connection_system();
 }
 
