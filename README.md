@@ -4,7 +4,7 @@ Advanced Dungeon Map Generator for Commodore 64 – Implemented with Oscar64
 
 ## Overview
 
-This project is a sophisticated dungeon map generator written entirely in C and optimized for the Oscar64 cross-assembler. The program generates complex, interconnected dungeon layouts with rooms, corridors, walls, stairs, and doors using advanced algorithms including Minimum Spanning Tree (MST) for room connections and sophisticated corner detection. Features include real-time navigation, interactive map exploration, compact 3-bit tile encoding, and C64 PRG map export functionality. All code is heavily optimized for C64 hardware constraints with static memory allocation and direct screen memory access.
+This project is a sophisticated dungeon map generator written entirely in C and optimized for the Oscar64 cross-assembler. The program generates complex, interconnected dungeon layouts with rooms, corridors, walls, stairs, and doors. Features include real-time navigation, interactive map exploration, compact 3-bit tile encoding, and C64 PRG map export functionality. All code is heavily optimized for C64 hardware constraints with static memory allocation and direct screen memory access.
 
 ## Screenshots
 
@@ -165,62 +165,31 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ## Usage (Build & Run)
 
-### 1. Quick Start with Windows Batch Files
+### Quick Start with Windows Batch Files
 
 - **`build.bat`**: Complete Oscar64 compilation with automatic cleanup
 - **`run_vice.bat`**: Build project and launch in VICE emulator automatically
 - **`run_c64debugger.bat`**: Build project and launch in C64 Debugger for development
 
-> **Note:** Emulator and compiler paths can be customized in the batch files to match your installation.
-
-### 2. Manual Build Process
-
-```bash
-# Compile with Oscar64 (see build.bat for exact parameters)
-oscar64 -o="Hacked C64.prg" -tf=prg -tm=c64 main/src/main.c [source files]
-
-# Run in any C64 emulator or transfer to real hardware
-```
-
-### 3. Interactive Controls
-
-- **WASD**: Navigate around the map
-- **SPACE**: Generate a new dungeon layout
-- **M**: Export current map to disk as MAPDATA.BIN
-- **Q**: Quit the program
-
-### 4. System Requirements
-
-- **C64**: Any Commodore 64 with disk drive for map export
-- **Emulator**: VICE, C64 Debugger, or any compatible C64 emulator
-- **Development**: Oscar64 compiler for building from source
-
 ## CI/CD Workflow: Automated Build & Artifact Distribution
 
-This project includes a sophisticated GitHub Actions workflow (`cmake-single-platform.yml`) that automates the complete development pipeline:
+This project includes a GitHub Actions workflow (`cmake-single-platform.yml`) that automates the build and packaging process for developers:
 
-### Automated Build Process
+- **Oscar64 Compiler & Retro Debugger Download:**  
+  The workflow automatically downloads the latest Oscar64 cross-assembler and the Retro Debugger (C64 emulator and debugger) for each build.
 
-- **Oscar64 Compiler Integration**: Automatically downloads and configures the latest Oscar64 cross-assembler for each build
-- **Retro Debugger Setup**: Downloads and integrates the Retro Debugger (C64 emulator/debugger) for testing
-- **CMake Configuration**: Configures the project using CMake for cross-platform compatibility
-- **Multi-Target Building**: Builds all project targets with comprehensive error checking
+- **CMake Configuration & Build:**  
+  The workflow runs CMake to configure the project and builds all targets using the latest toolchain.
 
-### Artifact Management
+- **Artifact Upload:**  
+  After a successful build, the workflow uploads the build output as a downloadable GitHub artifact. This ensures that developers always have access to the latest compiled binaries and essential debug files.
 
-The workflow generates downloadable artifacts containing:
+### Packaged Artifact Contents
 
-- **`build/*.prg`**: Compiled C64 program files ready for emulation or real hardware
-- **`build/*.map`, `build/*.lbl`, `build/*.asm`**: Complete debugging information and assembly listings
-- **`RetroDebugger/**`**: Fully configured debugging environment for immediate use
+The downloadable artifact includes:
 
-### Quality Assurance
-
-- **Automated Testing**: Each build is automatically tested for basic functionality
-- **Dependency Management**: All tools and dependencies are automatically managed and updated
-- **Version Control**: Artifacts are tagged with build numbers and git commit hashes
-- **Cross-Platform Support**: Builds are tested on multiple operating systems
-
-This automated pipeline ensures that developers always have access to the latest stable builds and comprehensive debugging tools without manual setup.
+- `build/*.prg` – Compiled C64 program files
+- `build/*.map`, `build/*.lbl`, `build/*.asm` – Additional Oscar64 build files (map, label, assembly)
+- `RetroDebugger/**` – Downloaded Retro Debugger tool (C64 emulator and debugger)
 
 **For developer documentation, pipeline, API, and detailed module responsibilities: see `main/src/README.md`!**
