@@ -1,7 +1,5 @@
-// =============================================================================
-// Main Application Entry Point
-// Handles program initialization, user input processing, and dungeon generation coordination
-// =============================================================================
+// Main Module for C64 Map Generator
+// Contains: main program loop, VIC-II setup, global variables, and user input handling
 
 #include <conio.h>
 #include <c64/kernalio.h>
@@ -12,72 +10,73 @@
 #include <c64/vic.h>
 #include "mapgen/mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
 #include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon, etc.
-#include "mapgen/mapgen_utils.h"      // For init_rng and utility functions
+#include "mapgen/mapgen_utils.h"      // For init_rng
 #include "mapgen/mapgen_display.h"    // For render_map_viewport, process_navigation_input
-#include "mapgen/map_export.h"        // For save_compact_map (map export)
-
-// =============================================================================
-// VIC-II HARDWARE CONFIGURATION
-// =============================================================================
+#include "mapgen/map_export.h"        // For save_compact_map
 
 // VIC-II base address and memory control register definitions
 #define VIC_BASE 0xD000
 #define VIC_MEM  (*(unsigned char *)(VIC_BASE + 0x18))
 
-/**
- * Function: set_mixed_charset
- * Purpose: Configures VIC-II to display both uppercase and lowercase characters
- * Implementation: Sets bit 1 of VIC-II register $D018 to select character ROM bank 1
- */
-void set_mixed_charset() {
-    // Configure VIC-II memory control register to use character ROM bank 1
+// Function: set_mixed_charset
+// Purpose: Enables the C64's mixed character set (lowercase/uppercase mode)
+void set_mixed_charset(void) {
+    // Set bit 1 of $D018 to 1 to select mixed charset (character ROM bank 1)
     VIC_MEM |= 0x02;
 }
 
-// =============================================================================
-// GLOBAL VARIABLES - MAIN PROGRAM STATE
-// =============================================================================
+// Global variables - Map data
 
-/**
- * Variable: compact_map
- * Purpose: Stores compressed map data using bit-packed tile encoding
- * Storage: 64x64 map = 4096 tiles, 3 bits per tile = 1536 bytes total
- * Encoding: Groups of 8 tiles packed into 3 bytes
- */
-unsigned char compact_map[MAP_H * MAP_W * 3 / 8]; // 1536 bytes
+// Compressed map data storage using 3 bits per tile
+// Size: 64x64 map = 4096 tiles × 3 bits = 12288 bits = 1536 bytes
+unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 
-/**
- * Variable: rooms
- * Purpose: Array storing room structure data for dungeon generation
- * Contains: Room coordinates, dimensions, connections, and type information
- */
+// Array storing room structure data for dungeon generation
 Room rooms[MAX_ROOMS];
 
-/**
- * Variable: room_count
- * Purpose: Tracks the current number of rooms generated in the dungeon
- * Range: 0 to MAX_ROOMS
- */
+// Tracks the current number of rooms generated in the dungeon
 unsigned char room_count = 0;
 
-/**
- * Variable: rng_seed
- * Purpose: Seed value for random number generation
- * Usage: Controls dungeon layout randomization and ensures reproducible results
- */
+// Seed value for random number generation
 unsigned int rng_seed = 1;
+
+// Global variables - Camera and viewport
+
+// Camera position in map space
+unsigned char camera_center_x = 32;
+unsigned char camera_center_y = 32;
+
+// Current viewport position (top-left corner)
+Viewport view = {0, 0};
+
+// Global variables - Display
+
+// Cache of previous screen contents for delta updates
+unsigned char screen_buffer[VIEW_H][VIEW_W];
+
+// Flag indicating screen needs refresh
+unsigned char screen_dirty = 1;
+
+// Tracks last scroll direction for optimization
+// Values: 0=none, 1=up, 2=down, 3=left, 4=right
+unsigned char last_scroll_direction = 0;
 
 // Main function with complete dungeon generation and interactive navigation
 int main(void) {
+    unsigned char key;
+    
     clrscr();
-    // Configure VIC-II for mixed character display mode
+    
+    // Switch to mixed (lowercase/uppercase) character set for C64
     set_mixed_charset();
-    unsigned char key; 
-    // Initialize random number generator
+    
+    // Initialize RNG (random number generator) for map generation
     init_rng();
-    // Generate initial dungeon layout
+    
+    // Generate complete level (includes all necessary resets)
     mapgen_generate_dungeon();
-    // Display initial viewport
+    
+    // Refresh point of view
     render_map_viewport(1);
     
     // Interactive loop
@@ -90,18 +89,18 @@ int main(void) {
 
         } else if (key == ' ') {
             clrscr();
-            // Generate new dungeon layout
+            // Generate new level (includes all necessary resets)
             mapgen_generate_dungeon();
-            // Update display with new map
+            // Refresh point of view
             render_map_viewport(1);
 
         } else if (key == 'M' || key == 'm') {
-            // Export current map to disk file
+            // Save the current map to disk
             save_compact_map("MAPDATA.BIN");
         } else {
-            // Process directional movement (WASD keys)
+            // Handle movement input (WASD)
             process_navigation_input(key);
-            render_map_viewport(0); // Incremental display update
+            render_map_viewport(0); // Normal update
         }
     }
     

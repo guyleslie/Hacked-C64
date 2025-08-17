@@ -1,7 +1,7 @@
 #ifndef MAPGEN_TYPES_H
 #define MAPGEN_TYPES_H
 
-// Compact encoding constants
+// Bit manipulation constants for compact tile encoding
 #define BITS_PER_TILE 3             // Number of bits per tile in compact encoding
 #define THREE_BIT_MASK 0x07         // 3-bit mask for tile extraction
 #define MAX_BIT_POSITION_FOR_TILE 5 // Max bit position for a tile in a byte (8-3=5)
@@ -9,7 +9,6 @@
 #define UNDERFLOW_CHECK_VALUE 0xFF  // Used for underflow/invalid checks
 
 // Map dimensions and room parameters
-
 #define MAP_W  64
 #define MAP_H  64
 #define VIEW_W 40
@@ -48,16 +47,6 @@
                                (tile) == TILE_UP ? UP : \
                                (tile) == TILE_DOWN ? DOWN : \
                                (tile) == TILE_CORNER ? CORNER : EMPTY)
-
-// Common coordinate calculation macros (unified patterns)
-#define ROOM_RIGHT_EDGE(room) ((room).x + (room).w - 1)
-#define ROOM_BOTTOM_EDGE(room) ((room).y + (room).h - 1)
-#define ROOM_CENTER_X(room) ((room).x + ((room).w - 1) / 2)
-#define ROOM_CENTER_Y(room) ((room).y + ((room).h - 1) / 2)
-#define VIEWPORT_HALF_W (VIEW_W / 2)
-#define VIEWPORT_HALF_H (VIEW_H / 2)
-#define VIEWPORT_MAX_X (VIEW_W - 1)
-#define VIEWPORT_MAX_Y (VIEW_H - 1)
 
 // Tile validation bit flags
 #define TILE_CHECK_EMPTY  0x01
@@ -98,7 +87,7 @@ typedef struct {
     unsigned char x, y;
 } Viewport;
 
-// Corridor connections structure
+// Corridor connections structure (bit fields for memory efficiency)
 typedef struct {
     unsigned char has_north : 1;
     unsigned char has_south : 1;
@@ -106,7 +95,7 @@ typedef struct {
     unsigned char has_west : 1;
 } CorridorConnections;
 
-// Memory pool structures
+// Memory pool structures for C64
 typedef struct {
     CorridorSegment segments[MAX_CORRIDOR_SEGMENTS];
     unsigned char active_count;

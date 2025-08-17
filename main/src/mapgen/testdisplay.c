@@ -99,54 +99,79 @@ void move_camera(unsigned char new_x, unsigned char new_y) {
 void update_full_screen(void);
 void update_screen_with_scroll(unsigned char scroll_dir);
 
-// Retrieve single tile from map with bounds checking
+// Get single tile from map and convert to PETSCII for display
 static unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y) {
+    // Bounds check
     if (map_x >= MAP_W || map_y >= MAP_H) {
-        return EMPTY; // Return empty tile for out-of-bounds coordinates
+        return EMPTY; // Return space character for out of bounds
     }
     
-    // Extract tile using same bit manipulation as utility functions
-    unsigned int bit_offset = ((unsigned int)map_y << 7) + ((unsigned int)map_y << 6) + map_x + map_x + map_x;
+    // Calculate bit offset: (y * 64 + x) * 3 = y * 192 + x * 3
+    unsigned int bit_offset = ((unsigned int)map_y << 7) + ((unsigned int)map_y << 6) + 
+                             map_x + map_x + map_x;
+    
+    // Get byte pointer and bit position
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
     
+    // Extract tile value (3 bits)
     unsigned char raw_tile;
     if (bit_pos <= 5) {
-        // Common case: tile data fits within single byte
+        // Tile fits in single byte
         raw_tile = (*byte_ptr >> bit_pos) & TILE_MASK;
     } else {
-        // Edge case: tile data spans two bytes
+        // Tile spans two bytes
         unsigned char low_bits = 8 - bit_pos;
         unsigned char first_part = *byte_ptr >> bit_pos;
         unsigned char second_part = (*(byte_ptr + 1) & ((1 << (3 - low_bits)) - 1)) << low_bits;
         raw_tile = (first_part | second_part) & TILE_MASK;
     }
-      // Inline TILE_TO_PETSCII conversion with bounds check
+    
+    // Convert compact tile type to PETSCII character
     switch(raw_tile) {
-        case TILE_EMPTY: return EMPTY; // 32
-        case TILE_WALL:  return WALL;  // 35
-        case TILE_FLOOR: return FLOOR; // 46
-        case TILE_DOOR:  return DOOR;  // 43
-        case TILE_UP:    return UP;    // 60
-        case TILE_DOWN:  return DOWN;  // 62
-        case TILE_CORNER: return CORNER; // 67 ('C')
-        default: return EMPTY; // Fallback for unknown tile types
+        case TILE_EMPTY:  return EMPTY;   // 32 - space character
+        case TILE_WALL:   return WALL;    // 160 - solid block
+        case TILE_FLOOR:  return FLOOR;   // 46 - period
+        case TILE_DOOR:   return DOOR;    // 219 - door character
+        case TILE_UP:     return UP;      // 60 - less than
+        case TILE_DOWN:   return DOWN;    // 62 - greater than
+        case TILE_CORNER: return CORNER;  // 230 - corner block
+        default:          return EMPTY;   // Safety fallback
     }
 }
 
-// Map display system with scroll optimization and dirty region tracking
+// Full screen update - redraws entire viewport
+void update_full_screen(void) {
+    unsigned char screen_y, x;
+    unsigned int screen_pos;
+    unsigned char tile;
+    
+    // Update all 25 rows
+    for (screen_y = 0; screen_y < VIEW_H; screen_y++) {
+        screen_pos = screen_y * 40;  // Calculate screen memory offset
+        
+        // Update all 40 columns in this row
+        for (x = 0; x < VIEW_W; x++) {
+            // Get tile from map and convert to PETSCII
+            tile = get_map_tile_fast(view.x + x, view.y + screen_y);
+            
+            // Update both screen memory and buffer
+            screen_memory[screen_pos + x] = tile;
+            screen_buffer[screen_y][x] = tile;
+        }
+    }
+}
+
+// Main map rendering function
 void render_map_viewport(unsigned char force_refresh) {
-    // Handle force refresh - lightweight approach since mapgen_generate_dungeon() 
-    // already handles most cleanup via reset_display_state()
+    // Handle force refresh
     if (force_refresh) {
-        // Clear screen for clean display
         clrscr();
-        // Ensure screen is marked dirty for full redraw
         screen_dirty = 1;
-        last_scroll_direction = 0; // Reset scroll tracking
+        last_scroll_direction = 0;
     }
     
-    // Early exit if not dirty
+    // Early exit if screen is clean
     if (!screen_dirty) {
         return;
     }
@@ -154,20 +179,20 @@ void render_map_viewport(unsigned char force_refresh) {
     // Store scroll direction before potential reset
     unsigned char current_scroll_direction = last_scroll_direction;
     
-    // SCROLL OPTIMIZATION: Choose update method based on scroll direction
+    // Choose rendering method based on scroll direction
     if (current_scroll_direction != 0) {
-        // Use scroll optimization for directional movement
+        // Use scroll for single-tile movements
         update_screen_with_scroll(current_scroll_direction);
     } else {
         // Full screen update for initial display or force refresh
         update_full_screen();
     }
     
+    // Clear dirty flag
     screen_dirty = 0;
-    // Reset scroll direction after display update
     last_scroll_direction = 0;
 }
-
+    
 // ============================================================================
 // INPUT HANDLING SYSTEM
 // ============================================================================
@@ -358,22 +383,6 @@ void update_screen_with_scroll(unsigned char scroll_dir) {
             screen_buffer[y][max_x] = tile;
         }
         break;
-    }
-}
-
-// Full screen update for force refresh or initial display
-void update_full_screen(void) {
-    for (unsigned char screen_y = 0; screen_y < VIEW_H; screen_y++) {
-        unsigned int screen_pos = screen_y * 40;
-        
-        for (unsigned char x = 0; x < VIEW_W; x++) {
-            unsigned char tile = get_map_tile_fast(view.x + x, view.y + screen_y);
-            
-            // Always update first, then check for optimization later
-            // Delta comparison can fail with uninitialized buffer
-            screen_memory[screen_pos + x] = tile;
-            screen_buffer[screen_y][x] = tile;
-        }
     }
 }
 

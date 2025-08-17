@@ -10,16 +10,19 @@
 #include <string.h>
 #include <stdlib.h>
 #include "mapgen_types.h"     // For Room, MAP_W, MAP_H, MAX_ROOMS
-#include "mapgen_globals.h"   // For global variable declarations
 #include "mapgen_api.h"       // For public API
 #include "mapgen_utils.h"     // For utility/math/cache functions
 #include "mapgen_internal.h"  // For internal helpers
 #include "mapgen_display.h"   // For display/viewport reset
 
 // =============================================================================
-// EXTERNAL DISPLAY REFERENCES
+// EXTERNAL GLOBAL REFERENCES
 // =============================================================================
 
+extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
+extern unsigned int rng_seed;
+extern Room rooms[MAX_ROOMS];
+extern unsigned char room_count;
 extern unsigned char camera_center_x, camera_center_y;
 extern Viewport view;
 
@@ -131,124 +134,176 @@ unsigned char rnd(unsigned char max) {
     }
 }
 
-// =============================================================================
-// TILE ACCESS AND MANIPULATION
-// =============================================================================
-
-// Retrieve tile from compact map storage using bit manipulation
+/**
+ * Get a tile value from the compact map (3 bits per tile)
+ * @param x X coordinate (0-63)
+ * @param y Y coordinate (0-63)
+ * @return Tile value (0-7) or TILE_EMPTY if out of bounds
+ */
 unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return TILE_EMPTY;
     
     // Calculate bit offset: (y * 64 + x) * 3 = y * 192 + x * 3
+    // Using bit shifts for multiplication: y * 192 = y * 128 + y * 64 = y << 7 + y << 6
     unsigned int bit_offset = ((unsigned int)y << 7) + ((unsigned int)y << 6) + x + x + x;
     
-    // Byte and bit position extraction
-    unsigned char *byte_ptr = &compact_map[bit_offset >> BITS_PER_TILE];
-    unsigned char bit_pos = bit_offset & THREE_BIT_MASK;
+    // Calculate byte position and bit position within byte
+    unsigned char *byte_ptr = &compact_map[bit_offset >> 3];  // Divide by 8 to get byte
+    unsigned char bit_pos = bit_offset & 7;  // Modulo 8 to get bit position
     
     // Handle tile reading based on bit position
-    if (bit_pos <= MAX_BIT_POSITION_FOR_TILE) {
-        // Common case: tile data fits within single byte
+    if (bit_pos <= 5) {
+        // Fast path: tile fits entirely within single byte
+        // Simply shift right and mask to get 3 bits
         return (*byte_ptr >> bit_pos) & TILE_MASK;
+    } else {
+        // Rare path: tile spans two bytes (only when bit_pos is 6 or 7)
+        // Need to combine bits from current and next byte
+        unsigned char low_bits = 8 - bit_pos;  // Bits available in current byte
+        unsigned char first_part = *byte_ptr >> bit_pos;  // Get bits from current byte
+        
+        // Get remaining bits from next byte
+        unsigned char second_part = (*(byte_ptr + 1) & ((1 << (3 - low_bits)) - 1)) << low_bits;
+        
+        return (first_part | second_part) & TILE_MASK;
     }
-    
-    // Rare path: tile spans two bytes
-    unsigned char low_bits = BITS_PER_BYTE - bit_pos;
-    unsigned char first_part = *byte_ptr >> bit_pos;
-    unsigned char second_part = (*(byte_ptr + 1) & ((1 << (BITS_PER_TILE - low_bits)) - 1)) << low_bits;
-    
-    return (first_part | second_part) & TILE_MASK;
 }
 
-// Store tile in compact map storage using bit manipulation
+/**
+ * Set a tile value in the compact map (3 bits per tile)
+ * @param x X coordinate (0-63)
+ * @param y Y coordinate (0-63)
+ * @param tile Tile value (0-7)
+ */
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     if (x >= MAP_W || y >= MAP_H) return;
     
     // Calculate bit offset: (y * 64 + x) * 3 = y * 192 + x * 3
     unsigned int bit_offset = ((unsigned int)y << 7) + ((unsigned int)y << 6) + x + x + x;
     
-    // Byte and bit position extraction
+    // Calculate byte position and bit position within byte
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
     
-    tile &= TILE_MASK; // Ensure only 3 bits
+    tile &= TILE_MASK; // Ensure only 3 bits are used
     
     // Handle tile writing based on bit position
     if (bit_pos <= 5) {
-        // Common case: tile data fits within single byte
-        unsigned char mask = TILE_MASK << bit_pos;
-        *byte_ptr = (*byte_ptr & ~mask) | (tile << bit_pos);
+        // Fast path: tile fits entirely within single byte
+        unsigned char mask = TILE_MASK << bit_pos;  // Create mask for tile bits
+        *byte_ptr = (*byte_ptr & ~mask) | (tile << bit_pos);  // Clear and set bits
     } else {
         // Rare path: tile spans two bytes
-        unsigned char low_bits = 8 - bit_pos;
-        unsigned char high_bits = 3 - low_bits;
+        unsigned char low_bits = 8 - bit_pos;  // Bits to store in current byte
+        unsigned char high_bits = 3 - low_bits;  // Bits to store in next byte
         
+        // Update current byte (low bits of tile)
         unsigned char mask1 = ((1 << low_bits) - 1) << bit_pos;
-        unsigned char mask2 = (1 << high_bits) - 1;
-        
         *byte_ptr = (*byte_ptr & ~mask1) | ((tile & ((1 << low_bits) - 1)) << bit_pos);
+        
+        // Update next byte (high bits of tile)
+        unsigned char mask2 = (1 << high_bits) - 1;
         *(byte_ptr + 1) = (*(byte_ptr + 1) & ~mask2) | (tile >> low_bits);
     }
 }
 
-// Core tile reader used by all tile checking functions
+/**
+ * Optimized core tile reader - inline function for maximum speed
+ * Used internally by all tile checking functions
+ * No bounds checking for maximum performance
+ */
 static inline unsigned char get_tile_core(unsigned char x, unsigned char y) {
-    // Calculate bit offset: (y * 64 + x) * 3 = y * 192 + x * 3
+    // Calculate bit offset: (y * 64 + x) * 3
     unsigned int bit_offset = ((unsigned int)y << 7) + ((unsigned int)y << 6) + x + x + x;
     
     // Byte and bit position extraction
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
     
-    // Handle tile reading based on bit position
+    // Handle tile reading
     if (bit_pos <= 5) {
-        // Common case: tile data fits within single byte
+        // Fast path: single byte
         return (*byte_ptr >> bit_pos) & TILE_MASK;
     }
     
-    // Rare path: tile spans two bytes
+    // Rare path: spans two bytes
     unsigned char low_bits = 8 - bit_pos;
-    return ((*byte_ptr >> bit_pos) | ((*(byte_ptr + 1) & ((1 << (3 - low_bits)) - 1)) << low_bits)) & TILE_MASK;
+    unsigned char first_part = *byte_ptr >> bit_pos;
+    unsigned char second_part = (*(byte_ptr + 1) & ((1 << (3 - low_bits)) - 1)) << low_bits;
+    
+    return (first_part | second_part) & TILE_MASK;
 }
 
-// Tile access for generation without PETSCII conversion
+/**
+ * Fast tile access for map generation (returns raw tile type)
+ * @param x X coordinate
+ * @param y Y coordinate  
+ * @return Raw tile type (0-7) or TILE_EMPTY if out of bounds
+ */
 inline unsigned char get_tile_raw(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return TILE_EMPTY;
-    return get_tile_core(x, y);  // Use shared core function
+    return get_tile_core(x, y);  // Use shared optimized core
 }
 
+/**
+ * Fast tile setter for map generation
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @param tile Raw tile type (0-7)
+ */
 inline void set_tile_raw(unsigned char x, unsigned char y, unsigned char tile) {
-    set_compact_tile(x, y, tile);  // Delegate to compact tile setter
+    set_compact_tile(x, y, tile);  // Delegate to main setter
 }
 
-// Tile type checking functions using shared core
+// =============================================================================
+// TILE TYPE CHECKING FUNCTIONS
+// =============================================================================
+
+/**
+ * Check if tile is floor
+ */
 inline unsigned char tile_is_floor(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return 0;
     return get_tile_core(x, y) == TILE_FLOOR;
 }
 
+/**
+ * Check if tile is wall
+ */
 inline unsigned char tile_is_wall(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return 0;
     return get_tile_core(x, y) == TILE_WALL;
 }
 
+/**
+ * Check if tile is door
+ */
 inline unsigned char tile_is_door(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return 0;
     return get_tile_core(x, y) == TILE_DOOR;
 }
 
+/**
+ * Check if tile is empty
+ */
 inline unsigned char tile_is_empty(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return 1;  // Out of bounds = empty
     return get_tile_core(x, y) == TILE_EMPTY;
 }
 
-// Clear map to empty space
+/**
+ * Clear entire map to empty space
+ * Optimized to clear all bytes to 0 (since TILE_EMPTY = 0)
+ */
 void clear_map(void) {
+    // Calculate total bytes needed for compact map
+    // 64x64 tiles * 3 bits = 12288 bits = 1536 bytes
     unsigned int total_bytes = (MAP_H * MAP_W * 3 + 7) / 8; // Round up division
     unsigned int i;
     
+    // Clear all bytes to 0 (TILE_EMPTY = 0)
     for (i = 0; i < total_bytes; i++) {
-        compact_map[i] = 0; // All tiles set to TILE_EMPTY (0)
+        compact_map[i] = 0;
     }
 }
 
@@ -659,14 +714,18 @@ unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned ch
 // TEXT OUTPUT UTILITY
 // =============================================================================
 
-// Text output function using KERNAL calls
-// Converts ASCII upper/lowercase to correct mixed charset code for C64 display
+/**
+ * Convert ASCII to mixed charset for C64 display
+ */
 static unsigned char to_mixed_charset(unsigned char c) {
     if (c >= 'A' && c <= 'Z') return c + 32; // 'A'-'Z' to C64 lowercase
     if (c >= 'a' && c <= 'z') return c - 32; // 'a'-'z' to C64 uppercase
     return c;
 }
 
+/**
+ * Memory-efficient text output using KERNAL calls
+ */
 void print_text(const char* text) {
     unsigned char i = 0;
     while (text[i] != '\0') {
