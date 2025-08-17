@@ -171,28 +171,29 @@ unsigned char path_intersects_other_rooms(unsigned char start_x, unsigned char s
     signed char x = start_x;
     signed char y = start_y;
     
-    // Check every point along the path
-    while (x != end_x || y != end_y) {
-        // Move one step towards destination
-        if (x < end_x) x++;
-        else if (x > end_x) x--;
-        
-        if (y < end_y) y++;
-        else if (y > end_y) y--;
-        
-        // Check if this point is inside any room other than source/destination
-        for (unsigned char i = 0; i < room_count; i++) {
-            if (i == source_room || i == dest_room) continue; // Skip source/dest rooms
+        // Check every point along the path
+        while (x != end_x || y != end_y) {
+            // Move one step towards destination
+            if (x < end_x) x++;
+            else if (x > end_x) x--;
             
-            // Check if point is inside room i (including buffer zone)
-            if (x >= rooms[i].x && x < rooms[i].x + rooms[i].w &&
-                y >= rooms[i].y && y < rooms[i].y + rooms[i].h) {
-                return 1; // Path intersects another room
+            if (y < end_y) y++;
+            else if (y > end_y) y--;
+            
+            // Check if this point is inside any room other than source/destination
+            for (unsigned char i = 0; i < room_count; i++) {
+                if (i == source_room || i == dest_room) continue; // Skip source/dest rooms
+                
+                // Check if point is inside rooms extended boundary (+1 buffer around walkable area)
+                // This prevents corridors from passing too close to room walls
+                if (x >= (rooms[i].x > 0 ? rooms[i].x - 1 : 0) && 
+                    x < rooms[i].x + rooms[i].w + 1 &&
+                    y >= (rooms[i].y > 0 ? rooms[i].y - 1 : 0) && 
+                    y < rooms[i].y + rooms[i].h + 1) {
+                    return 1; // Path intersects room's buffer zone
+                }
             }
-        }
-    }
-    
-    return 0; // Path is clear
+        }    return 0; // Path is clear
 }
 
 // Check if L-shaped path between two points avoids room intersections
@@ -367,19 +368,49 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
         unsigned char overlap_end = ((r1->y + r1->h) < (r2->y + r2->h)) ? (r1->y + r1->h) : (r2->y + r2->h);
         unsigned char center_y = overlap_start + (overlap_end - overlap_start) / 2;
         
-        // Determine which room is left/right
+        // Determine which room is left/right and check for existing doors
         if (r1->x + r1->w < r2->x) {
             // Room1 is left, Room2 is right
             *exit1_x = r1->x + r1->w + 1;  // 2 tiles from room1 right edge
             *exit1_y = center_y;
             *exit2_x = r2->x - 2;          // 2 tiles from room2 left edge
             *exit2_y = center_y;
+            
+            // Check for existing door on room1's right side
+            unsigned char existing_door_x, existing_door_y;
+            if (find_best_existing_door_on_room_side(room1, 1, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
+                // Adjust exit1 to align with existing door
+                *exit1_y = existing_door_y;
+                *exit1_x = existing_door_x + 1; // Exit 1 tile away from door
+            }
+            
+            // Check for existing door on room2's left side
+            if (find_best_existing_door_on_room_side(room2, 0, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+                // Adjust exit2 to align with existing door
+                *exit2_y = existing_door_y;
+                *exit2_x = existing_door_x - 1; // Exit 1 tile away from door
+            }
         } else {
             // Room2 is left, Room1 is right
             *exit1_x = r1->x - 2;          // 2 tiles from room1 left edge
             *exit1_y = center_y;
             *exit2_x = r2->x + r2->w + 1;  // 2 tiles from room2 right edge
             *exit2_y = center_y;
+            
+            // Check for existing door on room1's left side
+            unsigned char existing_door_x, existing_door_y;
+            if (find_best_existing_door_on_room_side(room1, 0, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
+                // Adjust exit1 to align with existing door
+                *exit1_y = existing_door_y;
+                *exit1_x = existing_door_x - 1; // Exit 1 tile away from door
+            }
+            
+            // Check for existing door on room2's right side
+            if (find_best_existing_door_on_room_side(room2, 1, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+                // Adjust exit2 to align with existing door
+                *exit2_y = existing_door_y;
+                *exit2_x = existing_door_x + 1; // Exit 1 tile away from door
+            }
         }
     } else {
         // Vertically aligned - find overlapping X range and place exits facing each other
@@ -387,19 +418,49 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
         unsigned char overlap_end = ((r1->x + r1->w) < (r2->x + r2->w)) ? (r1->x + r1->w) : (r2->x + r2->w);
         unsigned char center_x = overlap_start + (overlap_end - overlap_start) / 2;
         
-        // Determine which room is top/bottom
+        // Determine which room is top/bottom and check for existing doors
         if (r1->y + r1->h < r2->y) {
             // Room1 is top, Room2 is bottom
             *exit1_x = center_x;
             *exit1_y = r1->y + r1->h + 1;  // 2 tiles from room1 bottom edge
             *exit2_x = center_x;
             *exit2_y = r2->y - 2;          // 2 tiles from room2 top edge
+            
+            // Check for existing door on room1's bottom side
+            unsigned char existing_door_x, existing_door_y;
+            if (find_best_existing_door_on_room_side(room1, 3, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
+                // Adjust exit1 to align with existing door
+                *exit1_x = existing_door_x;
+                *exit1_y = existing_door_y + 1; // Exit 1 tile away from door
+            }
+            
+            // Check for existing door on room2's top side
+            if (find_best_existing_door_on_room_side(room2, 2, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+                // Adjust exit2 to align with existing door
+                *exit2_x = existing_door_x;
+                *exit2_y = existing_door_y - 1; // Exit 1 tile away from door
+            }
         } else {
             // Room2 is top, Room1 is bottom
             *exit1_x = center_x;
             *exit1_y = r1->y - 2;          // 2 tiles from room1 top edge
             *exit2_x = center_x;
             *exit2_y = r2->y + r2->h + 1;  // 2 tiles from room2 bottom edge
+            
+            // Check for existing door on room1's top side
+            unsigned char existing_door_x, existing_door_y;
+            if (find_best_existing_door_on_room_side(room1, 2, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
+                // Adjust exit1 to align with existing door
+                *exit1_x = existing_door_x;
+                *exit1_y = existing_door_y - 1; // Exit 1 tile away from door
+            }
+            
+            // Check for existing door on room2's bottom side
+            if (find_best_existing_door_on_room_side(room2, 3, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+                // Adjust exit2 to align with existing door
+                *exit2_x = existing_door_x;
+                *exit2_y = existing_door_y + 1; // Exit 1 tile away from door
+            }
         }
     }
 }
@@ -424,7 +485,7 @@ static unsigned char get_optimal_corridor_direction(unsigned char exit1_side, un
 }
 
 /**
- * @brief Place doors for straight corridor connections (1 tile from room perimeter)
+ * @brief Place doors for straight corridor connections (simplified - exits are already aligned to existing doors)
  * @param room1 First room index
  * @param room2 Second room index
  * @param exit1_x First exit X coordinate
@@ -438,12 +499,11 @@ static void place_doors_for_straight_corridor(unsigned char room1, unsigned char
     Room *r1 = &rooms[room1];
     Room *r2 = &rooms[room2];
     
-    // For straight corridors, doors are placed 1 tile from room perimeter
-    // toward the corridor direction
-    
-    // Door for room1
+    // Calculate door positions - doors are placed 1 tile from room perimeter toward corridor
     unsigned char door1_x = exit1_x;
     unsigned char door1_y = exit1_y;
+    unsigned char door2_x = exit2_x;
+    unsigned char door2_y = exit2_y;
     
     // Determine door1 position based on exit location relative to room1
     if (exit1_x == r1->x + r1->w + 1) {
@@ -460,10 +520,6 @@ static void place_doors_for_straight_corridor(unsigned char room1, unsigned char
         door1_y = r1->y - 1;
     }
     
-    // Door for room2
-    unsigned char door2_x = exit2_x;
-    unsigned char door2_y = exit2_y;
-    
     // Determine door2 position based on exit location relative to room2
     if (exit2_x == r2->x + r2->w + 1) {
         // Exit is 2 tiles right of room, door is 1 tile right
@@ -479,6 +535,7 @@ static void place_doors_for_straight_corridor(unsigned char room1, unsigned char
         door2_y = r2->y - 1;
     }
     
+    // Place doors (will automatically skip if door already exists)
     place_door(door1_x, door1_y);
     place_door(door2_x, door2_y);
 }
@@ -914,9 +971,104 @@ unsigned char rooms_are_connected(unsigned char room1, unsigned char room2) {
 // DOOR PLACEMENT IMPLEMENTATION  
 // =============================================================================
 
-// Place a door at (x, y) (assumes caller ensures correct edge/perimeter placement)
+/**
+ * @brief Find the best existing door on a room side that's closest to target coordinates
+ * @param room_idx Room index to check
+ * @param side Side of room: 0=left, 1=right, 2=top, 3=bottom
+ * @param target_x Target X coordinate to find closest door to
+ * @param target_y Target Y coordinate to find closest door to
+ * @param door_x Pointer to store door X coordinate if found
+ * @param door_y Pointer to store door Y coordinate if found
+ * @return 1 if door found on specified side, 0 otherwise
+ */
+unsigned char find_best_existing_door_on_room_side(unsigned char room_idx, unsigned char side,
+                                                  unsigned char target_x, unsigned char target_y,
+                                                  unsigned char *door_x, unsigned char *door_y) {
+    if (room_idx >= room_count) return 0;
+    
+    Room *room = &rooms[room_idx];
+    unsigned char x, y;
+    unsigned char best_door_x = 0, best_door_y = 0;
+    unsigned char found_door = 0;
+    unsigned char best_distance = 255;
+    
+    switch (side) {
+        case 0: // Left side - check tiles 1 position left of room
+            x = room->x - 1;
+            for (y = room->y; y < room->y + room->h; y++) {
+                if (tile_is_door(x, y)) {
+                    unsigned char distance = abs_diff(y, target_y);
+                    if (!found_door || distance < best_distance) {
+                        best_door_x = x;
+                        best_door_y = y;
+                        best_distance = distance;
+                        found_door = 1;
+                    }
+                }
+            }
+            break;
+            
+        case 1: // Right side - check tiles 1 position right of room
+            x = room->x + room->w;
+            for (y = room->y; y < room->y + room->h; y++) {
+                if (tile_is_door(x, y)) {
+                    unsigned char distance = abs_diff(y, target_y);
+                    if (!found_door || distance < best_distance) {
+                        best_door_x = x;
+                        best_door_y = y;
+                        best_distance = distance;
+                        found_door = 1;
+                    }
+                }
+            }
+            break;
+            
+        case 2: // Top side - check tiles 1 position above room
+            y = room->y - 1;
+            for (x = room->x; x < room->x + room->w; x++) {
+                if (tile_is_door(x, y)) {
+                    unsigned char distance = abs_diff(x, target_x);
+                    if (!found_door || distance < best_distance) {
+                        best_door_x = x;
+                        best_door_y = y;
+                        best_distance = distance;
+                        found_door = 1;
+                    }
+                }
+            }
+            break;
+            
+        case 3: // Bottom side - check tiles 1 position below room
+            y = room->y + room->h;
+            for (x = room->x; x < room->x + room->w; x++) {
+                if (tile_is_door(x, y)) {
+                    unsigned char distance = abs_diff(x, target_x);
+                    if (!found_door || distance < best_distance) {
+                        best_door_x = x;
+                        best_door_y = y;
+                        best_distance = distance;
+                        found_door = 1;
+                    }
+                }
+            }
+            break;
+    }
+    
+    if (found_door) {
+        *door_x = best_door_x;
+        *door_y = best_door_y;
+        return 1;
+    }
+    
+    return 0; // No door found on specified side
+}
+
+// Place a door at (x, y) if there isn't already one there (assumes caller ensures correct edge/perimeter placement)
 void place_door(unsigned char x, unsigned char y) {
-    set_tile_raw(x, y, TILE_DOOR);
+    // Only place door if position doesn't already have one
+    if (!tile_is_door(x, y)) {
+        set_tile_raw(x, y, TILE_DOOR);
+    }
 }
 
 // Place doors at the first and last walkable tiles of the corridor path between two rooms (on the room edge/perimeter)

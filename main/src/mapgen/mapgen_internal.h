@@ -159,4 +159,18 @@ void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path);
  */
 void place_doors_along_corridor(const CorridorPath* path);
 
+/**
+ * @brief Find the best existing door on a room side that's closest to target coordinates
+ * @param room_idx Room index to check
+ * @param side Side of room: 0=left, 1=right, 2=top, 3=bottom
+ * @param target_x Target X coordinate to find closest door to
+ * @param target_y Target Y coordinate to find closest door to
+ * @param door_x Pointer to store door X coordinate if found
+ * @param door_y Pointer to store door Y coordinate if found
+ * @return 1 if door found on specified side, 0 otherwise
+ */
+unsigned char find_best_existing_door_on_room_side(unsigned char room_idx, unsigned char side,
+                                                  unsigned char target_x, unsigned char target_y,
+                                                  unsigned char *door_x, unsigned char *door_y);
+
 #endif // MAPGEN_INTERNAL_H

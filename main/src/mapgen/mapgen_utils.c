@@ -376,6 +376,7 @@ unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char ro
 
 // Room exits finding with randomized positioning along room edges
 // Maintains 2-tile distance rule while providing organic variation
+// Now checks for existing doors and aligns exit points to them
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y) {
     unsigned char room_center_x, room_center_y;
@@ -391,26 +392,54 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
         if (target_x > room_center_x) {
             // Exit from room right edge (perimeter +2)
             *exit_x = room->x + room->w + 1; // Maintains 2-tile distance rule
-            // Random Y position along the edge
             *exit_y = room->y + rnd(room->h);
+            
+            // Check for existing door on right side
+            unsigned char existing_door_x, existing_door_y;
+            if (find_best_existing_door_on_room_side(room_id, 1, target_x, target_y, &existing_door_x, &existing_door_y)) {
+                // Align exit to existing door
+                *exit_y = existing_door_y;
+                *exit_x = existing_door_x + 1; // Exit 1 tile away from door
+            }
         } else {
             // Exit from room left edge (perimeter -2)
             *exit_x = room->x - 2; // Maintains 2-tile distance rule
-            // Random Y position along the edge
             *exit_y = room->y + rnd(room->h);
+            
+            // Check for existing door on left side
+            unsigned char existing_door_x, existing_door_y;
+            if (find_best_existing_door_on_room_side(room_id, 0, target_x, target_y, &existing_door_x, &existing_door_y)) {
+                // Align exit to existing door
+                *exit_y = existing_door_y;
+                *exit_x = existing_door_x - 1; // Exit 1 tile away from door
+            }
         }
     } else {
         // Vertical movement preferred - exit from top/bottom edge
         if (target_y > room_center_y) {
             // Exit from room bottom edge (perimeter +2)
             *exit_y = room->y + room->h + 1; // Maintains 2-tile distance rule
-            // Random X position along the edge
             *exit_x = room->x + rnd(room->w);
+            
+            // Check for existing door on bottom side
+            unsigned char existing_door_x, existing_door_y;
+            if (find_best_existing_door_on_room_side(room_id, 3, target_x, target_y, &existing_door_x, &existing_door_y)) {
+                // Align exit to existing door
+                *exit_x = existing_door_x;
+                *exit_y = existing_door_y + 1; // Exit 1 tile away from door
+            }
         } else {
             // Exit from room top edge (perimeter -2)
             *exit_y = room->y - 2; // Maintains 2-tile distance rule
-            // Random X position along the edge
             *exit_x = room->x + rnd(room->w);
+            
+            // Check for existing door on top side
+            unsigned char existing_door_x, existing_door_y;
+            if (find_best_existing_door_on_room_side(room_id, 2, target_x, target_y, &existing_door_x, &existing_door_y)) {
+                // Align exit to existing door
+                *exit_x = existing_door_x;
+                *exit_y = existing_door_y - 1; // Exit 1 tile away from door
+            }
         }
     }
 }
