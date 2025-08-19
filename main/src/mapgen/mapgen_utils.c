@@ -374,8 +374,40 @@ unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char ro
 // ROOM EXIT MANAGEMENT UTILITIES
 // =============================================================================
 
-// Room exits finding with randomized positioning along room edges
-// Maintains 2-tile distance rule while providing organic variation
+// Calculate optimal exit position avoiding corners and ensuring good corridor angles
+static unsigned char calculate_optimal_exit_position(unsigned char room_dim, unsigned char target_coord, unsigned char room_coord) {
+    // Calculate relative position of target (0-255 range)
+    unsigned char relative_pos;
+    if (target_coord > room_coord + room_dim / 2) {
+        // Target is towards the end of room dimension
+        relative_pos = 192; // ~75% position
+    } else if (target_coord < room_coord + room_dim / 2) {
+        // Target is towards the start of room dimension  
+        relative_pos = 64;  // ~25% position
+    } else {
+        // Target is centered - use middle
+        relative_pos = 128; // ~50% position
+    }
+    
+    // Convert relative position to actual coordinate
+    // Ensure position is within 25%-75% range to avoid corners
+    unsigned char min_pos = room_dim / 4;          // 25% from start
+    unsigned char max_pos = room_dim - room_dim / 4; // 75% from start
+    
+    if (min_pos >= max_pos) {
+        // Room too small - use center
+        return room_dim / 2;
+    }
+    
+    // Map relative position to safe range
+    unsigned char safe_range = max_pos - min_pos;
+    unsigned char offset = (relative_pos * safe_range) / 256;
+    
+    return min_pos + offset;
+}
+
+// Room exits finding with optimized positioning to avoid corners and improve corridor flow
+// Maintains 2-tile distance rule while providing intelligent variation
 // Now checks for existing doors and aligns exit points to them
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y) {
@@ -392,7 +424,7 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
         if (target_x > room_center_x) {
             // Exit from room right edge (perimeter +2)
             *exit_x = room->x + room->w + 1; // Maintains 2-tile distance rule
-            *exit_y = room->y + rnd(room->h);
+            *exit_y = room->y + calculate_optimal_exit_position(room->h, target_y, room->y);
             
             // Check for existing door on right side
             unsigned char existing_door_x, existing_door_y;
@@ -404,7 +436,7 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
         } else {
             // Exit from room left edge (perimeter -2)
             *exit_x = room->x - 2; // Maintains 2-tile distance rule
-            *exit_y = room->y + rnd(room->h);
+            *exit_y = room->y + calculate_optimal_exit_position(room->h, target_y, room->y);
             
             // Check for existing door on left side
             unsigned char existing_door_x, existing_door_y;
@@ -419,7 +451,7 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
         if (target_y > room_center_y) {
             // Exit from room bottom edge (perimeter +2)
             *exit_y = room->y + room->h + 1; // Maintains 2-tile distance rule
-            *exit_x = room->x + rnd(room->w);
+            *exit_x = room->x + calculate_optimal_exit_position(room->w, target_x, room->x);
             
             // Check for existing door on bottom side
             unsigned char existing_door_x, existing_door_y;
@@ -431,7 +463,7 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
         } else {
             // Exit from room top edge (perimeter -2)
             *exit_y = room->y - 2; // Maintains 2-tile distance rule
-            *exit_x = room->x + rnd(room->w);
+            *exit_x = room->x + calculate_optimal_exit_position(room->w, target_x, room->x);
             
             // Check for existing door on top side
             unsigned char existing_door_x, existing_door_y;
