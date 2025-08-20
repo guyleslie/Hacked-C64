@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "mapgen_types.h"         // For Room, MAP_W, MAP_H, MAX_ROOMS
-#include "mapgen_globals.h"       // For global variable declarations
+#include "mapgen_internal.h"      // For global variable declarations
 #include "mapgen_utils.h"         // For viewport utilities, tile access, helper functions
 #include "mapgen_display.h"       // For display, viewport, input
 

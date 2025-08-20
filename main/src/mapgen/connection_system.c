@@ -48,8 +48,7 @@
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS 
-#include "mapgen_globals.h"    // For global variable declarations
-#include "mapgen_internal.h"   // For connection helpers and door placement functions
+#include "mapgen_internal.h"   // For connection helpers, door placement functions, and global variable declarations
 #include "mapgen_utils.h"      // For utility functions
 
 // Global flag to allow endpoint override for corridor placement
@@ -559,7 +558,7 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
  * @param exit1_side Side of room1 where exit1 is located (0=left, 1=right, 2=top, 3=bottom)
  * @param exit2_side Side of room2 where exit2 is located (0=left, 1=right, 2=top, 3=bottom)
  */
-static void draw_l_corridor_new(unsigned char exit1_x, unsigned char exit1_y,
+static void draw_l_corridor(unsigned char exit1_x, unsigned char exit1_y,
                                unsigned char exit2_x, unsigned char exit2_y,
                                unsigned char exit1_side, unsigned char exit2_side) {
     signed char intersection_x, intersection_y;
@@ -1057,7 +1056,7 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
                 corridor_endpoint_override = 0;
                 
                 // Draw L-shaped corridor with proper L-corridor logic
-                draw_l_corridor_new(exit1_x, exit1_y, exit2_x, exit2_y, exit1_side, exit2_side);
+                draw_l_corridor(exit1_x, exit1_y, exit2_x, exit2_y, exit1_side, exit2_side);
                 place_doors_for_diagonal_corridor(room1, room2, exit1_x, exit1_y, exit2_x, exit2_y);
                 return 1;
             } else if (room_distance >= 5) {
@@ -1300,16 +1299,4 @@ void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path) {
     unsigned char end_x = path->x[path->length - 1];
     unsigned char end_y = path->y[path->length - 1];
     place_door(end_x, end_y);
-}
-
-// Place doors along a corridor path (placeholder implementation)
-void place_doors_along_corridor(const CorridorPath* path) {
-    // This function can be extended if needed for more complex door placement logic
-    if (path == 0 || path->length == 0) return;
-    
-    // For now, just place doors at start and end
-    place_door(path->x[0], path->y[0]);
-    if (path->length > 1) {
-        place_door(path->x[path->length - 1], path->y[path->length - 1]);
-    }
 }

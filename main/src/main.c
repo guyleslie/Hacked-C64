@@ -27,19 +27,6 @@ void set_mixed_charset(void) {
 
 // Global variables - Map data
 
-// Compressed map data storage using 3 bits per tile
-// Size: 64x64 map = 4096 tiles × 3 bits = 12288 bits = 1536 bytes
-unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
-
-// Array storing room structure data for dungeon generation
-Room rooms[MAX_ROOMS];
-
-// Tracks the current number of rooms generated in the dungeon
-unsigned char room_count = 0;
-
-// Seed value for random number generation
-unsigned int rng_seed = 1;
-
 // Global variables - Camera and viewport
 
 // Camera position in map space
@@ -72,6 +59,9 @@ int main(void) {
     
     // Initialize RNG (random number generator) for map generation
     init_rng();
+    
+    // Initialize map generation system with seed
+    mapgen_init(1);
     
     // Generate complete level (includes all necessary resets)
     mapgen_generate_dungeon();

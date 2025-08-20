@@ -12,6 +12,11 @@ unsigned char generate_level(void);
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
 void assign_room_priorities(void);
 
+// Global mapgen module variables (defined in mapgen_utils.c)
+extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
+extern Room rooms[MAX_ROOMS];
+extern unsigned char room_count;
+extern unsigned int rng_seed;
 
 /**
  * @brief Checks if two rooms can be safely connected according to the base rules.
@@ -152,12 +157,6 @@ void place_door(unsigned char x, unsigned char y);
  * @param path Pointer to the corridor path.
  */
 void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path);
-
-/**
- * @brief Place doors along a corridor path
- * @param path Pointer to the corridor path.
- */
-void place_doors_along_corridor(const CorridorPath* path);
 
 /**
  * @brief Find the best existing door on a room side that's closest to target coordinates

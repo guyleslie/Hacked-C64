@@ -4,8 +4,7 @@
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
-#include "mapgen_globals.h"    // For global variable declarations
-#include "mapgen_internal.h"   // For add_walls, add_stairs, etc.
+#include "mapgen_internal.h"   // For add_walls, add_stairs, etc. and global variable declarations
 #include "mapgen_utils.h"      // For get_room_center, coords_in_bounds, calculate_room_distance
 
 // =============================================================================

@@ -32,11 +32,11 @@ The map is represented as a 2D grid of tiles, with each tile encoded using 3 bit
 | Wall           | WALL        | 160          |' █ '               | Solid block         |
 | Corner         | CORNER      | 230          |' ▓ '               | Shaded block/corner |
 | Floor (path)   | FLOOR       | 46           |' . '               | Walkable path       |
-| Door           | DOOR        | 171          |' + ' (invers char) | Door                |
+| Door           | DOOR        | 219          |' + ' (invers char) | Door                |
 | Stairs up      | UP          | 60           |' < '               | Up stairs           |
 | Stairs down    | DOWN        | 62           |' > '               | Down stairs         |
 
-*Note: The door is displayed as an inverse plus (+) character, PETSCII code 171.*
+*Note: The door is displayed as a solid block character, PETSCII code 219.*
 
 ## Main Directories and Files
 
@@ -61,7 +61,6 @@ Hacked-C64/
             ├─ map_generation.c               // Main generation pipeline (rooms, corridors, walls, stairs)
             ├─ mapgen_api.h                   // Public API for mapgen
             ├─ mapgen_display.h               // Display helpers for mapgen
-            ├─ mapgen_globals.h               // Global variables and state management
             ├─ mapgen_internal.h              // Internal helpers for mapgen
             ├─ mapgen_types.h                 // Type definitions for mapgen
             ├─ mapgen_utils.c                 // Utility functions for mapgen
@@ -113,7 +112,6 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions
 - `testdisplay.c`: Screen handling, viewport management, input processing, delta refresh
 - `mapgen_utils.c`: Math utilities, random number generation, helper functions
-- `mapgen_globals.h`: Global state management and shared variables
 - `mapgen_api.h`: Public API definitions for map generation
 - `mapgen_types.h`: Type definitions, constants, and tile encoding
 - `mapgen_display.h`: Display and rendering function declarations
@@ -128,8 +126,8 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Connection cache:** Maximum 24 cached connections for MST optimization
 - **Screen buffer:** 40x25 characters with delta refresh
 - **Total memory usage:** ~3.6 KB including all data structures
-- **Compiled PRG size:** 11,382 bytes (includes code, data, and buffers)
-- **Memory efficiency:** 96.4% of C64 RAM remains available after loading
+- **Compiled PRG size:** 14,905 bytes (includes code, data, and buffers)
+- **Memory efficiency:** 95.3% of C64 RAM remains available after loading
 
 ### Algorithm Complexity
 
@@ -137,31 +135,6 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **MST Generation:** O(n²) for small room counts (optimal for C64)
 - **Wall Generation:** O(map_size) two-pass algorithm
 - **Rendering:** O(viewport_size) with delta optimization
-
-## Quality Assurance & Validation Systems
-
-### Robust Generation Logic
-
-- **Connectivity Verification**: MST algorithm guarantees all rooms are reachable from any other room
-- **Rule Compliance**: All spacing, distance, and placement requirements validated after each step
-- **Boundary Protection**: Comprehensive bounds checking prevents writing outside map limits
-- **Memory Safety**: Static allocation prevents buffer overflows and memory corruption
-- **Deterministic Fallbacks**: Failed placements handled gracefully without crashes
-
-### Advanced Error Handling
-
-- **Graceful Degradation**: System continues operation even if optimal room count cannot be achieved
-- **Isolation Prevention**: MST-based connection logic ensures connectivity without force-connect routines
-- **Input Validation**: All user inputs and system parameters validated before processing
-- **State Consistency**: All internal data structures maintain consistent state across operations
-- **Recovery Mechanisms**: System can recover from partial generation failures
-
-### Testing & Verification
-
-- **Algorithmic Correctness**: MST generation mathematically verified to produce optimal results
-- **Memory Usage Validation**: Static analysis confirms memory usage stays within C64 limits
-- **Visual Consistency**: Generated maps always produce proper visual enclosure and navigation paths
-- **Performance Testing**: Generation times consistently under 2 seconds on C64 hardware
 
 ## Usage (Build & Run)
 
@@ -192,4 +165,4 @@ The downloadable artifact includes:
 - `build/*.map`, `build/*.lbl`, `build/*.asm` – Additional Oscar64 build files (map, label, assembly)
 - `RetroDebugger/**` – Downloaded Retro Debugger tool (C64 emulator and debugger)
 
-**For developer documentation, pipeline, API, and detailed module responsibilities: see (https://github.com/guyleslie/Hacked-C64/tree/refactor/main/src#readme)**
+**For developer documentation, pipeline, API, and detailed module responsibilities: see [main/src README](https://github.com/guyleslie/Hacked-C64/tree/refactor/main/src#readme)**

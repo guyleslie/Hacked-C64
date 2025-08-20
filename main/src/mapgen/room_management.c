@@ -5,8 +5,7 @@
 
 #include <conio.h>
 #include "mapgen_types.h"      // For Room, MAX_ROOMS, Viewport
-#include "mapgen_globals.h"    // For global variable declarations
-#include "mapgen_internal.h"   // For room placement/validation
+#include "mapgen_internal.h"   // For room placement/validation and global variable declarations
 #include "mapgen_utils.h"      // For utility functions
 
 // =============================================================================

@@ -9,15 +9,15 @@ The project follows a modular, layered architecture designed specifically for C6
 
 ### Module Responsibility Matrix
 
-| Module | Primary Function | Key Algorithms | C64 Optimizations |
-|--------|------------------|----------------|-------------------|
-| **main.c** | System initialization, main loop | VIC-II configuration, input processing | Direct hardware register access |
-| **map_generation.c** | Generation pipeline coordination | Two-pass wall placement, stair positioning | Memory-efficient iteration patterns |
-| **connection_system.c** | Room connectivity and corridors | MST algorithm, path finding | Static memory pools, optimized distance caching |
-| **room_management.c** | Room placement and validation | Grid-based placement, collision detection | Bit-packed validation, fast bounds checking |
-| **testdisplay.c** | Display and user interaction | Delta refresh, viewport management | Direct screen memory access, PETSCII optimization |
-| **mapgen_utils.c** | Mathematical and utility functions | Random number generation, coordinate math | Hardware entropy, optimized arithmetic |
-| **map_export.c** | File I/O and data persistence | Compact binary serialization | KERNAL I/O routines, device management |
+| Module                  | Primary Function                   | Key Algorithms                             | C64 Optimizations                                 |
+|-------------------------|------------------------------------|--------------------------------------------|---------------------------------------------------|
+| **main.c**              | System initialization, main loop   | VIC-II configuration, input processing     | Direct hardware register access                   |
+| **map_generation.c**    | Generation pipeline coordination   | Two-pass wall placement, stair positioning | Memory-efficient iteration patterns               |
+| **connection_system.c** | Room connectivity and corridors    | MST algorithm, path finding                | Static memory pools, optimized distance caching   |
+| **room_management.c**   | Room placement and validation      | Grid-based placement, collision detection  | Bit-packed validation, fast bounds checking       |
+| **testdisplay.c**       | Display and user interaction       | Delta refresh, viewport management         | Direct screen memory access, PETSCII optimization |
+| **mapgen_utils.c**      | Mathematical and utility functions | Random number generation, coordinate math  | Hardware entropy, optimized arithmetic            |
+| **map_export.c**        | File I/O and data persistence      | Compact binary serialization               | KERNAL I/O routines, device management            |
 
 ---
 

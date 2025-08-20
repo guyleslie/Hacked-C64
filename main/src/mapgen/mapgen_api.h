@@ -3,6 +3,9 @@
 
 #include "mapgen_types.h"
 
+// Initialization and configuration
+void mapgen_init(unsigned int seed);
+
 // Public API for map generation and query
 unsigned char mapgen_generate_dungeon(void);
 unsigned char mapgen_get_room_info(unsigned char room_index, unsigned char *x, unsigned char *y, 
