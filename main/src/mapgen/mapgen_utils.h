@@ -75,4 +75,9 @@ void reset_viewport_state(void);
 void reset_display_state(void);
 void reset_all_generation_data(void);
 
+// Connection system utilities (moved from connection_system.c)
+unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2);
+void init_room_distance_cache(void);
+void clear_room_distance_cache(void);
+
 #endif // MAPGEN_UTILITY_H

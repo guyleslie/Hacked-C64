@@ -993,6 +993,66 @@ unsigned char mapgen_find_tiles(unsigned char tile_type, unsigned char *x_positi
     return found;
 }
 
+// =============================================================================
+// CONNECTION SYSTEM UTILITIES (moved from connection_system.c)
+// =============================================================================
+
+// Cache for room distance calculations
+static unsigned char room_distance_cache[MAX_ROOMS][MAX_ROOMS];
+static unsigned char distance_cache_valid = 0;
+
+// Absolute difference between two unsigned char values
+unsigned char abs_diff(unsigned char a, unsigned char b) {
+    return (a > b) ? (a - b) : (b - a);
+}
+
+
+// Cache-aware room distance calculation
+unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2) {
+    if (!distance_cache_valid || room1 >= MAX_ROOMS || room2 >= MAX_ROOMS) {
+        return calculate_room_distance(room1, room2);
+    }
+    
+    unsigned char cached_distance = room_distance_cache[room1][room2];
+    if (cached_distance != 255) { // Valid cache entry
+        return cached_distance;
+    }
+    
+    // Cache miss - calculate and store
+    cached_distance = calculate_room_distance(room1, room2);
+    room_distance_cache[room1][room2] = cached_distance;
+    room_distance_cache[room2][room1] = cached_distance; // Symmetric
+    
+    return cached_distance;
+}
+
+// Initialize room distance cache
+void init_room_distance_cache(void) {
+    unsigned char i, j;
+    
+    // Initialize cache as invalid
+    for (i = 0; i < MAX_ROOMS; i++) {
+        for (j = 0; j < MAX_ROOMS; j++) {
+            room_distance_cache[i][j] = 255;
+        }
+    }
+    
+    // Pre-calculate distances for existing rooms
+    for (i = 0; i < room_count && i < MAX_ROOMS; i++) {
+        for (j = i + 1; j < room_count && j < MAX_ROOMS; j++) {
+            room_distance_cache[i][j] = calculate_room_distance(i, j);
+            room_distance_cache[j][i] = room_distance_cache[i][j];
+        }
+    }
+    
+    distance_cache_valid = 1;
+}
+
+// Clear room distance cache
+void clear_room_distance_cache(void) {
+    distance_cache_valid = 0;
+}
+
 // Validate the current map for logical consistency
 unsigned char mapgen_validate_map(void) {
     // Check if we have at least one room
