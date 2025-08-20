@@ -10,13 +10,15 @@ This project is a sophisticated dungeon map generator written entirely in C and 
 
 Debug generation with progress indicators:
 
-<img width="1192" height="902" alt="image" src="https://github.com/user-attachments/assets/9fb38995-9d2a-451d-a6cc-183752275dc5" />
+<img width="1425" height="1075" alt="image" src="https://github.com/user-attachments/assets/073ae738-2326-4c22-9e0d-1ae86e55e3d7" />
+
 
 ---
 
 Final generated dungeon map display:
 
-<img width="1194" height="903" alt="image" src="https://github.com/user-attachments/assets/83f7092e-ebe4-4211-b90d-4914bf295301" />
+<img width="1206" height="909" alt="image" src="https://github.com/user-attachments/assets/fd236d58-617f-42f6-a885-10a56329ea31" />
+
 
 ---
 
