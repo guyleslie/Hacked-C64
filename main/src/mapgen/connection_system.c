@@ -51,10 +51,6 @@
 #include "mapgen_internal.h"   // For connection helpers, door placement functions, and global variable declarations
 #include "mapgen_utils.h"      // For utility functions
 
-// Global flag to allow endpoint override for corridor placement
-// Set to 1 when placing corridor at a room edge (perimeter) endpoint
-unsigned char corridor_endpoint_override = 0;
-
 // Oscar64/C64: Move large arrays to static file scope to avoid stack overflow
 static unsigned char visited_global[MAX_ROOMS];
 static unsigned char stack_global[MAX_ROOMS];
@@ -232,15 +228,8 @@ unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2)
 }
 
 // Fast rule check for corridors with basic adjacency rules
-unsigned char can_place_corridor_tile(unsigned char x, unsigned char y) {
-    // Endpoint override logic - allow placement at room edges
-    if (corridor_endpoint_override) {
-        if (!is_within_map_bounds(x, y)) return 0;
-        if (!is_outside_any_room(x, y)) return 0;
-        if (!is_on_room_edge(x, y)) return 0;
-        return 1;
-    }
-    
+// OPTIMIZED: Removed corridor_endpoint_override global state complexity
+unsigned char can_place_corridor(unsigned char x, unsigned char y) {
     if (!is_within_map_bounds(x, y)) return 0;
     if (!is_outside_any_room(x, y)) return 0;
 
@@ -282,7 +271,7 @@ static void straight_corridor_path(signed char sx, signed char sy, signed char e
         while (x != ex) {
             if (x < ex) x++;
             else x--;
-            if (can_place_corridor_tile(x, y)) {
+            if (can_place_corridor(x, y)) {
                 set_tile_raw(x, y, TILE_FLOOR);
                 if (corridor_path_static.length < MAX_PATH_LENGTH) {
                     corridor_path_static.x[corridor_path_static.length] = x;
@@ -295,7 +284,7 @@ static void straight_corridor_path(signed char sx, signed char sy, signed char e
         while (y != ey) {
             if (y < ey) y++;
             else y--;
-            if (can_place_corridor_tile(x, y)) {
+            if (can_place_corridor(x, y)) {
                 set_tile_raw(x, y, TILE_FLOOR);
                 if (corridor_path_static.length < MAX_PATH_LENGTH) {
                     corridor_path_static.x[corridor_path_static.length] = x;
@@ -309,7 +298,7 @@ static void straight_corridor_path(signed char sx, signed char sy, signed char e
         while (y != ey) {
             if (y < ey) y++;
             else y--;
-            if (can_place_corridor_tile(x, y)) {
+            if (can_place_corridor(x, y)) {
                 set_tile_raw(x, y, TILE_FLOOR);
                 if (corridor_path_static.length < MAX_PATH_LENGTH) {
                     corridor_path_static.x[corridor_path_static.length] = x;
@@ -322,7 +311,7 @@ static void straight_corridor_path(signed char sx, signed char sy, signed char e
         while (x != ex) {
             if (x < ex) x++;
             else x--;
-            if (can_place_corridor_tile(x, y)) {
+            if (can_place_corridor(x, y)) {
                 set_tile_raw(x, y, TILE_FLOOR);
                 if (corridor_path_static.length < MAX_PATH_LENGTH) {
                     corridor_path_static.x[corridor_path_static.length] = x;
@@ -657,14 +646,14 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             
             // Check for existing door on room1's right side
             unsigned char existing_door_x, existing_door_y;
-            if (find_best_existing_door_on_room_side(room1, 1, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
+            if (find_existing_door_on_room_side(room1, 1, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
                 // Adjust exit1 to align with existing door
                 *exit1_y = existing_door_y;
                 *exit1_x = existing_door_x + 1; // Exit 1 tile away from door
             }
             
             // Check for existing door on room2's left side
-            if (find_best_existing_door_on_room_side(room2, 0, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+            if (find_existing_door_on_room_side(room2, 0, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
                 // Adjust exit2 to align with existing door
                 *exit2_y = existing_door_y;
                 *exit2_x = existing_door_x - 1; // Exit 1 tile away from door
@@ -678,14 +667,14 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             
             // Check for existing door on room1's left side
             unsigned char existing_door_x, existing_door_y;
-            if (find_best_existing_door_on_room_side(room1, 0, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
+            if (find_existing_door_on_room_side(room1, 0, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
                 // Adjust exit1 to align with existing door
                 *exit1_y = existing_door_y;
                 *exit1_x = existing_door_x - 1; // Exit 1 tile away from door
             }
             
             // Check for existing door on room2's right side
-            if (find_best_existing_door_on_room_side(room2, 1, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+            if (find_existing_door_on_room_side(room2, 1, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
                 // Adjust exit2 to align with existing door
                 *exit2_y = existing_door_y;
                 *exit2_x = existing_door_x + 1; // Exit 1 tile away from door
@@ -707,14 +696,14 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             
             // Check for existing door on room1's bottom side
             unsigned char existing_door_x, existing_door_y;
-            if (find_best_existing_door_on_room_side(room1, 3, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
+            if (find_existing_door_on_room_side(room1, 3, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
                 // Adjust exit1 to align with existing door
                 *exit1_x = existing_door_x;
                 *exit1_y = existing_door_y + 1; // Exit 1 tile away from door
             }
             
             // Check for existing door on room2's top side
-            if (find_best_existing_door_on_room_side(room2, 2, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+            if (find_existing_door_on_room_side(room2, 2, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
                 // Adjust exit2 to align with existing door
                 *exit2_x = existing_door_x;
                 *exit2_y = existing_door_y - 1; // Exit 1 tile away from door
@@ -728,14 +717,14 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             
             // Check for existing door on room1's top side
             unsigned char existing_door_x, existing_door_y;
-            if (find_best_existing_door_on_room_side(room1, 2, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
+            if (find_existing_door_on_room_side(room1, 2, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
                 // Adjust exit1 to align with existing door
                 *exit1_x = existing_door_x;
                 *exit1_y = existing_door_y - 1; // Exit 1 tile away from door
             }
             
             // Check for existing door on room2's bottom side
-            if (find_best_existing_door_on_room_side(room2, 3, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+            if (find_existing_door_on_room_side(room2, 3, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
                 // Adjust exit2 to align with existing door
                 *exit2_x = existing_door_x;
                 *exit2_y = existing_door_y + 1; // Exit 1 tile away from door
@@ -856,7 +845,7 @@ static unsigned char draw_straight_corridor(unsigned char exit1_x, unsigned char
     // Draw the straight line
     while (x != exit2_x || y != exit2_y) {
         // Place corridor tile if position is valid
-        if (can_place_corridor_tile(x, y)) {
+        if (can_place_corridor(x, y)) {
             set_tile_raw(x, y, TILE_FLOOR);
             if (corridor_path_static.length < MAX_PATH_LENGTH) {
                 corridor_path_static.x[corridor_path_static.length] = x;
@@ -949,168 +938,6 @@ static unsigned char draw_z_corridor(unsigned char exit1_x, unsigned char exit1_
     return 1; // Success
 }
 
-unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
-    unsigned char exit1_x, exit1_y, exit2_x, exit2_y;
-    unsigned char has_horizontal_overlap, has_vertical_overlap;
-    unsigned char corridor_type = 0; // 0=L-shaped, 1=straight, 2=Z-shaped
-    
-    // Reset corridor path
-    corridor_path_static.length = 0;
-    
-    // Check axis alignment between rooms for straight corridor possibility
-    check_room_axis_alignment(room1, room2, &has_horizontal_overlap, &has_vertical_overlap);
-    
-    // Calculate room distance for corridor type decision
-    unsigned char room_distance = get_cached_room_distance(room1, room2);
-    
-    // Decision logic for corridor type based on alignment and distance
-    if (has_horizontal_overlap || has_vertical_overlap) {
-        // =================================================================
-        // STRAIGHT CORRIDOR LOGIC - For aligned rooms
-        // =================================================================
-        corridor_type = 1; // Always use straight corridor for aligned rooms
-        
-        if (has_horizontal_overlap) {
-            // Horizontally aligned rooms
-            find_straight_corridor_exits(room1, room2, 1, &exit1_x, &exit1_y, &exit2_x, &exit2_y);
-        } else {
-            // Vertically aligned rooms
-            find_straight_corridor_exits(room1, room2, 0, &exit1_x, &exit1_y, &exit2_x, &exit2_y);
-        }
-        
-        // Check if straight corridor path is clear
-        if (!path_intersects_other_rooms(exit1_x, exit1_y, exit2_x, exit2_y, room1, room2)) {
-            // Place corridor tiles at exit points first
-            corridor_endpoint_override = 1;
-            set_tile_raw(exit1_x, exit1_y, TILE_FLOOR);
-            if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                corridor_path_static.x[corridor_path_static.length] = exit1_x;
-                corridor_path_static.y[corridor_path_static.length] = exit1_y;
-                corridor_path_static.length++;
-            }
-            set_tile_raw(exit2_x, exit2_y, TILE_FLOOR);
-            if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                corridor_path_static.x[corridor_path_static.length] = exit2_x;
-                corridor_path_static.y[corridor_path_static.length] = exit2_y;
-                corridor_path_static.length++;
-            }
-            corridor_endpoint_override = 0;
-            
-            // Draw straight corridor with simple straight line logic
-            if (draw_straight_corridor(exit1_x, exit1_y, exit2_x, exit2_y)) {
-                // Place doors 1 tile closer to rooms
-                place_doors_for_straight_corridor(room1, room2, exit1_x, exit1_y, exit2_x, exit2_y);
-                return 1;
-            }
-        }
-        
-        // If straight corridor failed for aligned rooms, fall through to diagonal logic
-        corridor_type = 0;
-    }
-    
-    // =================================================================
-    // DIAGONAL CORRIDOR LOGIC - Choose between L-shaped and Z-shaped
-    // =================================================================
-    if (corridor_type == 0) {
-        // Determine corridor type based on distance and complexity
-        if (room_distance <= 4) {
-            // Short distance: Prefer L-shaped corridors
-            corridor_type = 0; // L-shaped
-        } else if (room_distance > 8) {
-            // Long distance: Prefer Z-shaped corridors
-            corridor_type = 2; // Z-shaped
-        } else {
-            // Medium distance (5-8): Try both, prefer L-shaped if both work
-            corridor_type = 0; // Start with L-shaped
-        }
-        
-        if (corridor_type == 0) {
-            // =================================================================
-            // L-SHAPED CORRIDOR LOGIC
-            // =================================================================
-            find_l_corridor_exits(room1, room2, &exit1_x, &exit1_y, &exit2_x, &exit2_y);
-            
-            // Determine exit sides for the corridor drawing
-            unsigned char exit1_side = get_exit_side(&rooms[room1], exit1_x, exit1_y);
-            unsigned char exit2_side = get_exit_side(&rooms[room2], exit2_x, exit2_y);
-            
-            // Check if L-shaped path avoids room intersections
-            unsigned char l_path_clear = l_path_avoids_rooms(exit1_x, exit1_y, exit2_x, exit2_y, room1, room2, 1) ||
-                                        l_path_avoids_rooms(exit1_x, exit1_y, exit2_x, exit2_y, room1, room2, 0);
-            
-            if (l_path_clear) {
-                // Place corridor tiles at exit points first
-                corridor_endpoint_override = 1;
-                set_tile_raw(exit1_x, exit1_y, TILE_FLOOR);
-                if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                    corridor_path_static.x[corridor_path_static.length] = exit1_x;
-                    corridor_path_static.y[corridor_path_static.length] = exit1_y;
-                    corridor_path_static.length++;
-                }
-                set_tile_raw(exit2_x, exit2_y, TILE_FLOOR);
-                if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                    corridor_path_static.x[corridor_path_static.length] = exit2_x;
-                    corridor_path_static.y[corridor_path_static.length] = exit2_y;
-                    corridor_path_static.length++;
-                }
-                corridor_endpoint_override = 0;
-                
-                // Draw L-shaped corridor with proper L-corridor logic
-                draw_l_corridor(exit1_x, exit1_y, exit2_x, exit2_y, exit1_side, exit2_side);
-                place_doors_for_diagonal_corridor(room1, room2, exit1_x, exit1_y, exit2_x, exit2_y);
-                return 1;
-            } else if (room_distance >= 5) {
-                // L-shaped failed, try Z-shaped for medium/long distances
-                corridor_type = 2;
-            } else {
-                return 0; // L-shaped corridor failed for short distance
-            }
-        }
-        
-        if (corridor_type == 2) {
-            // =================================================================
-            // Z-SHAPED CORRIDOR LOGIC
-            // =================================================================
-            find_z_corridor_exits(room1, room2, &exit1_x, &exit1_y, &exit2_x, &exit2_y);
-            
-            // Determine exit sides for optimal direction calculation
-            unsigned char exit1_side = get_exit_side(&rooms[room1], exit1_x, exit1_y);
-            unsigned char exit2_side = get_exit_side(&rooms[room2], exit2_x, exit2_y);
-            
-            // Apply Z-corridor direction rule: 
-            // Horizontal walls (top/bottom): Start with vertical movement
-            // Vertical walls (left/right): Start with horizontal movement
-            unsigned char start_with_x = get_optimal_corridor_direction(exit1_side, exit2_side);
-            
-            // Place corridor tiles at exit points first
-            corridor_endpoint_override = 1;
-            set_tile_raw(exit1_x, exit1_y, TILE_FLOOR);
-            if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                corridor_path_static.x[corridor_path_static.length] = exit1_x;
-                corridor_path_static.y[corridor_path_static.length] = exit1_y;
-                corridor_path_static.length++;
-            }
-            set_tile_raw(exit2_x, exit2_y, TILE_FLOOR);
-            if (corridor_path_static.length < MAX_PATH_LENGTH) {
-                corridor_path_static.x[corridor_path_static.length] = exit2_x;
-                corridor_path_static.y[corridor_path_static.length] = exit2_y;
-                corridor_path_static.length++;
-            }
-            corridor_endpoint_override = 0;
-            
-            // Draw Z-shaped corridor with three segments following direction rule
-            if (draw_z_corridor(exit1_x, exit1_y, exit2_x, exit2_y, start_with_x)) {
-                place_doors_for_diagonal_corridor(room1, room2, exit1_x, exit1_y, exit2_x, exit2_y);
-                return 1;
-            }
-        }
-        
-        return 0; // All corridor types failed
-    }
-    
-    return 1; // Success
-}
-
 // =============================================================================
 // ROOM CONNECTION LOGIC WITH DUPLICATE PREVENTION
 // =============================================================================
@@ -1147,7 +974,7 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
     connection_matrix[room2][room1] = 1;
     attempted_connections[room1][room2] = 1;
     attempted_connections[room2][room1] = 1;
-    // 4. Create physical corridor between the rooms
+    // 4. Create physical corridor between the rooms using optimized algorithm
     if (draw_corridor(room1, room2)) {
         return 1; // Corridor successfully created
     }
@@ -1189,7 +1016,7 @@ unsigned char rooms_are_connected(unsigned char room1, unsigned char room2) {
 // =============================================================================
 
 /**
- * @brief Find the best existing door on a room side that's closest to target coordinates
+ * @brief Find existing door on a room side that's closest to target coordinates
  * @param room_idx Room index to check
  * @param side Side of room: 0=left, 1=right, 2=top, 3=bottom
  * @param target_x Target X coordinate to find closest door to
@@ -1198,7 +1025,7 @@ unsigned char rooms_are_connected(unsigned char room1, unsigned char room2) {
  * @param door_y Pointer to store door Y coordinate if found
  * @return 1 if door found on specified side, 0 otherwise
  */
-unsigned char find_best_existing_door_on_room_side(unsigned char room_idx, unsigned char side,
+unsigned char find_existing_door_on_room_side(unsigned char room_idx, unsigned char side,
                                                   unsigned char target_x, unsigned char target_y,
                                                   unsigned char *door_x, unsigned char *door_y) {
     if (room_idx >= room_count) return 0;
@@ -1299,4 +1126,102 @@ void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path) {
     unsigned char end_x = path->x[path->length - 1];
     unsigned char end_y = path->y[path->length - 1];
     place_door(end_x, end_y);
+}
+
+// =============================================================================
+// CORRIDOR DRAWING 
+// =============================================================================
+
+/**
+ * @brief Corridor drawing with exit points
+ * 
+ * @param room1 First room index
+ * @param room2 Second room index
+ * @return 1 if corridor was successfully drawn, 0 otherwise
+ */
+unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
+    ExitPoint exit1, exit2;
+    unsigned char room1_center_x, room1_center_y;
+    unsigned char room2_center_x, room2_center_y;
+    
+    // Get room center coordinates
+    get_room_center(room1, &room1_center_x, &room1_center_y);
+    get_room_center(room2, &room2_center_x, &room2_center_y);
+    
+    // Single calculation for both corridor and door positions
+    calculate_exit_points(&rooms[room1], room2_center_x, room2_center_y, &exit1);
+    calculate_exit_points(&rooms[room2], room1_center_x, room1_center_y, &exit2);
+    
+    // Reset corridor path for this connection
+    corridor_path_static.length = 0;
+    
+    // Determine corridor type based on room alignment
+    unsigned char has_horizontal_overlap, has_vertical_overlap;
+    check_room_axis_alignment(room1, room2, &has_horizontal_overlap, &has_vertical_overlap);
+    unsigned char room_distance = calculate_room_distance(room1, room2);
+    
+    // =================================================================
+    // STRAIGHT CORRIDOR LOGIC - For aligned rooms
+    // =================================================================
+    if (has_horizontal_overlap || has_vertical_overlap) {
+        // Check if straight corridor path is clear using door positions for proper connection
+        if (!path_intersects_other_rooms(exit1.door_x, exit1.door_y, 
+                                        exit2.door_x, exit2.door_y, room1, room2)) {
+            
+            // Use door positions for path building to ensure direct connection
+            if (draw_straight_corridor(exit1.door_x, exit1.door_y, 
+                                     exit2.door_x, exit2.door_y)) {
+                
+                // Use door positions for door placement (doors at endpoints)
+                place_door(exit1.door_x, exit1.door_y);
+                place_door(exit2.door_x, exit2.door_y);
+                return 1;
+            }
+        }
+    }
+    
+    // =================================================================
+    // DIAGONAL CORRIDOR LOGIC - L-shaped and Z-shaped
+    // =================================================================
+    
+    // Try L-shaped corridor for short to medium distances
+    if (room_distance <= 8) {
+        // Check if L-shaped path avoids room intersections using door positions
+        unsigned char l_path_clear = l_path_avoids_rooms(exit1.door_x, exit1.door_y, 
+                                                        exit2.door_x, exit2.door_y, 
+                                                        room1, room2, 1) ||
+                                    l_path_avoids_rooms(exit1.door_x, exit1.door_y, 
+                                                        exit2.door_x, exit2.door_y, 
+                                                        room1, room2, 0);
+        
+        if (l_path_clear) {
+            // Use door positions for L-corridor drawing to ensure proper connection
+            draw_l_corridor(exit1.door_x, exit1.door_y, 
+                          exit2.door_x, exit2.door_y, 
+                          exit1.wall_side, exit2.wall_side);
+            
+            // Use door positions for door placement (doors at endpoints)
+            place_door(exit1.door_x, exit1.door_y);
+            place_door(exit2.door_x, exit2.door_y);
+            return 1;
+        }
+    }
+    
+    // Try Z-shaped corridor for longer distances or when L-shaped fails
+    if (room_distance >= 5) {
+        // Apply Z-corridor direction rule based on wall sides
+        unsigned char start_with_x = get_optimal_corridor_direction(exit1.wall_side, exit2.wall_side);
+        
+        // Use door positions for Z-corridor drawing to ensure proper connection
+        if (draw_z_corridor(exit1.door_x, exit1.door_y, 
+                          exit2.door_x, exit2.door_y, start_with_x)) {
+            
+            // Use door positions for door placement (doors at endpoints)
+            place_door(exit1.door_x, exit1.door_y);
+            place_door(exit2.door_x, exit2.door_y);
+            return 1;
+        }
+    }
+    
+    return 0; // All corridor types failed
 }

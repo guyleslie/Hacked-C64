@@ -2,6 +2,7 @@
 #define MAPGEN_UTILITY_H
 
 #include "mapgen_types.h"
+#include "mapgen_internal.h"  // For ExitPoint structure
 
 // Hardware and RNG functions
 unsigned int get_hardware_entropy(void);
@@ -36,6 +37,11 @@ unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char ro
 // Room exit and validation utilities
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y);
+
+// OPTIMIZED: Unified exit point calculation (replaces find_room_exit + corridor_endpoint_override)
+void calculate_exit_points(Room *room, unsigned char target_x, unsigned char target_y, 
+                                 ExitPoint *exit);
+
 unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char min_distance);
 
 // Room edge validation

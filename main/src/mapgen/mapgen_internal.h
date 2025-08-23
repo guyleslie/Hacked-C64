@@ -3,6 +3,24 @@
 
 #include "mapgen_types.h"
 
+// =============================================================================
+// OPTIMIZED EXIT POINT STRUCTURE
+// =============================================================================
+
+/**
+ * @brief Unified exit point structure containing both corridor and door positions
+ * 
+ * This structure eliminates redundant calculations by computing both the corridor
+ * endpoint (2 tiles from room perimeter) and door position (1 tile from perimeter)
+ * in a single pass, removing the need for corridor_endpoint_override mechanisms.
+ */
+typedef struct {
+    unsigned char corridor_x, corridor_y;  // 2 tiles from perimeter (corridor start/end)
+    unsigned char door_x, door_y;          // 1 tile from perimeter (door placement)
+    unsigned char wall_side;               // 0=left, 1=right, 2=top, 3=bottom
+    unsigned char edge_position;           // Position along the selected edge
+} ExitPoint;
+
 // Core map generation algorithm functions (internal only)
 void create_rooms(void);
 void connect_rooms(void);
@@ -19,6 +37,30 @@ extern unsigned char room_count;
 extern unsigned int rng_seed;
 
 /**
+ * @brief Calculates unified exit points for both corridor and door placement
+ * @param room Pointer to the room
+ * @param target_x Target X coordinate to connect towards
+ * @param target_y Target Y coordinate to connect towards
+ * @param exit Pointer to ExitPoint structure to populate
+ * 
+ * This function replaces find_room_exit() and eliminates the need for
+ * corridor_endpoint_override by calculating both positions in one pass.
+ */
+void calculate_exit_points(Room *room, unsigned char target_x, unsigned char target_y, 
+                                 ExitPoint *exit);
+
+/**
+ * @brief Optimized corridor drawing with unified exit points
+ * @param room1 First room index
+ * @param room2 Second room index
+ * @return 1 if corridor was successfully drawn, 0 otherwise
+ * 
+ * Uses unified exit point calculation to eliminate redundant computations
+ * and the need for corridor_endpoint_override global state.
+ */
+unsigned char draw_corridor(unsigned char room1, unsigned char room2);
+
+/**
  * @brief Checks if two rooms can be safely connected according to the base rules.
  * @param room1 The first room index.
  * @param room2 The second room index.
@@ -32,7 +74,7 @@ unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2)
  * @param y The y coordinate.
  * @return 1 if placement is allowed, 0 otherwise.
  */
-unsigned char can_place_corridor_tile(unsigned char x, unsigned char y);
+unsigned char can_place_corridor(unsigned char x, unsigned char y);
 
 /**
  * @brief Checks if a corridor path would intersect any rooms other than source/destination.
@@ -61,14 +103,6 @@ unsigned char path_intersects_other_rooms(unsigned char start_x, unsigned char s
  */
 unsigned char l_path_avoids_rooms(unsigned char sx, unsigned char sy, unsigned char ex, unsigned char ey,
                                  unsigned char source_room, unsigned char dest_room, unsigned char xy_first);
-
-/**
- * @brief Draws a simple rule-based corridor between two rooms.
- * @param room1 The first room index.
- * @param room2 The second room index.
- * @return 1 if drawing was successful, 0 otherwise.
- */
-unsigned char draw_corridor(unsigned char room1, unsigned char room2);
 
 /**
  * @brief Main logic for connecting rooms using rule-based system.
@@ -168,7 +202,7 @@ void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path);
  * @param door_y Pointer to store door Y coordinate if found
  * @return 1 if door found on specified side, 0 otherwise
  */
-unsigned char find_best_existing_door_on_room_side(unsigned char room_idx, unsigned char side,
+unsigned char find_existing_door_on_room_side(unsigned char room_idx, unsigned char side,
                                                   unsigned char target_x, unsigned char target_y,
                                                   unsigned char *door_x, unsigned char *door_y);
 
