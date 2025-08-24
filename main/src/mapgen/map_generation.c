@@ -239,7 +239,7 @@ unsigned char generate_level(void) {
     // - Multi-attempt fallback evaluates each unconnected room systematically  
     // - Position-based corridor selection for all connection attempts
     // - Distance-optimized pairing ensures best possible connectivity
-    print_text("\n\nCreating corridors (.=success ?=fallback !=recovered f=attempt_fail X=abort)");
+    print_text("\n\nCreating corridors...");
     unsigned char connected[MAX_ROOMS];
     unsigned char connections_made = 0;
     unsigned char i;
