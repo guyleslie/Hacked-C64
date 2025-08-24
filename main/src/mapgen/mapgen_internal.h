@@ -61,10 +61,15 @@ void calculate_exit_points(Room *room, unsigned char target_x, unsigned char tar
 unsigned char draw_corridor(unsigned char room1, unsigned char room2);
 
 /**
- * @brief Checks if two rooms can be safely connected according to the base rules.
+ * @brief Checks if two rooms can be safely connected according to simplified rules.
  * @param room1 The first room index.
  * @param room2 The second room index.
  * @return 1 if connection is allowed, 0 otherwise.
+ * 
+ * Simplified validation with dynamic distance limits:
+ * - For sparse layouts (≤8 rooms): max 80 tiles apart
+ * - For normal layouts (>8 rooms): max 30 tiles apart
+ * This ensures connectivity on large maps with few rooms while maintaining C64 performance.
  */
 unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2);
 

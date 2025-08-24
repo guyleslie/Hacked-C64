@@ -70,6 +70,7 @@ void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned ch
 void init_room_center_cache(void);
 void clear_room_center_cache(void);
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2);
+unsigned char get_max_connection_distance(void);
 
 // Tile validation and adjacency checking
 unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsigned char type_flags);

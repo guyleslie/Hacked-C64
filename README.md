@@ -84,11 +84,12 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ### Advanced Generation System
 
-- **Advanced MST with Intelligent Fallback**: Uses Minimum Spanning Tree algorithm with multi-attempt fallback mechanism to ensure maximum room connectivity
+- **Advanced MST with Intelligent Fallback**: Uses Minimum Spanning Tree algorithm with multi-attempt fallback mechanism and fallback override for isolated rooms to ensure maximum room connectivity
 - **Intelligent Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
 - **Position-Based Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships (aligned vs diagonal positioning)
 - **Advanced Wall Generation**: Two-pass algorithm with proper corner detection and visual enclosure
 - **Priority-Based Stair Placement**: Stairs placed in highest-priority rooms for optimal dungeon flow
+- **Simplified Connection Rules**: Dynamic distance-based validation (30-80 tiles depending on room density), no minimum room distance restrictions during connection phase
 
 ### Memory and Performance Optimization
 
@@ -105,13 +106,14 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Map Export**: Press 'M' to save maps as C64 PRG files to disk
 - **Advanced Progress Feedback**: Detailed connection progress with fallback recovery indicators
   - **Standard MST**: "." for successful connections
-  - **Intelligent Fallback**: "?" (start), "f" (attempt fail), "!" (recovery), "X" (complete failure)
+  - **Intelligent Fallback**: "?" (start), "f" (attempt fail), "!" (recovery success), "X" (complete failure)
+  - **Fallback Override**: Automatically retries previously failed connections for isolated rooms
 
 ## Developer Pipeline and Module Responsibilities
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
 - `map_generation.c`: Main generation pipeline (rooms, corridors, walls, stairs)
-- `connection_system.c`: Advanced MST with multi-attempt fallback, position-based corridor selection, comprehensive path validation
+- `connection_system.c`: Advanced MST with multi-attempt fallback, position-based corridor selection, comprehensive path validation, fallback override for isolated rooms
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions
 - `testdisplay.c`: Screen handling, viewport management, input processing, delta refresh

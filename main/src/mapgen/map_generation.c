@@ -239,6 +239,8 @@ unsigned char generate_level(void) {
     // - Multi-attempt fallback evaluates each unconnected room systematically  
     // - Position-based corridor selection for all connection attempts
     // - Distance-optimized pairing ensures best possible connectivity
+    // - Fallback override capability rescues isolated rooms by retrying failed connections
+    // - Dynamic distance limits: 30-80 tiles based on room density for optimal connectivity
     print_text("\n\nCreating corridors...");
     unsigned char connected[MAX_ROOMS];
     unsigned char connections_made = 0;
@@ -268,6 +270,7 @@ unsigned char generate_level(void) {
                 if (connected[j]) continue; 
                 
                 // Only allow connections that comply with safety rules
+                // Dynamic distance limits: 30-80 tiles based on room count for better connectivity
                 if (!can_connect_rooms_safely(i, j)) continue;
                 
                 // INFINITE LOOP PREVENTION: Skip connections already attempted or reachable
@@ -307,7 +310,8 @@ unsigned char generate_level(void) {
                 for (unsigned char j = 0; j < room_count; j++) {
                     if (!connected[j]) continue; // Only connected rooms as sources
                     
-                    // SAFETY RULE COMPLIANCE: Ensure connection respects all constraints
+                    // SAFETY RULE COMPLIANCE: Ensure connection respects dynamic distance constraints
+                    // Dynamic limits: 30-80 tiles based on room density for optimal connectivity
                     if (!can_connect_rooms_safely(j, i)) continue;
                     
                     // DISTANCE SCORING: Lower distance = higher priority

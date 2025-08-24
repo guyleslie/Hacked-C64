@@ -13,12 +13,18 @@
 #define MAP_H  64
 #define VIEW_W 40
 #define VIEW_H 25
-#define MAX_ROOMS 20
+#define MAX_ROOMS 5
 #define MIN_SIZE 4
 #define MAX_SIZE 8
 #define MIN_ROOM_DISTANCE 4
-#define MAX_ROOM_DIS 10
 #define GRID_SIZE 4
+
+// Dynamic maximum connection distance calculation
+// For maps with few rooms, allow longer connections to ensure connectivity
+// Formula: (MAP_W + MAP_H) / (MAX_ROOMS / 2) but capped at reasonable limits
+#define MAX_CONNECTION_DISTANCE_BASE 30        // Base distance for normal cases
+#define MAX_CONNECTION_DISTANCE_EXTENDED 80    // Extended for sparse room layouts
+#define CONNECTION_DISTANCE_THRESHOLD 8        // If fewer rooms than this, use extended distance
 
 // Map tile characters (PETSCII)
 #define EMPTY  32

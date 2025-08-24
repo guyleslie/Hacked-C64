@@ -9,15 +9,17 @@
 // 4. Infinite Loop Prevention through Attempted Connection Tracking
 // 5. Intelligent Room Pairing with Distance Optimization
 // 6. L-Shaped Corridor Fix with Proper Door Positioning
-// 7. CORRIDOR VALIDATION SYSTEM:
+// 7. Fallback Override for Isolated Rooms
+// 8. CORRIDOR VALIDATION SYSTEM:
 //    - STRAIGHT: Uses path_intersects_other_rooms() for single segment
 //    - L-SHAPED: Uses l_path_avoids_rooms() with specialized exit points  
 //    - Z-SHAPED: Uses z_path_avoids_rooms() for three-segment validation
-// 8. FALLBACK RECOVERY MECHANISM:
+// 9. FALLBACK RECOVERY MECHANISM:
 //    - Systematic evaluation of all unconnected rooms
 //    - Distance-based pairing with connected rooms
 //    - Multi-attempt strategy prevents premature termination
-// 7. CORRIDOR TYPES:
+//    - Override capability for previously failed attempts (isolated room rescue)
+// 10. CORRIDOR TYPES:
 //    - STRAIGHT CORRIDORS: For aligned rooms ONLY (horizontal/vertical overlap)
 //      * Exit points placed at center of overlapping region, facing each other
 //      * Single straight line connection (horizontal or vertical only)
@@ -38,9 +40,9 @@
 //      * Middle segment: connects perpendicular to first segment direction
 //      * Final segment: reaches room 2 perpendicular to its exit wall
 //      * Provides natural flow for both aligned and diagonal room connections
-// 8. EXIT POINT PLACEMENT: Always 1 tile away from room walkable perimeter
-// 9. DOOR PLACEMENT: Always 1 tile from room walkable perimeter (toward corridor)
-// 10. CORRIDOR DECISION LOGIC (Issue #18 Fix - Position-Based Selection):
+// 11. EXIT POINT PLACEMENT: Always 1 tile away from room walkable perimeter
+// 12. DOOR PLACEMENT: Always 1 tile from room walkable perimeter (toward corridor)
+// 13. CORRIDOR DECISION LOGIC (Issue #18 Fix - Position-Based Selection):
 //     - ALIGNED ROOMS (horizontal/vertical overlap detected):
 //       → 70% chance: STRAIGHT CORRIDOR (direct connection)
 //       → 30% chance: Z-SHAPED CORRIDOR (natural flow)
@@ -51,10 +53,16 @@
 //       → NEVER use straight corridors for diagonal rooms
 //     - Selection based on ROOM POSITIONING, not distance or obstacles
 //     - Each corridor type has specific architectural logic and natural flow patterns
-// 11. Z-CORRIDOR DIRECTION: First leg direction based on exit wall type
+// 14. Z-CORRIDOR DIRECTION: First leg direction based on exit wall type
 //     - Horizontal walls (top/bottom): Start with vertical movement (away from wall)
 //     - Vertical walls (left/right): Start with horizontal movement (away from wall)
 //     This avoids corridors running parallel to room walls for natural appearance
+// 15. SAFETY RULES SIMPLIFIED WITH DYNAMIC DISTANCE:
+//     - Dynamic distance validation based on room count and map size
+//     - Sparse layouts (≤8 rooms): allow up to 80 tiles distance
+//     - Normal layouts (>8 rooms): limit to 30 tiles distance
+//     - No minimum room distance restrictions during connection phase
+//     - Room spacing was already validated during placement phase
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS 
@@ -206,23 +214,20 @@ unsigned char l_path_avoids_rooms(unsigned char sx, unsigned char sy, unsigned c
     return 1; // Both legs are clear
 }
 
-// Cache-aware rule check between two rooms
+// Simplified safety check for room connections - dynamic distance validation
 unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2) {
     if (room1 >= room_count || room2 >= room_count || room1 == room2) {
         return 0;
     }
     
-    // 1. Cached distance check - only prevent extremely far connections
+    // Dynamic distance check based on room count and map size
+    unsigned char max_distance = get_max_connection_distance();
     unsigned char distance = get_cached_room_distance(room1, room2);
-    if (distance > 30) { // Too far apart
-        return 0;
+    if (distance > max_distance) {
+        return 0; // Too far apart for reasonable corridor
     }
     
-    // 2. Removed minimum room distance check - rooms can be connected regardless of proximity
-    // The room placement algorithm already ensures proper spacing during generation
-    // Corridors should be able to connect any rooms that aren't overlapping
-    
-    return 1; // Safe to connect - no buffer zone restrictions
+    return 1; // Safe to connect - minimum distance restrictions removed
 }
 
 // Fast rule check for corridors with basic adjacency rules

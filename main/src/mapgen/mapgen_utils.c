@@ -775,6 +775,23 @@ unsigned char calculate_room_distance(unsigned char room1, unsigned char room2) 
     return manhattan_distance(x1, y1, x2, y2);
 }
 
+/**
+ * @brief Calculate optimal maximum connection distance based on room count and map size
+ * @return Maximum allowable distance between rooms for connection
+ * 
+ * For sparse room layouts (few rooms on large maps), allows longer connections
+ * to ensure all rooms can be connected. Uses conservative limits for C64 performance.
+ */
+unsigned char get_max_connection_distance(void) {
+    // For maps with very few rooms, use extended distance
+    if (room_count <= CONNECTION_DISTANCE_THRESHOLD) {
+        return MAX_CONNECTION_DISTANCE_EXTENDED;
+    }
+    
+    // For normal room density, use base distance
+    return MAX_CONNECTION_DISTANCE_BASE;
+}
+
 // =============================================================================
 // TILE VALIDATION AND ADJACENCY CHECKING
 // =============================================================================
