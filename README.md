@@ -57,7 +57,7 @@ Hacked-C64/
             ├─ connection_system.c            // Minimum Spanning Tree, rule-based connections
             ├─ map_export.c                   // Map export to Oscar64/C64 binary format
             ├─ map_export.h                   // Map export header
-            ├─ map_generation.c               // Main generation pipeline (rooms, corridors, walls, stairs)
+            ├─ map_generation.c               // Main generation pipeline (rooms, corridors, stairs, walls)
             ├─ mapgen_api.h                   // Public API for mapgen
             ├─ mapgen_display.h               // Display helpers for mapgen
             ├─ mapgen_internal.h              // Internal helpers for mapgen
@@ -104,12 +104,12 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Real-Time Navigation**: WASD movement with smooth viewport scrolling
 - **Live Map Generation**: Press SPACE for new dungeon layouts  
 - **Map Export**: Press 'M' to save maps as C64 PRG files to disk
-- **Progress Indicator**: Each major generation step prints a dot (`"."`) to the screen, showing real-time progress as rooms, corridors, walls, and stairs are created.
+- **Progress Indicator**: Each major generation step prints a dot (`"."`) to the screen, showing real-time progress as rooms, corridors, stairs, and walls are created.
 
 ## Developer Pipeline and Module Responsibilities
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
-- `map_generation.c`: Main generation pipeline (rooms, corridors, walls, stairs)
+- `map_generation.c`: Main generation pipeline (rooms, corridors, stairs, walls)
 - `connection_system.c`: Position-based corridor selection, comprehensive path validation, MST algorithm
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions

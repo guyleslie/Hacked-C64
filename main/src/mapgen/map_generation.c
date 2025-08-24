@@ -1,10 +1,10 @@
 // =============================================================================
 // Map Generation Module for C64 Map Generator
-// Contains wall placement, stair generation, and main map generation logic
+// Contains stair generation, wall placement, and main map generation logic
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
-#include "mapgen_internal.h"   // For add_walls, add_stairs, etc. and global variable declarations
+#include "mapgen_internal.h"   // For add_stairs, add_walls, etc. and global variable declarations
 #include "mapgen_utils.h"      // For get_room_center, coords_in_bounds, calculate_room_distance
 
 // =============================================================================
@@ -27,7 +27,7 @@ unsigned char is_walkable_tile(unsigned char tile) {
 
 // Straight wall run detection removed - no longer needed without corner logic
 
-// Two-phase wall and corner placement system
+// Wall placement system
 void add_walls(void) {
     unsigned char x, y;
 
@@ -147,7 +147,7 @@ unsigned char generate_level(void) {
         return 0; // Generation failed
     }
     
-    // Phase 2: Position-Based MST
+    // Phase 2: Room Connection System
     // - Position-based corridor selection ensures near-perfect connectivity
     // - Standard MST with attempted connection filtering (prevents infinite loops)
     // - Dynamic distance limits: 30-80 tiles based on room density for optimal connectivity
@@ -208,11 +208,11 @@ unsigned char generate_level(void) {
         }
     }
     
-    // Phase 4: Add walls around all floor areas
-    add_walls();
-
-    // Phase 5: Place stairs for level navigation
+    // Phase 4: Place stairs for level navigation
     add_stairs();
+
+    // Phase 5: Add walls around all floor areas
+    add_walls();
     
     return 1; // Generation successful
 }

@@ -12,7 +12,7 @@ The project follows a modular, layered architecture designed specifically for C6
 | Module                  | Primary Function                   | Key Algorithms                             | C64 Optimizations                                 |
 |-------------------------|------------------------------------|--------------------------------------------|---------------------------------------------------|
 | **main.c**              | System initialization, main loop   | VIC-II configuration, input processing     | Direct hardware register access                   |
-| **map_generation.c**    | Generation pipeline coordination   | Two-pass wall placement, stair positioning | Memory-efficient iteration patterns               |
+| **map_generation.c**    | Generation pipeline coordination   | Stair positioning, wall placement | Memory-efficient iteration patterns               |
 | **connection_system.c** | Room connectivity and corridors    | Position-based corridor selection, comprehensive path validation, MST algorithm | Static memory pools, optimized distance caching   |
 | **room_management.c**   | Room placement and validation      | Grid-based placement, collision detection  | Bit-packed validation, fast bounds checking       |
 | **mapgen_display.c**    | Display and user interaction       | Delta refresh, viewport management         | Direct screen memory access, PETSCII optimization |
@@ -272,23 +272,7 @@ unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% probability
 
 This position-based approach ensures that corridor selection matches the spatial relationship between rooms, creating more natural and architecturally sound dungeon layouts.
 
-## Stage 4: Wall Generation System
-
-The wall generation system implements a streamlined algorithm ensuring complete visual enclosure around all walkable areas.
-
-### Wall Placement Algorithm (`add_walls()`)
-
-**Perimeter Wall Placement**:
-
-- **Walkable Tile Scanning**: Iterates through all map positions identifying floor, door, and stair tiles
-- **Adjacent Empty Detection**: Places wall tiles in all cardinal directions (N/S/E/W) from walkable areas
-- **Diagonal Wall Coverage**: Places walls at diagonal positions for complete enclosure
-- **Enclosure Guarantee**: Ensures complete wall coverage around all accessible areas
-- **Performance Optimization**: Single-pass iteration with immediate wall placement
-
-This streamlined approach produces clean, functional dungeon walls while maintaining optimal C64 performance.
-
-## Stage 5: Priority-Based Stair Placement
+## Stage 4: Priority-Based Stair Placement
 
 Stair placement uses a sophisticated priority system to ensure optimal dungeon navigation flow and logical progression.
 
@@ -306,6 +290,22 @@ Stair placement uses a sophisticated priority system to ensure optimal dungeon n
 - **Second Highest Selection**: DOWN stairs placed in second-highest priority room
 - **Center Positioning**: Stairs positioned at exact room centers for accessibility
 - **Conflict Avoidance**: Ensures UP and DOWN stairs never occupy the same room
+
+## Stage 5: Wall Generation System
+
+The wall generation system implements a streamlined algorithm ensuring complete visual enclosure around all walkable areas.
+
+### Wall Placement Algorithm (`add_walls()`)
+
+**Perimeter Wall Placement**:
+
+- **Walkable Tile Scanning**: Iterates through all map positions identifying floor, door, and stair tiles
+- **Adjacent Empty Detection**: Places wall tiles in all cardinal directions (N/S/E/W) from walkable areas
+- **Diagonal Wall Coverage**: Places walls at diagonal positions for complete enclosure
+- **Enclosure Guarantee**: Ensures complete wall coverage around all accessible areas
+- **Performance Optimization**: Single-pass iteration with immediate wall placement
+
+This streamlined approach produces clean, functional dungeon walls while maintaining optimal C64 performance.
 
 ## Stage 6: Interactive Display and Navigation System
 
