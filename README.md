@@ -137,9 +137,16 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 ### Algorithm Complexity
 
 - **Room Placement:** O(n) with grid constraints
-- **MST Generation:** O(n²) for small room counts (optimal for C64)
+- **MST Generation:** O(n²) for small room counts using Prim algorithm
 - **Wall Generation:** O(map_size) single-pass algorithm
 - **Rendering:** O(viewport_size) with delta optimization
+
+### OSCAR64 Implementation Details
+
+- **Zero Page Variables:** MST algorithm uses `__zeropage` variables (`mst_best_room1`, `mst_best_room2`, `mst_best_distance`) for 6502 fast memory access
+- **Pragma Directives:** `#pragma optimize(speed)` applied to MST nested loops
+- **Bitwise Operations:** Uses `y & 7` instead of `y % 8` for modulo operations
+- **Build Configuration:** Compiled with `-O0` debug flags
 
 ## Usage (Build & Run)
 

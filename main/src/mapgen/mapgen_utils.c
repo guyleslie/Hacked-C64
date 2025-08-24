@@ -28,6 +28,11 @@ unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 // Array storing room structure data for dungeon generation
 Room rooms[MAX_ROOMS];
 
+// OSCAR64 zero page optimized variables for MST performance
+__zeropage unsigned char mst_best_room1;
+__zeropage unsigned char mst_best_room2; 
+__zeropage unsigned char mst_best_distance;
+
 // Tracks the current number of rooms generated in the dungeon
 unsigned char room_count = 0;
 

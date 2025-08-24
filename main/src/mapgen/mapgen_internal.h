@@ -40,6 +40,11 @@ extern Room rooms[MAX_ROOMS];
 extern unsigned char room_count;
 extern unsigned int rng_seed;
 
+// OSCAR64 zero page optimized variables for MST performance
+extern __zeropage unsigned char mst_best_room1;
+extern __zeropage unsigned char mst_best_room2; 
+extern __zeropage unsigned char mst_best_distance;
+
 // Display and camera system (defined in main.c)
 extern unsigned char camera_center_x, camera_center_y;
 extern Viewport view;

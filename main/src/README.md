@@ -1,337 +1,164 @@
+# C64 Dungeon Map Generator - Source Code Documentation
 
-# Oscar64/C64 Advanced Dungeon Map Generator – Source Directory Documentation
+Oscar64 C compiler implementation for Commodore 64 hardware.
 
-This document provides comprehensive documentation for the source code architecture, algorithms, and implementation details of the Oscar64/C64 dungeon map generator. The codebase represents a sophisticated example of C64 programming with modern software engineering principles, featuring advanced algorithms, optimal memory management, and hardware-specific optimizations.
+## Architecture Overview
 
-## Project Architecture Overview
+### Module Structure
 
-The project follows a modular, layered architecture designed specifically for C64 hardware constraints while maintaining code clarity and maintainability. All modules are written in C and optimized for Oscar64 compilation, with extensive use of static memory allocation and hardware-specific optimizations.
+| Module | Function | Algorithms |
+|--------|----------|------------|
+| **main.c** | System initialization, main loop | VIC-II setup, input handling |
+| **map_generation.c** | Generation pipeline | Room placement, MST connectivity, wall generation |
+| **connection_system.c** | Room connectivity | MST algorithm, corridor pathfinding |
+| **room_management.c** | Room placement | Grid-based placement, collision detection |
+| **mapgen_display.c** | Display system | Viewport management, screen rendering |
+| **mapgen_utils.c** | Utility functions | Math, random generation, tile conversion |
+| **map_export.c** | File I/O | Binary serialization, KERNAL routines |
 
-### Module Responsibility Matrix
+## Tile Encoding System
 
-| Module                  | Primary Function                   | Key Algorithms                             | C64 Optimizations                                 |
-|-------------------------|------------------------------------|--------------------------------------------|---------------------------------------------------|
-| **main.c**              | System initialization, main loop   | VIC-II configuration, input processing     | Direct hardware register access                   |
-| **map_generation.c**    | Generation pipeline coordination   | Stair positioning, wall placement | Memory-efficient iteration patterns               |
-| **connection_system.c** | Room connectivity and corridors    | Position-based corridor selection, comprehensive path validation, MST algorithm | Static memory pools, optimized distance caching   |
-| **room_management.c**   | Room placement and validation      | Grid-based placement, collision detection  | Bit-packed validation, fast bounds checking       |
-| **mapgen_display.c**    | Display and user interaction       | Delta refresh, viewport management         | Direct screen memory access, PETSCII optimization |
-| **mapgen_utils.c**      | Mathematical and utility functions | Random number generation, coordinate math, PETSCII conversion  | Hardware entropy, optimized arithmetic, centralized tile rendering |
-| **map_export.c**        | File I/O and data persistence      | Compact binary serialization               | KERNAL I/O routines, device management            |
-
----
-
-## Advanced Tile Encoding System (mapgen_types.h)
-
-The project implements a sophisticated dual-level tile encoding system with consolidated hardware constants, optimized for both memory efficiency and rendering performance on C64 hardware.
-
-### Hardware Constants Consolidation
-
-All C64-specific hardware addresses and system constants are now centralized in `mapgen_types.h`:
+### Internal Representation (3-bit)
 
 ```c
-// C64 screen memory constants  
-#define SCREEN_MEMORY_BASE 0x0400
-#define SCREEN_MEMORY_END  0x07E7
+#define TILE_EMPTY   0  // Background
+#define TILE_WALL    1  // Solid wall
+#define TILE_FLOOR   2  // Walkable floor
+#define TILE_DOOR    3  // Door/passage
+#define TILE_UP      4  // Up stairs
+#define TILE_DOWN    5  // Down stairs
 ```
 
-This eliminates redundant definitions across modules and provides a single source of truth for hardware-specific values.
-
-### 1. Display-Level PETSCII Encoding
-
-These constants provide direct mapping to PETSCII character codes for immediate screen rendering, chosen for optimal visual clarity and C64 hardware compatibility.
+### PETSCII Display Constants
 
 ```c
-// PETSCII Display Constants
-#define EMPTY   32    // Space character: empty/unoccupied tiles
-#define WALL    160   // Solid block: structural walls
-#define FLOOR   46    // Period (.): walkable floor surfaces
-#define DOOR    171   // Inverse plus (+): doorways and passages
-#define UP      60    // Less-than (<): ascending stairs
-#define DOWN    62    // Greater-than (>): descending stairs
+#define EMPTY   32   // Space character
+#define WALL    160  // Solid block
+#define FLOOR   46   // Period (.)
+#define DOOR    171  // Inverse plus (+)
+#define UP      60   // Less-than (<)
+#define DOWN    62   // Greater-than (>)
 ```
 
-**Design Rationale**: These PETSCII values are written directly to $0400 (C64 screen memory) for maximum rendering speed. The character selection ensures clear visual distinction while maintaining compatibility with C64 character ROM limitations.
+**Memory Efficiency**: 64x64 map stored in 1536 bytes (3 bits per tile)
 
-### 2. Compact Internal Encoding
+## Map Generation Pipeline
 
-For algorithmic processing and memory-optimized storage, each tile uses a compact 3-bit representation, allowing efficient bit-packing and fast logical operations.
+### 1. System Initialization
 
-```c
-// Compact Internal Representation
-#define TILE_EMPTY   0 // Unused/background tile
-#define TILE_WALL    1 // Structural wall tile
-#define TILE_FLOOR   2 // Walkable floor surface
-#define TILE_DOOR    3 // Passage/doorway tile
-#define TILE_UP      4 // Upward staircase
-#define TILE_DOWN    5 // Downward staircase
-```
+- Random seed generation using CIA timers
+- Connection matrix initialization
+- Memory pool setup
 
-**Memory Efficiency**: This encoding enables 8 tiles to be packed into 3 bytes (8 * 3 bits = 24 bits), achieving 12.5% memory overhead for a 4096-tile map stored in only 1536 bytes.
+### 2. Room Placement
 
-### 3. Real-Time Conversion System
+**Algorithm**: Grid-based placement with collision detection
 
-The conversion between internal and display representations is handled by an optimized macro that eliminates function call overhead:
+- 4x4 grid cell distribution
+- Room sizes: 4x4 to 8x8 tiles
+- Buffer zones prevent room overlap
+- Validation ensures map boundary compliance
 
-```c
-#define TILE_TO_PETSCII(tile) ((tile) == TILE_EMPTY ? EMPTY : \
-                               (tile) == TILE_WALL ? WALL : \
-                               (tile) == TILE_FLOOR ? FLOOR : \
-                               (tile) == TILE_DOOR ? DOOR : \
-                               (tile) == TILE_UP ? UP : \
-                               (tile) == TILE_DOWN ? DOWN : \
-                               EMPTY)
-```
+**Placement Process** (`can_place_room()`):
 
-This dual-encoding approach provides the benefits of compact storage during generation and fast rendering during display, optimized specifically for C64 hardware constraints.
+- Calculate buffer zone boundaries
+- Check for tile collisions in buffer area
+- Enforce minimum distance between rooms
+- Update room metadata upon successful placement
 
-### 4. Optimized Display Function Consolidation
+### 3. Room Connection System
 
-The `get_map_tile_fast()` function has been moved from `mapgen_display.c` to `mapgen_utils.c` to centralize all PETSCII conversion logic:
+**Algorithm**: Prim MST (Minimum Spanning Tree)
 
-```c
-// Centralized in mapgen_utils.c for optimal code reuse
-unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y);
-```
+**OSCAR64 Optimizations**:
 
-This consolidation eliminates code duplication and provides a unified interface for tile rendering across all display modules.
+- Zero page variables: `mst_best_room1`, `mst_best_room2`, `mst_best_distance`
+- Speed pragma: `#pragma optimize(speed)` on nested loops
+- Bitwise operations for modulo: `y & 7` instead of `y % 8`
 
----
+**MST Process**:
 
-## Advanced Map Generation Pipeline
+- Start with room 0 as connected
+- Find shortest valid connection between connected/unconnected rooms  
+- Skip already attempted connections (infinite loop prevention)
+- Use Manhattan distance for edge weights
+- Build exactly (room_count - 1) connections
 
-The map generation system implements a sophisticated multi-stage pipeline designed for creating organic, interconnected dungeon layouts while respecting strict C64 memory and performance constraints. Each stage builds upon the previous one, with comprehensive validation and optimization at every step.
+**Corridor Types**:
 
-### Stage 0: Optimized Code Organization
+- **Straight**: Single line segment for aligned rooms
+- **L-shaped**: Two perpendicular segments for diagonal rooms
+- **Z-shaped**: Three segments for complex routing
 
-The project implements a sophisticated modular architecture with optimized include management and variable consolidation for maximum performance and maintainability.
+**Corridor Selection Logic**:
 
-#### Consolidated Global Variable Management
+- Aligned rooms (axis overlap): 70% straight, 30% Z-shaped
+- Diagonal rooms (no axis overlap): 50% L-shaped, 50% Z-shaped
 
-All external variable declarations are centralized in `mapgen_internal.h` to eliminate redundancy:
+### 4. Stair Placement
 
-```c
-// =============================================================================
-// CONSOLIDATED GLOBAL VARIABLE DECLARATIONS
-// =============================================================================
+- Priority calculation based on room connectivity
+- UP stairs: highest priority room
+- DOWN stairs: second highest priority room
+- Positioned at room centers
 
-// Core map data (defined in mapgen_utils.c)
-extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
-extern Room rooms[MAX_ROOMS];
-extern unsigned char room_count;
-extern unsigned int rng_seed;
+### 5. Wall Generation
 
-// Display and camera system (defined in main.c)
-extern unsigned char camera_center_x, camera_center_y;
-extern Viewport view;
-extern unsigned char screen_buffer[VIEW_H][VIEW_W];
-extern unsigned char screen_dirty;
-extern unsigned char last_scroll_direction;
-```
+**Single-pass algorithm**:
 
-This approach eliminates 36+ lines of redundant extern declarations across modules.
+- Scan all walkable tiles (floor, door, stairs)
+- Place walls in 8 directions around each walkable tile
+- Only place walls on empty tiles
 
-#### Optimized Include Structure
+### 6. Display System
 
-All source files now follow a standardized include organization:
+**Viewport Management**:
 
-```c
-// System headers
-#include <c64/vic.h>
-#include <conio.h>
-// Project headers  
-#include "mapgen_types.h"
-#include "mapgen_utils.h"
-```
+- 40x25 character display window
+- Camera tracking with boundary protection
+- Delta refresh (update only changed tiles)
+- Direct screen memory access ($0400-$07E7)
 
-Benefits include reduced compilation dependencies, eliminated circular includes, and cleaner code organization.
+**Input System**:
 
-### Stage 1: System Initialization and State Management
+- WASD movement
+- SPACE: generate new map  
+- M: export map to PRG file
 
-The initialization process establishes a clean, reproducible foundation for map generation through careful state management and hardware preparation.
+## Memory Layout
 
-#### Random Number Generator Initialization (`init_rng()`)
+**Data Structures**:
 
-- **Hardware Entropy Collection**: Utilizes CIA timer registers and SID voice frequencies for true randomness
-- **Seed Mixing Algorithm**: Combines multiple entropy sources with mathematical operations for unpredictable sequences
-- **Oscar64 Optimization**: Custom assembly routines for maximum performance on C64 hardware
-- **Automatic Invocation**: Called by `reset_all_generation_data()` ensuring fresh randomness for each map
+- Map data: 1536 bytes (3-bit packed)
+- Room array: 20 rooms maximum
+- Connection matrices: room connectivity tracking
+- Screen buffer: 40x25 characters
 
-#### Connection System Setup (`init_connection_system()`)
+**Total Memory Usage**: ~3.6 KB including all data structures
 
-- **Matrix Initialization**: Zeros the room-to-room connection matrix using optimized memory operations
-- **Cache Management**: Resets distance cache with 255 (invalid marker) preventing stale data corruption
-- **Memory Pool Reset**: Initializes corridor segment pools and connection caches for deterministic reuse
-- **Precomputation**: Builds symmetric distance cache for MST and pathfinding optimization
-- **Static Allocation**: All data structures use fixed-size arrays, ensuring predictable memory usage
+## File Export System
 
-This dual-phase initialization guarantees consistent, reproducible state management with optimal C64 hardware utilization.
+**Format**: C64 PRG file
 
-### Stage 2: Intelligent Room Placement System
+- Binary encoded map data
+- KERNAL I/O routines for disk access
+- Device 8 (disk drive) output
+- Loadable program format
 
-Room placement uses advanced grid-based algorithms with sophisticated validation to ensure optimal distribution and collision-free placement.
+## Technical Specifications
 
-#### Grid-Based Distribution Algorithm
+**Algorithms Complexity**:
 
-- **Fisher-Yates Shuffle**: Randomizes 4x4 grid positions for even room distribution across the map
-- **Anti-Clustering Logic**: Prevents room concentration in specific map regions
-- **Size Randomization**: Dynamic room sizing (4-8 tiles) with bias toward medium sizes for optimal connectivity
-- **Placement Attempts**: Multiple attempts per grid cell with fallback logic for challenging placements
+- Room placement: O(n)
+- MST generation: O(n²)
+- Wall generation: O(map_size)
+- Rendering: O(viewport_size)
 
-#### Advanced Validation System (`can_place_room()`)
+**C64 Hardware Integration**:
 
-- **Optimized Buffer Zone Calculation**: Calculates buffer boundaries with minimum room distance in a single pass
-- **Boundary Validation**: Ensures buffer zone + safety margin (3 tiles) doesn't exceed map boundaries  
-- **Zone Clamping**: Automatically clamps buffer boundaries to map limits for edge cases
-- **Efficient Collision Detection**: Single nested loop checks entire buffer zone for TILE_EMPTY
-- **Early Termination**: Immediately returns 0 on first non-empty tile found for maximum performance
-- **Memory-Optimized**: Uses compact tile access (`get_compact_tile()`) for fast validation
-- **Distance Enforcement**: Maintains MIN_ROOM_DISTANCE between all room pairs automatically through buffer zone
+- Direct VIC-II register access
+- CIA timer entropy collection  
+- Screen memory manipulation
+- KERNAL I/O integration
 
-#### Room Commitment Process (`place_room()`)
-
-- **Atomic Placement**: All-or-nothing room placement preventing partial room states
-- **Floor Tile Assignment**: Sets TILE_FLOOR for all interior room positions
-- **Metadata Update**: Updates global room list with position, size, and connectivity information
-- **Center Calculation**: Computes and caches room centers for corridor connection optimization
-
-### Stage 3: MST-Based Room Connection System
-
-The connection system implements a sophisticated Minimum Spanning Tree algorithm enhanced with rule-based corridor generation and intelligent path optimization.
-
-#### Optimized MST Algorithm with Position-Based Selection (`generate_level()`)
-
-- **Weighted Distance Calculation**: Uses Manhattan distance with corridor complexity penalties
-- **Incremental Construction**: Builds MST one connection at a time, validating each addition
-- **Attempted Connection Filtering**: Prevents infinite loops by skipping previously attempted connections
-- **Position-Based Corridor Logic**: Sophisticated spatial analysis and probabilistic corridor selection ensures reliable connectivity
-
-#### Position-Based Corridor Generation (`draw_corridor()`)
-
-- **Spatial Relationship Analysis**: Determines corridor type based on room alignment (not distance)
-- **Position-Based Path Selection**:
-  - **Aligned Rooms** (horizontal/vertical overlap): 70% straight corridors, 30% Z-shaped, never L-shaped
-  - **Diagonal Rooms** (no axis overlap): 50% L-shaped, 50% Z-shaped, never straight
-- **Comprehensive Path Validation**: All corridor types validate against room intersections before drawing
-  - **Straight**: Single-segment validation using `path_intersects_other_rooms()`
-  - **L-Shaped**: Two-segment validation using `l_path_avoids_rooms()`
-  - **Z-Shaped**: Three-segment validation using `z_path_avoids_rooms()`
-- **Intelligent Door Reuse**: All corridor types check for existing doors and align connections
-  - **Straight & Z-Shaped**: Uses `find_existing_door_on_room_side()` for aligned room connections
-  - **L-Shaped**: Enhanced with door detection on both perpendicular wall sides
-- **Architectural Consistency**: Ensures perpendicular wall connections and natural corridor flow
-- **Exit Point Optimization**: Places corridor endpoints 2 tiles from room perimeters, or 1 tile from existing doors
-- **Door Integration Logic**: Automatically detects and reuses existing doors on appropriate room sides
-
-#### Advanced Pathfinding Features
-
-- **Multi-Segment Coordination**: Manages complex corridors with multiple directional changes
-- **Three-Tier Validation System**: Comprehensive intersection checking for all corridor types
-- **Buffer Zone Protection**: Maintains 1-tile buffer around rooms preventing invalid path intersections
-- **Memory Pool Management**: Efficient reuse of corridor segment data structures
-- **Architectural Logic**: Perpendicular wall connections ensure natural corridor flow patterns
-
-### Position-Based Corridor Selection Logic (Issue #18 Resolution)
-
-The corridor generation system uses sophisticated spatial analysis to determine the most appropriate corridor type based on room positioning rather than distance, ensuring architecturally consistent and visually natural connections.
-
-#### Room Relationship Detection
-
-**Aligned Room Detection** (`check_room_axis_alignment()`):
-
-- **Horizontal Overlap**: Rooms share Y-axis projection ranges
-- **Vertical Overlap**: Rooms share X-axis projection ranges
-- **Spatial Logic**: Rooms are considered "aligned" if they can connect with a single straight line
-
-**Diagonal Room Detection**:
-
-- **No Axis Overlap**: Rooms have no shared projection on either axis
-- **True Diagonal**: Requires multi-segment connection paths
-- **Perpendicular Connections**: Exit points placed on complementary wall sides
-
-#### Probabilistic Corridor Assignment
-
-**For Aligned Rooms** (horizontal/vertical overlap):
-
-```c
-unsigned char use_straight = (rng_seed % 100) < 70; // 70% probability
-// Result: 70% straight, 30% Z-shaped, 0% L-shaped
-```
-
-**For Diagonal Rooms** (no axis overlap):
-
-```c
-unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% probability  
-// Result: 50% L-shaped, 50% Z-shaped, 0% straight
-```
-
-#### Architectural Rationale
-
-- **Straight Corridors**: Natural for aligned rooms, provide direct efficient paths
-- **L-Shaped Corridors**: Optimal for diagonal rooms, create perpendicular wall connections with door reuse on both segments
-- **Z-Shaped Corridors**: Versatile for both scenarios, handle complex routing requirements
-- **Forbidden Combinations**: Prevents architecturally inconsistent corridor types (straight for diagonal, L-shaped for aligned)
-
-This position-based approach ensures that corridor selection matches the spatial relationship between rooms, creating more natural and architecturally sound dungeon layouts.
-
-## Stage 4: Priority-Based Stair Placement
-
-Stair placement uses a sophisticated priority system to ensure optimal dungeon navigation flow and logical progression.
-
-### Priority Calculation System (`assign_room_priorities()`)
-
-- **MST Position Analysis**: Rooms with higher connectivity receive priority bonuses
-- **Distance Weighting**: Rooms farther from map center get increased priority
-- **Hub Detection**: Identifies rooms that serve as connection hubs between map regions
-- **Balanced Distribution**: Ensures stairs are placed in strategically important locations
-
-### Stair Placement Logic (`add_stairs()`)
-
-- **Dual Stair System**: Places both UP and DOWN stairs for complete level navigation
-- **Highest Priority Selection**: UP stairs placed in room with maximum priority value
-- **Second Highest Selection**: DOWN stairs placed in second-highest priority room
-- **Center Positioning**: Stairs positioned at exact room centers for accessibility
-- **Conflict Avoidance**: Ensures UP and DOWN stairs never occupy the same room
-
-## Stage 5: Wall Generation System
-
-The wall generation system implements a streamlined algorithm ensuring complete visual enclosure around all walkable areas.
-
-### Wall Placement Algorithm (`add_walls()`)
-
-**Perimeter Wall Placement**:
-
-- **Walkable Tile Scanning**: Iterates through all map positions identifying floor, door, and stair tiles
-- **Adjacent Empty Detection**: Places wall tiles in all cardinal directions (N/S/E/W) from walkable areas
-- **Diagonal Wall Coverage**: Places walls at diagonal positions for complete enclosure
-- **Enclosure Guarantee**: Ensures complete wall coverage around all accessible areas
-- **Performance Optimization**: Single-pass iteration with immediate wall placement
-
-This streamlined approach produces clean, functional dungeon walls while maintaining optimal C64 performance.
-
-## Stage 6: Interactive Display and Navigation System
-
-The display system implements advanced viewport management with hardware-optimized rendering for smooth, responsive user interaction.
-
-### Viewport Management (`mapgen_display.c`)
-
-- **Camera System**: Smooth scrolling viewport with configurable center tracking
-- **Boundary Protection**: Prevents viewport from moving outside map boundaries
-- **Delta Refresh**: Updates only changed screen regions for flicker-free display
-- **Memory Optimization**: Maintains previous screen buffer for efficient comparison
-
-### Hardware-Optimized Rendering
-
-- **Direct Memory Access**: Writes directly to $0400-$07E7 (C64 screen memory)
-- **PETSCII Conversion**: Real-time conversion from internal tiles to display characters
-- **Scroll Optimization**: Efficient screen updates during viewport movement
-- **Input Processing**: Responsive WASD navigation with immediate feedback
-
-### Map Export System (`map_export.c`)
-
-- **Compact Binary Format**: Exports 3-bit encoded map data for minimal file size
-- **KERNAL I/O Integration**: Uses Oscar64's KERNAL routines for device communication
-- **Device 8 Targeting**: Saves to standard C64 disk drive for real hardware compatibility
-- **PRG Format Output**: Creates loadable program files for easy map sharing
-
-This comprehensive pipeline produces high-quality dungeon maps with optimal performance characteristics specifically tuned for C64 hardware limitations.
+**Compiler**: Oscar64 with -O0 debug flags

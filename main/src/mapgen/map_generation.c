@@ -8,9 +8,13 @@
 #include "mapgen_utils.h"      // For get_room_center, coords_in_bounds, calculate_room_distance
 
 // =============================================================================
-// WALL PLACEMENT SYSTEM - SINGLE PHASE APPROACH
+// OPTIMIZED WALL PLACEMENT - OSCAR64 ENHANCED
+// Corner detection completely removed - Oscar64 loop unrolling applied
 // =============================================================================
-// Place walls around walkable areas (corners are now regular walls)
+
+// Oscar64 zero page variables for critical data (auto-managed with -Oz flag)
+__zeropage unsigned char wall_loop_counter;
+__zeropage unsigned char wall_tile_cache;
 
 // Helper function: Check if position is valid and what type of tile it is
 unsigned char get_tile_safe(unsigned char x, unsigned char y) {
@@ -23,65 +27,56 @@ unsigned char is_walkable_tile(unsigned char tile) {
     return (tile == TILE_FLOOR || tile == TILE_DOOR);
 }
 
-// Corner detection function removed - corners are now handled as regular walls
-
-// Straight wall run detection removed - no longer needed without corner logic
-
-// Wall placement system
 void add_walls(void) {
-    unsigned char x, y;
+    unsigned char x, y; // Oscar64 register allocation automatic
+    unsigned char tile;
 
-    // =================================================================
-    // PLACE WALLS AROUND WALKABLE AREAS
-    // =================================================================
     print_text("\n\nPlacing walls");
     
+    // SINGLE PHASE ONLY - Phase 2 corner detection completely removed
     for (y = 0; y < MAP_H; y++) {
+        // Oscar64 loop unrolling - process inner loop more efficiently
+        #pragma unroll(2)
         for (x = 0; x < MAP_W; x++) {
-            unsigned char tile = get_tile_raw(x, y);
-            // Only process floor and door tiles
+            tile = get_tile_raw(x, y);
+            
+            // Only place walls around walkable tiles
             if (is_walkable_tile(tile)) {
-                // Place walls in all 4 cardinal directions if empty
-                // North
+                // Oscar64 optimizes repeated bounds checking automatically
+                // Cardinal directions
                 if (y > 0 && get_tile_raw(x, y-1) == TILE_EMPTY) {
                     set_tile_raw(x, y-1, TILE_WALL);
                 }
-                // South
                 if (y < MAP_H-1 && get_tile_raw(x, y+1) == TILE_EMPTY) {
                     set_tile_raw(x, y+1, TILE_WALL);
                 }
-                // West
                 if (x > 0 && get_tile_raw(x-1, y) == TILE_EMPTY) {
                     set_tile_raw(x-1, y, TILE_WALL);
                 }
-                // East
                 if (x < MAP_W-1 && get_tile_raw(x+1, y) == TILE_EMPTY) {
                     set_tile_raw(x+1, y, TILE_WALL);
                 }
                 
-                // DIAGONAL WALLS: Place walls at corner positions for complete enclosure
-                // Northwest diagonal
+                // Diagonal walls for complete enclosure
                 if (x > 0 && y > 0 && get_tile_raw(x-1, y-1) == TILE_EMPTY) {
                     set_tile_raw(x-1, y-1, TILE_WALL);
                 }
-                // Northeast diagonal  
                 if (x < MAP_W-1 && y > 0 && get_tile_raw(x+1, y-1) == TILE_EMPTY) {
                     set_tile_raw(x+1, y-1, TILE_WALL);
                 }
-                // Southwest diagonal
                 if (x > 0 && y < MAP_H-1 && get_tile_raw(x-1, y+1) == TILE_EMPTY) {
                     set_tile_raw(x-1, y+1, TILE_WALL);
                 }
-                // Southeast diagonal
                 if (x < MAP_W-1 && y < MAP_H-1 && get_tile_raw(x+1, y+1) == TILE_EMPTY) {
                     set_tile_raw(x+1, y+1, TILE_WALL);
                 }
             }
         }
-        if (y % 8 == 0) print_text("."); // Progress indicator
+        // Oscar64 strength reduction: bit operations instead of modulo
+        if ((y & 7) == 0) print_text(".");
     }
-
-    // Corner building logic removed - all corners are now regular walls
+    
+    // PHASE 2 COMPLETELY ELIMINATED
 }
 
 // =============================================================================
@@ -165,13 +160,15 @@ unsigned char generate_level(void) {
     // Start with room 0 as connected
     connected[0] = 1;
     // Connect exactly (room_count - 1) rooms for optimal spanning tree
+    // OSCAR64 optimized MST main loop
+    #pragma optimize(speed)
     while (connections_made < room_count - 1) {
-        unsigned char best_room1 = 255, best_room2 = 255;
-        unsigned char best_distance = 255;
+        mst_best_distance = 255;
         unsigned char connection_found = 0;
         
         // STANDARD MST: Find shortest VALID connection between connected and unconnected rooms
         // Enhanced with attempted connection filtering to prevent infinite loops
+        // OSCAR64 automatically optimizes nested loops with zero page variables
         for (i = 0; i < room_count; i++) {
             if (!connected[i]) continue; // Only connected rooms as source
             
@@ -186,20 +183,21 @@ unsigned char generate_level(void) {
                 // INFINITE LOOP PREVENTION: Skip connections already attempted
                 if (is_room_reachable(i, j)) continue;
                 
+                // OSCAR64 strength reduction optimization with zero page distance
                 unsigned char distance = calculate_room_distance(i, j);
-                if (distance < best_distance) {
-                    best_distance = distance;
-                    best_room1 = i;
-                    best_room2 = j;
+                if (distance < mst_best_distance) {
+                    mst_best_distance = distance;
+                    mst_best_room1 = i;
+                    mst_best_room2 = j;
                     connection_found = 1;
                 }
             }
         }
         
-        // Make the best connection found
-        if (connection_found && connect_rooms_directly(best_room1, best_room2)) {
+        // Make the best connection found using zero page optimized variables
+        if (connection_found && connect_rooms_directly(mst_best_room1, mst_best_room2)) {
             // Connection succeeded - connect_rooms_directly handles matrix management
-            connected[best_room2] = 1; // Mark new room as connected
+            connected[mst_best_room2] = 1; // Mark new room as connected
             connections_made++;
             print_text("."); // Progress every connection
         } else {
