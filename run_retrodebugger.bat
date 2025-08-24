@@ -6,14 +6,15 @@ setlocal
 
 REM Define paths
 set PROJECT_DIR=%~dp0
-set RETRO_DEBUGGER_EXE=%PROJECT_DIR%RetroDebugger\RetroDebugger.exe
+set RETRO_DEBUGGER_DIR=%PROJECT_DIR%RetroDebugger
+set RETRO_DEBUGGER_EXE=%RETRO_DEBUGGER_DIR%\retrodebugger-notsigned.exe
 set BUILD_DIR=%PROJECT_DIR%build
 set PRG_FILE=%BUILD_DIR%\Hacked C64.prg
 set SYMBOLS_FILE=%BUILD_DIR%\Hacked C64.lbl
 
 REM Check if RetroDebugger exists
 if not exist "%RETRO_DEBUGGER_EXE%" (
-    echo Error: RetroDebugger.exe not found at: %RETRO_DEBUGGER_EXE%
+    echo Error: retrodebugger-notsigned.exe not found at: %RETRO_DEBUGGER_EXE%
     echo Please run the CI/CD build first to download and extract RetroDebugger.
     pause
     exit /b 1
@@ -37,13 +38,14 @@ echo RetroDebugger: %RETRO_DEBUGGER_EXE%
 echo ========================================
 echo.
 
-REM Launch RetroDebugger with the PRG file
+REM Change to RetroDebugger directory and launch with relative paths
+cd /d "%RETRO_DEBUGGER_DIR%"
 if exist "%SYMBOLS_FILE%" (
     echo Loading with symbols file...
-    "%RETRO_DEBUGGER_EXE%" -prg "%PRG_FILE%" -symbols "%SYMBOLS_FILE%" -autojmp -unpause
+    retrodebugger-notsigned.exe -prg "..\build\Hacked C64.prg" -symbols "..\build\Hacked C64.lbl" -autojmp -unpause
 ) else (
     echo Loading without symbols file...
-    "%RETRO_DEBUGGER_EXE%" -prg "%PRG_FILE%" -autojmp -unpause
+    retrodebugger-notsigned.exe -prg "..\build\Hacked C64.prg" -autojmp -unpause
 )
 
 REM Check if RetroDebugger launched successfully
