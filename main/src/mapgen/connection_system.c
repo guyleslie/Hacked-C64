@@ -1019,14 +1019,7 @@ static unsigned char draw_z_corridor(unsigned char exit1_x, unsigned char exit1_
  * Creates new corridors between rooms. Checks for existing connections and
  * reachability to avoid creating redundant paths between the same room pairs.
  */
-/**
- * @brief Connects two rooms with fallback override capability
- * @param room1 First room index
- * @param room2 Second room index
- * @param fallback_override If 1, ignore previous attempted connections
- * @return 1 if connection was made or already exists, 0 if failed
- */
-unsigned char connect_rooms_with_fallback(unsigned char room1, unsigned char room2, unsigned char fallback_override) {
+unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
     // 1. Validate room distance and positioning rules
     if (!can_connect_rooms_safely(room1, room2)) {
         return 0;
@@ -1035,9 +1028,9 @@ unsigned char connect_rooms_with_fallback(unsigned char room1, unsigned char roo
     if (connection_matrix[room1][room2]) {
         return 1; // Connection already exists
     }
-    // 2.1 Check attempted connections only if not overridden
-    if (!fallback_override && attempted_connections[room1][room2]) {
-        return 1; // Was attempted - avoid duplicates (unless fallback override)
+    // 2.1 Check attempted connections to avoid duplicates
+    if (attempted_connections[room1][room2]) {
+        return 1; // Was attempted - avoid duplicates
     }
     // 2.2 Check if rooms are already reachable through indirect paths
     if (is_room_reachable(room1, room2)) {
@@ -1063,10 +1056,6 @@ unsigned char connect_rooms_with_fallback(unsigned char room1, unsigned char roo
     // Keep attempted_connections marked to prevent future retry attempts
     
     return 0; // Connection failed
-}
-
-unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
-    return connect_rooms_with_fallback(room1, room2, 0); // Normal mode, no override
 }
 
 // Initialize connection system and memory pools

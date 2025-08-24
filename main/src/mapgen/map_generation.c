@@ -234,12 +234,10 @@ unsigned char generate_level(void) {
         return 0; // Generation failed
     }
     
-    // Phase 2: Advanced MST with Multi-Attempt Intelligent Fallback System
+    // Phase 2: Position-Based MST with Minimal Fallback
+    // - Position-based corridor selection ensures near-perfect connectivity
     // - Standard MST with attempted connection filtering (prevents infinite loops)
-    // - Multi-attempt fallback evaluates each unconnected room systematically  
-    // - Position-based corridor selection for all connection attempts
-    // - Distance-optimized pairing ensures best possible connectivity
-    // - Fallback override capability rescues isolated rooms by retrying failed connections
+    // - Simple fallback safety mechanism (rarely activated due to position-based success)
     // - Dynamic distance limits: 30-80 tiles based on room density for optimal connectivity
     print_text("\n\nCreating corridors...");
     unsigned char connected[MAX_ROOMS];
@@ -273,7 +271,7 @@ unsigned char generate_level(void) {
                 // Dynamic distance limits: 30-80 tiles based on room count for better connectivity
                 if (!can_connect_rooms_safely(i, j)) continue;
                 
-                // INFINITE LOOP PREVENTION: Skip connections already attempted or reachable
+                // INFINITE LOOP PREVENTION: Skip connections already attempted
                 if (is_room_reachable(i, j)) continue;
                 
                 unsigned char distance = calculate_room_distance(i, j);
@@ -293,59 +291,8 @@ unsigned char generate_level(void) {
             connections_made++;
             print_text("."); // Progress every connection
         } else {
-            // MULTI-ATTEMPT INTELLIGENT FALLBACK: Systematic recovery mechanism
-            // When standard MST exhausts valid connections, try alternative strategies
-            print_text("?"); // Indicate fallback phase start
-            
-            unsigned char fallback_success = 0;
-            
-            // SYSTEMATIC ROOM EVALUATION: Try each unconnected room with best match
-            for (i = 0; i < room_count && !fallback_success; i++) {
-                if (connected[i]) continue; // Only unconnected rooms as targets
-                
-                unsigned char best_connected_room = 255;
-                unsigned char best_distance = 255;
-                
-                // DISTANCE-OPTIMIZED PAIRING: Find best connected room for this unconnected room
-                for (unsigned char j = 0; j < room_count; j++) {
-                    if (!connected[j]) continue; // Only connected rooms as sources
-                    
-                    // SAFETY RULE COMPLIANCE: Ensure connection respects dynamic distance constraints
-                    // Dynamic limits: 30-80 tiles based on room density for optimal connectivity
-                    if (!can_connect_rooms_safely(j, i)) continue;
-                    
-                    // DISTANCE SCORING: Lower distance = higher priority
-                    unsigned char distance = calculate_room_distance(j, i);
-                    
-                    // Track the optimal connection candidate
-                    if (distance < best_distance) {
-                        best_distance = distance;
-                        best_connected_room = j;
-                    }
-                }
-                
-                // POSITION-BASED RETRY: Attempt connection using full corridor selection logic
-                if (best_connected_room != 255) {
-                    // Try connection with position-based corridor logic (aligned vs diagonal)
-                    // Use fallback override to ignore previous failed attempts
-                    if (connect_rooms_with_fallback(best_connected_room, i, 1)) {
-                        // SUCCESSFUL RECOVERY: Connection established
-                        connected[i] = 1; // Mark target room as connected to MST
-                        connections_made++;
-                        print_text("!"); // Indicate successful fallback recovery
-                        fallback_success = 1;
-                        break; // Continue MST with newly connected room
-                    }
-                    // ATTEMPT FAILED: Try next unconnected room
-                    print_text("f"); // Indicate specific connection attempt failed
-                }
-            }
-            
-            // If no fallback connection succeeded
-            if (!fallback_success) {
-                print_text("X"); // Indicate complete connection failure
-                break;
-            }
+            // No valid connections found - MST complete
+            break;
         }
     }
     

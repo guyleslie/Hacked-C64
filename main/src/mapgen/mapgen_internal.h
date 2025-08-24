@@ -117,14 +117,6 @@ unsigned char l_path_avoids_rooms(unsigned char sx, unsigned char sy, unsigned c
  */
 unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2);
 
-/**
- * @brief Connects two rooms with fallback override capability
- * @param room1 First room index
- * @param room2 Second room index
- * @param fallback_override If 1, ignore previous attempted connections
- * @return 1 if connection was made or already exists, 0 if failed
- */
-unsigned char connect_rooms_with_fallback(unsigned char room1, unsigned char room2, unsigned char fallback_override);
 
 /**
  * @brief Initializes the rule-based connection system.
