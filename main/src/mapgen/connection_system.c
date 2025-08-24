@@ -4,7 +4,7 @@
 // =============================================================================
 // Features:
 // 1. Advanced MST with Multi-Attempt Fallback System
-// 2. Position-Based Corridor Selection (Issue #18 Resolution)
+// 2. Position-Based Corridor Selection
 // 3. Comprehensive Path Validation for All Corridor Types
 // 4. Infinite Loop Prevention through Attempted Connection Tracking
 // 5. Intelligent Room Pairing with Distance Optimization
@@ -42,7 +42,7 @@
 //      * Provides natural flow for both aligned and diagonal room connections
 // 11. EXIT POINT PLACEMENT: Always 1 tile away from room walkable perimeter
 // 12. DOOR PLACEMENT: Always 1 tile from room walkable perimeter (toward corridor)
-// 13. CORRIDOR DECISION LOGIC (Issue #18 Fix - Position-Based Selection):
+// 13. CORRIDOR DECISION LOGIC:
 //     - ALIGNED ROOMS (horizontal/vertical overlap detected):
 //       → 70% chance: STRAIGHT CORRIDOR (direct connection)
 //       → 30% chance: Z-SHAPED CORRIDOR (natural flow)
@@ -61,8 +61,6 @@
 //     - Dynamic distance validation based on room count and map size
 //     - Sparse layouts (≤8 rooms): allow up to 80 tiles distance
 //     - Normal layouts (>8 rooms): limit to 30 tiles distance
-//     - No minimum room distance restrictions during connection phase
-//     - Room spacing was already validated during placement phase
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS 
@@ -214,7 +212,7 @@ unsigned char l_path_avoids_rooms(unsigned char sx, unsigned char sy, unsigned c
     return 1; // Both legs are clear
 }
 
-// Simplified safety check for room connections - dynamic distance validation
+// Safety check for room connections
 unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2) {
     if (room1 >= room_count || room2 >= room_count || room1 == room2) {
         return 0;
@@ -227,30 +225,15 @@ unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2)
         return 0; // Too far apart for reasonable corridor
     }
     
-    return 1; // Safe to connect - minimum distance restrictions removed
+    return 1; // Safe to connect
 }
 
-// Fast rule check for corridors with basic adjacency rules
-// OPTIMIZED: Removed corridor_endpoint_override global state complexity
+// Rule check for corridors with basic placement rules
 unsigned char can_place_corridor(unsigned char x, unsigned char y) {
     if (!is_within_map_bounds(x, y)) return 0;
     if (!is_outside_any_room(x, y)) return 0;
 
-    // For short corridors, relax adjacency rules
-    // Check if this position is part of a direct connection between close rooms
-    unsigned char adjacent_room_count = 0;
-    if (!is_outside_any_room(x + 1, y)) adjacent_room_count++;
-    if (!is_outside_any_room(x - 1, y)) adjacent_room_count++;
-    if (!is_outside_any_room(x, y + 1)) adjacent_room_count++;
-    if (!is_outside_any_room(x, y - 1)) adjacent_room_count++;
-
-    // Allow corridor tiles adjacent to exactly 1 or 2 rooms (for short connections)
-    // Prevent placement if adjacent to 3+ rooms (would create problematic intersections)
-    if (adjacent_room_count >= 3) {
-        return 0;
-    }
-
-    return 1; // Safe to build
+    return 1; // Safe to build - advanced validation handled by path intersection checks
 }
 
 // =============================================================================
@@ -1281,13 +1264,12 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
     // Reset corridor path for this connection
     corridor_path_static.length = 0;
     
-    // Determine corridor type based on room alignment (NOT distance!)
+    // Determine corridor type based on room alignment
     unsigned char has_horizontal_overlap, has_vertical_overlap;
     check_room_axis_alignment(room1, room2, &has_horizontal_overlap, &has_vertical_overlap);
     
     // =================================================================
-    // CORRIDOR TYPE SELECTION BASED ON ROOM POSITIONING
-    // Issue #18 Fix: Use room positioning instead of distance
+    // CORRIDOR TYPE SELECTION
     // =================================================================
     
     if (has_horizontal_overlap || has_vertical_overlap) {
