@@ -323,7 +323,8 @@ unsigned char generate_level(void) {
                 // POSITION-BASED RETRY: Attempt connection using full corridor selection logic
                 if (best_connected_room != 255) {
                     // Try connection with position-based corridor logic (aligned vs diagonal)
-                    if (connect_rooms_directly(best_connected_room, i)) {
+                    // Use fallback override to ignore previous failed attempts
+                    if (connect_rooms_with_fallback(best_connected_room, i, 1)) {
                         // SUCCESSFUL RECOVERY: Connection established
                         connected[i] = 1; // Mark target room as connected to MST
                         connections_made++;

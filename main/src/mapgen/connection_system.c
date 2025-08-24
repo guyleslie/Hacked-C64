@@ -212,29 +212,17 @@ unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2)
         return 0;
     }
     
-    // 1. Cached distance check
+    // 1. Cached distance check - only prevent extremely far connections
     unsigned char distance = get_cached_room_distance(room1, room2);
     if (distance > 30) { // Too far apart
         return 0;
     }
     
-    // 2. Check that buffer zones do not overlap (uses MIN_ROOM_DISTANCE only)
-    unsigned char room1_buffer_x1 = rooms[room1].x - MIN_ROOM_DISTANCE;
-    unsigned char room1_buffer_y1 = rooms[room1].y - MIN_ROOM_DISTANCE;
-    unsigned char room1_buffer_x2 = rooms[room1].x + rooms[room1].w + MIN_ROOM_DISTANCE;
-    unsigned char room1_buffer_y2 = rooms[room1].y + rooms[room1].h + MIN_ROOM_DISTANCE;
-    unsigned char room2_buffer_x1 = rooms[room2].x - MIN_ROOM_DISTANCE;
-    unsigned char room2_buffer_y1 = rooms[room2].y - MIN_ROOM_DISTANCE;
-    unsigned char room2_buffer_x2 = rooms[room2].x + rooms[room2].w + MIN_ROOM_DISTANCE;
-    unsigned char room2_buffer_y2 = rooms[room2].y + rooms[room2].h + MIN_ROOM_DISTANCE;
+    // 2. Removed minimum room distance check - rooms can be connected regardless of proximity
+    // The room placement algorithm already ensures proper spacing during generation
+    // Corridors should be able to connect any rooms that aren't overlapping
     
-    // Check if buffer zones overlap
-    if (room1_buffer_x2 > room2_buffer_x1 && room1_buffer_x1 < room2_buffer_x2 &&
-        room1_buffer_y2 > room2_buffer_y1 && room1_buffer_y1 < room2_buffer_y2) {
-        return 0; // Too close to each other
-    }
-    
-    return 1; // Safe to connect
+    return 1; // Safe to connect - no buffer zone restrictions
 }
 
 // Fast rule check for corridors with basic adjacency rules
@@ -1026,16 +1014,27 @@ static unsigned char draw_z_corridor(unsigned char exit1_x, unsigned char exit1_
  * Creates new corridors between rooms. Checks for existing connections and
  * reachability to avoid creating redundant paths between the same room pairs.
  */
-unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
+/**
+ * @brief Connects two rooms with fallback override capability
+ * @param room1 First room index
+ * @param room2 Second room index
+ * @param fallback_override If 1, ignore previous attempted connections
+ * @return 1 if connection was made or already exists, 0 if failed
+ */
+unsigned char connect_rooms_with_fallback(unsigned char room1, unsigned char room2, unsigned char fallback_override) {
     // 1. Validate room distance and positioning rules
     if (!can_connect_rooms_safely(room1, room2)) {
         return 0;
     }
-    // 2. Check if connection already exists or was previously attempted
-    if (connection_matrix[room1][room2] || attempted_connections[room1][room2]) {
-        return 1; // Connection exists or was attempted - avoid duplicates
+    // 2. Check if connection already exists
+    if (connection_matrix[room1][room2]) {
+        return 1; // Connection already exists
     }
-    // 2.1 Check if rooms are already reachable through indirect paths
+    // 2.1 Check attempted connections only if not overridden
+    if (!fallback_override && attempted_connections[room1][room2]) {
+        return 1; // Was attempted - avoid duplicates (unless fallback override)
+    }
+    // 2.2 Check if rooms are already reachable through indirect paths
     if (is_room_reachable(room1, room2)) {
         // Mark as connected since they are reachable through other rooms
         connection_matrix[room1][room2] = 1;
@@ -1059,6 +1058,10 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
     // Keep attempted_connections marked to prevent future retry attempts
     
     return 0; // Connection failed
+}
+
+unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
+    return connect_rooms_with_fallback(room1, room2, 0); // Normal mode, no override
 }
 
 // Initialize connection system and memory pools
