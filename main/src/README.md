@@ -13,7 +13,7 @@ The project follows a modular, layered architecture designed specifically for C6
 |-------------------------|------------------------------------|--------------------------------------------|---------------------------------------------------|
 | **main.c**              | System initialization, main loop   | VIC-II configuration, input processing     | Direct hardware register access                   |
 | **map_generation.c**    | Generation pipeline coordination   | Two-pass wall placement, stair positioning | Memory-efficient iteration patterns               |
-| **connection_system.c** | Room connectivity and corridors    | MST algorithm, position-based corridor selection, comprehensive path validation | Static memory pools, optimized distance caching   |
+| **connection_system.c** | Room connectivity and corridors    | Advanced MST with multi-attempt fallback, position-based corridor selection, comprehensive path validation | Static memory pools, optimized distance caching   |
 | **room_management.c**   | Room placement and validation      | Grid-based placement, collision detection  | Bit-packed validation, fast bounds checking       |
 | **testdisplay.c**       | Display and user interaction       | Delta refresh, viewport management         | Direct screen memory access, PETSCII optimization |
 | **mapgen_utils.c**      | Mathematical and utility functions | Random number generation, coordinate math  | Hardware entropy, optimized arithmetic            |
@@ -132,12 +132,22 @@ Room placement uses advanced grid-based algorithms with sophisticated validation
 
 The connection system implements a sophisticated Minimum Spanning Tree algorithm enhanced with rule-based corridor generation and intelligent path optimization.
 
-#### Enhanced MST Algorithm (`generate_level()`)
+#### Advanced MST Algorithm with Multi-Attempt Intelligent Fallback (`generate_level()`)
 
 - **Weighted Distance Calculation**: Uses Manhattan distance with corridor complexity penalties
 - **Incremental Construction**: Builds MST one connection at a time, validating each addition
-- **Connectivity Verification**: Ensures all rooms are reachable through DFS traversal
-- **Fallback Mechanisms**: Handles edge cases where optimal connections are impossible
+- **Attempted Connection Filtering**: Prevents infinite loops by skipping previously attempted connections
+- **Multi-Attempt Intelligent Fallback System**: When standard MST fails, systematically tries multiple recovery strategies
+  - **Systematic Room Evaluation**: Analyzes each unconnected room for best connected room match
+  - **Distance-Optimized Pairing**: Selects closest valid connections using safety rule compliance
+  - **Position-Based Retry Logic**: Each fallback attempt uses full position-based corridor selection
+  - **Resilient Recovery**: Continues attempting with different unconnected rooms until success or exhaustion
+  - **Enhanced Progress Indicators**: 
+    - **.** = Standard MST connection success
+    - **?** = Fallback phase initiated (standard MST exhausted)
+    - **f** = Individual fallback attempt failed (lowercase)
+    - **!** = Fallback recovery successful (room connected)
+    - **X** = Complete connection failure (all strategies exhausted)
 
 #### Position-Based Corridor Generation (`draw_corridor()`)
 

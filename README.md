@@ -84,7 +84,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ### Advanced Generation System
 
-- **MST-Based Connectivity**: Uses Minimum Spanning Tree algorithm to ensure all rooms are optimally connected
+- **Advanced MST with Intelligent Fallback**: Uses Minimum Spanning Tree algorithm with multi-attempt fallback mechanism to ensure maximum room connectivity
 - **Intelligent Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
 - **Position-Based Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships (aligned vs diagonal positioning)
 - **Advanced Wall Generation**: Two-pass algorithm with proper corner detection and visual enclosure
@@ -101,15 +101,17 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 ### Interactive Features
 
 - **Real-Time Navigation**: WASD movement with smooth viewport scrolling
-- **Live Map Generation**: Press SPACE for new dungeon layouts
+- **Live Map Generation**: Press SPACE for new dungeon layouts  
 - **Map Export**: Press 'M' to save maps as C64 PRG files to disk
-- **Debug Information**: Progress indicators during generation phases
+- **Advanced Progress Feedback**: Detailed connection progress with fallback recovery indicators
+  - **Standard MST**: "." for successful connections
+  - **Intelligent Fallback**: "?" (start), "f" (attempt fail), "!" (recovery), "X" (complete failure)
 
 ## Developer Pipeline and Module Responsibilities
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
 - `map_generation.c`: Main generation pipeline (rooms, corridors, walls, stairs)
-- `connection_system.c`: MST, position-based corridor selection, path validation
+- `connection_system.c`: Advanced MST with multi-attempt fallback, position-based corridor selection, comprehensive path validation
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions
 - `testdisplay.c`: Screen handling, viewport management, input processing, delta refresh

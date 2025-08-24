@@ -1,18 +1,22 @@
 // =============================================================================
-// RULE-BASED ROOM CONNECTION SYSTEM
-// Room connection system with corridor types and alignment detection
+// ADVANCED ROOM CONNECTION SYSTEM WITH INTELLIGENT FALLBACK
+// Room connection system with position-based corridor logic and multi-attempt fallback
 // =============================================================================
 // Features:
-// 1. Enforces MIN_ROOM_DISTANCE rule between rooms
-// 2. Uses connection matrix to track room relationships
-// 3. Validates all connections against placement rules
-// 4. Prevents duplicate connections through matrix tracking
-// 5. Avoids multiple corridors between same room pairs
-// 6. Creates new corridors for each connection request
-// 6.1. PATH VALIDATION: All corridor types validate against room intersections
-//      - STRAIGHT: Uses path_intersects_other_rooms() for single segment
-//      - L-SHAPED: Uses l_path_avoids_rooms() for two-segment validation  
-//      - Z-SHAPED: Uses z_path_avoids_rooms() for three-segment validation
+// 1. Advanced MST with Multi-Attempt Fallback System
+// 2. Position-Based Corridor Selection (Issue #18 Resolution)
+// 3. Comprehensive Path Validation for All Corridor Types
+// 4. Infinite Loop Prevention through Attempted Connection Tracking
+// 5. Intelligent Room Pairing with Distance Optimization
+// 6. L-Shaped Corridor Fix with Proper Door Positioning
+// 7. CORRIDOR VALIDATION SYSTEM:
+//    - STRAIGHT: Uses path_intersects_other_rooms() for single segment
+//    - L-SHAPED: Uses l_path_avoids_rooms() with specialized exit points  
+//    - Z-SHAPED: Uses z_path_avoids_rooms() for three-segment validation
+// 8. FALLBACK RECOVERY MECHANISM:
+//    - Systematic evaluation of all unconnected rooms
+//    - Distance-based pairing with connected rooms
+//    - Multi-attempt strategy prevents premature termination
 // 7. CORRIDOR TYPES:
 //    - STRAIGHT CORRIDORS: For aligned rooms ONLY (horizontal/vertical overlap)
 //      * Exit points placed at center of overlapping region, facing each other
@@ -1281,21 +1285,47 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% chance
         
         if (use_l_shaped) {
-            // Try L-shaped corridor first
-            unsigned char l_path_clear = l_path_avoids_rooms(exit1.door_x, exit1.door_y, 
-                                                            exit2.door_x, exit2.door_y, 
+            // Try L-shaped corridor first with specialized exit points
+            unsigned char l_exit1_x, l_exit1_y, l_exit2_x, l_exit2_y;
+            find_l_corridor_exits(room1, room2, &l_exit1_x, &l_exit1_y, &l_exit2_x, &l_exit2_y);
+            
+            // Convert corridor coordinates to door coordinates for consistent validation and drawing
+            unsigned char door1_x = l_exit1_x, door1_y = l_exit1_y;
+            unsigned char door2_x = l_exit2_x, door2_y = l_exit2_y;
+            
+            // Determine wall sides for coordinate conversion
+            unsigned char exit1_side = get_exit_side(&rooms[room1], l_exit1_x, l_exit1_y);
+            unsigned char exit2_side = get_exit_side(&rooms[room2], l_exit2_x, l_exit2_y);
+            
+            // Convert to door coordinates (1 tile from room perimeter)
+            switch (exit1_side) {
+                case 0: door1_x = rooms[room1].x - 1; break;        // Left: move 1 tile closer
+                case 1: door1_x = rooms[room1].x + rooms[room1].w; break;  // Right: move 1 tile closer
+                case 2: door1_y = rooms[room1].y - 1; break;        // Top: move 1 tile closer
+                case 3: door1_y = rooms[room1].y + rooms[room1].h; break;  // Bottom: move 1 tile closer
+            }
+            
+            switch (exit2_side) {
+                case 0: door2_x = rooms[room2].x - 1; break;        // Left: move 1 tile closer
+                case 1: door2_x = rooms[room2].x + rooms[room2].w; break;  // Right: move 1 tile closer
+                case 2: door2_y = rooms[room2].y - 1; break;        // Top: move 1 tile closer
+                case 3: door2_y = rooms[room2].y + rooms[room2].h; break;  // Bottom: move 1 tile closer
+            }
+            
+            // Check if L-shaped path with door coordinates avoids room intersections
+            unsigned char l_path_clear = l_path_avoids_rooms(door1_x, door1_y, 
+                                                            door2_x, door2_y, 
                                                             room1, room2, 1) ||
-                                        l_path_avoids_rooms(exit1.door_x, exit1.door_y, 
-                                                            exit2.door_x, exit2.door_y, 
+                                        l_path_avoids_rooms(door1_x, door1_y, 
+                                                            door2_x, door2_y, 
                                                             room1, room2, 0);
             
             if (l_path_clear) {
-                draw_l_corridor(exit1.door_x, exit1.door_y, 
-                              exit2.door_x, exit2.door_y, 
-                              exit1.wall_side, exit2.wall_side);
+                // Draw L-corridor using door coordinates (ensures connection to doors)
+                draw_l_corridor(door1_x, door1_y, door2_x, door2_y, exit1_side, exit2_side);
                 
-                place_door(exit1.door_x, exit1.door_y);
-                place_door(exit2.door_x, exit2.door_y);
+                place_door(door1_x, door1_y);
+                place_door(door2_x, door2_y);
                 return 1;
             }
         }
