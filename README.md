@@ -169,4 +169,4 @@ The downloadable artifact includes:
 - `build/*.map`, `build/*.lbl`, `build/*.asm` – Additional Oscar64 build files (map, label, assembly)
 - `RetroDebugger/**` – Downloaded Retro Debugger tool (C64 emulator and debugger)
 
-**For developer documentation, pipeline, API, and detailed module responsibilities: see [main/src/README.MD](https://github.com/guyleslie/Hacked-C64/blob/main/main%2Fsrc%2FREADME.md)**
+**For developer documentation, pipeline, API, and detailed module responsibilities see: [main/src/README.md](https://github.com/guyleslie/Hacked-C64/blob/main/main%2Fsrc%2FREADME.md)**
