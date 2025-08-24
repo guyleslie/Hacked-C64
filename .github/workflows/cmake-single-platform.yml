@@ -58,16 +58,35 @@ jobs:
         shell: pwsh
         run: |
           $debuggerDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger'
+          $tempDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger_temp'
           New-Item -ItemType Directory -Force -Path $debuggerDir | Out-Null
-          $zipPath = Join-Path $debuggerDir 'RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
+          New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+          $zipPath = Join-Path $tempDir 'RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
           $url = 'https://github.com/slajerek/RetroDebugger/releases/download/v0.64.72/RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
           Write-Host "Downloading Retro Debugger..."
           Invoke-WebRequest -Uri $url -OutFile $zipPath
           Write-Host "Extracting Retro Debugger..."
-          Expand-Archive -Path $zipPath -DestinationPath $debuggerDir
+          Expand-Archive -Path $zipPath -DestinationPath $tempDir
+          # Find the extracted folder and move its contents to the target directory
+          $extractedFolder = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -like "RetroDebugger*" } | Select-Object -First 1
+          if ($extractedFolder) {
+            Write-Host "Moving contents from $($extractedFolder.FullName) to $debuggerDir"
+            Get-ChildItem -Path $extractedFolder.FullName -Recurse | Move-Item -Destination $debuggerDir -Force
+          }
+          # Copy ROM files from helpers/RetroDebugger/roms to RetroDebugger/roms
+          $helperRomsDir = Join-Path $env:GITHUB_WORKSPACE 'helpers/RetroDebugger/roms'
+          $targetRomsDir = Join-Path $debuggerDir 'roms'
+          if (Test-Path $helperRomsDir) {
+            Write-Host "Copying ROM files from helpers/RetroDebugger/roms to RetroDebugger/roms..."
+            New-Item -ItemType Directory -Force -Path $targetRomsDir | Out-Null
+            Copy-Item -Path "$helperRomsDir/*" -Destination $targetRomsDir -Recurse -Force
+            Write-Host "ROM files copied successfully."
+          } else {
+            Write-Host "Warning: helpers/RetroDebugger/roms directory not found."
+          }
           Write-Host "Retro Debugger ready."
-          # Remove the zip file so only the extracted files remain
-          Remove-Item -Force $zipPath
+          # Clean up temporary directory
+          Remove-Item -Recurse -Force $tempDir
 
       - name: Cleanup Oscar64
         if: always()
