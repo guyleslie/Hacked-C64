@@ -35,6 +35,10 @@
 #define UP     60
 #define DOWN   62
 
+// C64 screen memory constants
+#define SCREEN_MEMORY_BASE 0x0400
+#define SCREEN_MEMORY_END  0x07E7
+
 // Compact tile type encoding
 #define TILE_EMPTY  0
 #define TILE_WALL   1

@@ -3,17 +3,13 @@
 // Room placement, validation, and connection management
 // =============================================================================
 
+// System headers
 #include <conio.h>
+// Project headers
 #include "mapgen_types.h"      // For Room, MAX_ROOMS, Viewport
 #include "mapgen_internal.h"   // For room placement/validation and global variable declarations
 #include "mapgen_utils.h"      // For utility functions
 
-// =============================================================================
-// EXTERNAL DISPLAY REFERENCES
-// =============================================================================
-
-extern unsigned char camera_center_x, camera_center_y;
-extern Viewport view;
 
 // =============================================================================
 // ROOM VALIDATION AND PLACEMENT FUNCTIONS

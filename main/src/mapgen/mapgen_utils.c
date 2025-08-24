@@ -3,12 +3,14 @@
 // Contains utility functions, tile access, random number generation, and helper functions
 // =============================================================================
 
+// System headers
 #include <c64/vic.h>
 #include <c64/cia.h>
 #include <stdio.h>
 #include <conio.h>
 #include <string.h>
 #include <stdlib.h>
+// Project headers
 #include "mapgen_types.h"     // For Room, MAP_W, MAP_H, MAX_ROOMS
 #include "mapgen_api.h"       // For public API
 #include "mapgen_utils.h"     // For utility/math/cache functions
@@ -245,6 +247,29 @@ static inline unsigned char get_tile_core(unsigned char x, unsigned char y) {
     unsigned char second_part = (*(byte_ptr + 1) & ((1 << (3 - low_bits)) - 1)) << low_bits;
     
     return (first_part | second_part) & TILE_MASK;
+}
+
+// Get single tile from map and convert to PETSCII for display
+unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y) {
+    // Bounds check
+    if (map_x >= MAP_W || map_y >= MAP_H) {
+        return EMPTY; // Return space character for out of bounds
+    }
+    
+    // Get raw tile value
+    unsigned char raw_tile = get_tile_core(map_x, map_y);
+    
+    // Convert compact tile type to PETSCII character
+    switch(raw_tile) {
+        case TILE_EMPTY:  return EMPTY;   // 32 - space character
+        case TILE_WALL:   return WALL;    // 160 - solid block
+        case TILE_FLOOR:  return FLOOR;   // 46 - period
+        case TILE_DOOR:   return DOOR;    // 219 - door character
+        case TILE_UP:     return UP;      // 60 - less than
+        case TILE_DOWN:   return DOWN;    // 62 - greater than
+        case TILE_CORNER: return CORNER;  // 230 - corner block
+        default:          return EMPTY;   // Safety fallback
+    }
 }
 
 /**

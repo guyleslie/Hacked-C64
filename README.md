@@ -66,7 +66,7 @@ Hacked-C64/
             ├─ mapgen_utils.c                 // Utility functions for mapgen
             ├─ mapgen_utils.h                 // Utility functions header
             ├─ room_management.c              // Room placement, validation, priority
-            └─ testdisplay.c                  // Screen handling, viewport, input, delta refresh
+            └─ mapgen_display.c               // Screen handling, viewport, input, delta refresh
 ```
 
 **Legend:**
@@ -96,6 +96,9 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Hardware Integration**: Direct VIC-II memory access and PETSCII character display
 - **Delta Refresh**: Screen buffer with dirty flags for flicker-free updates
 - **Optimized Algorithms**: C64-tuned math operations and loop structures
+- **Consolidated Variable Management**: All extern declarations centralized in `mapgen_internal.h`
+- **Optimized Include Structure**: System/project headers separated, redundant includes eliminated
+- **Shared Constants**: Common hardware addresses and values unified in `mapgen_types.h`
 
 ### Interactive Features
 
@@ -112,12 +115,12 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - `connection_system.c`: Position-based corridor selection, comprehensive path validation, MST algorithm
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions
-- `testdisplay.c`: Screen handling, viewport management, input processing, delta refresh
-- `mapgen_utils.c`: Math utilities, random number generation, helper functions
+- `mapgen_display.c`: Screen handling, viewport management, input processing, delta refresh
+- `mapgen_utils.c`: Math utilities, random number generation, helper functions, PETSCII conversion
 - `mapgen_api.h`: Public API definitions for map generation
-- `mapgen_types.h`: Type definitions, constants, and tile encoding
+- `mapgen_types.h`: Type definitions, constants, tile encoding, and shared hardware constants
 - `mapgen_display.h`: Display and rendering function declarations
-- `mapgen_internal.h`: Internal helper function declarations
+- `mapgen_internal.h`: Internal helper function declarations and consolidated global variables
 
 ## Technical Data
 

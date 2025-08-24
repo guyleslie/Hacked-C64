@@ -30,11 +30,22 @@ unsigned char generate_level(void);
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
 void assign_room_priorities(void);
 
-// Global mapgen module variables (defined in mapgen_utils.c)
+// =============================================================================
+// CONSOLIDATED GLOBAL VARIABLE DECLARATIONS
+// =============================================================================
+
+// Core map data (defined in mapgen_utils.c)
 extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 extern Room rooms[MAX_ROOMS];
 extern unsigned char room_count;
 extern unsigned int rng_seed;
+
+// Display and camera system (defined in main.c)
+extern unsigned char camera_center_x, camera_center_y;
+extern Viewport view;
+extern unsigned char screen_buffer[VIEW_H][VIEW_W];
+extern unsigned char screen_dirty;
+extern unsigned char last_scroll_direction;
 
 /**
  * @brief Calculates unified exit points for both corridor and door placement

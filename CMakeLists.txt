@@ -28,7 +28,7 @@ set(SRC_FILES
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/mapgen_utils.c
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/room_management.c
     ${CMAKE_SOURCE_DIR}/main/src/mapgen/connection_system.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/testdisplay.c
+    ${CMAKE_SOURCE_DIR}/main/src/mapgen/mapgen_display.c
 )
 
 # Output directory and file

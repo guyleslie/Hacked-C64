@@ -1,6 +1,7 @@
 // Main Module for C64 Map Generator
 // Contains: main program loop, VIC-II setup, global variables, and user input handling
 
+// System headers
 #include <conio.h>
 #include <c64/kernalio.h>
 #include <stdio.h>
@@ -8,6 +9,7 @@
 #include <time.h>
 #include <c64/cia.h>
 #include <c64/vic.h>
+// Project headers
 #include "mapgen/mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
 #include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon, etc.
 #include "mapgen/mapgen_utils.h"      // For init_rng

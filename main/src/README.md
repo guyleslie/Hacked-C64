@@ -15,15 +15,27 @@ The project follows a modular, layered architecture designed specifically for C6
 | **map_generation.c**    | Generation pipeline coordination   | Two-pass wall placement, stair positioning | Memory-efficient iteration patterns               |
 | **connection_system.c** | Room connectivity and corridors    | Position-based corridor selection, comprehensive path validation, MST algorithm | Static memory pools, optimized distance caching   |
 | **room_management.c**   | Room placement and validation      | Grid-based placement, collision detection  | Bit-packed validation, fast bounds checking       |
-| **testdisplay.c**       | Display and user interaction       | Delta refresh, viewport management         | Direct screen memory access, PETSCII optimization |
-| **mapgen_utils.c**      | Mathematical and utility functions | Random number generation, coordinate math  | Hardware entropy, optimized arithmetic            |
+| **mapgen_display.c**    | Display and user interaction       | Delta refresh, viewport management         | Direct screen memory access, PETSCII optimization |
+| **mapgen_utils.c**      | Mathematical and utility functions | Random number generation, coordinate math, PETSCII conversion  | Hardware entropy, optimized arithmetic, centralized tile rendering |
 | **map_export.c**        | File I/O and data persistence      | Compact binary serialization               | KERNAL I/O routines, device management            |
 
 ---
 
 ## Advanced Tile Encoding System (mapgen_types.h)
 
-The project implements a sophisticated dual-level tile encoding system optimized for both memory efficiency and rendering performance on C64 hardware.
+The project implements a sophisticated dual-level tile encoding system with consolidated hardware constants, optimized for both memory efficiency and rendering performance on C64 hardware.
+
+### Hardware Constants Consolidation
+
+All C64-specific hardware addresses and system constants are now centralized in `mapgen_types.h`:
+
+```c
+// C64 screen memory constants  
+#define SCREEN_MEMORY_BASE 0x0400
+#define SCREEN_MEMORY_END  0x07E7
+```
+
+This eliminates redundant definitions across modules and provides a single source of truth for hardware-specific values.
 
 ### 1. Display-Level PETSCII Encoding
 
@@ -75,11 +87,66 @@ The conversion between internal and display representations is handled by an opt
 
 This dual-encoding approach provides the benefits of compact storage during generation and fast rendering during display, optimized specifically for C64 hardware constraints.
 
+### 4. Optimized Display Function Consolidation
+
+The `get_map_tile_fast()` function has been moved from `mapgen_display.c` to `mapgen_utils.c` to centralize all PETSCII conversion logic:
+
+```c
+// Centralized in mapgen_utils.c for optimal code reuse
+unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y);
+```
+
+This consolidation eliminates code duplication and provides a unified interface for tile rendering across all display modules.
+
 ---
 
 ## Advanced Map Generation Pipeline
 
 The map generation system implements a sophisticated multi-stage pipeline designed for creating organic, interconnected dungeon layouts while respecting strict C64 memory and performance constraints. Each stage builds upon the previous one, with comprehensive validation and optimization at every step.
+
+### Stage 0: Optimized Code Organization
+
+The project implements a sophisticated modular architecture with optimized include management and variable consolidation for maximum performance and maintainability.
+
+#### Consolidated Global Variable Management
+
+All external variable declarations are centralized in `mapgen_internal.h` to eliminate redundancy:
+
+```c
+// =============================================================================
+// CONSOLIDATED GLOBAL VARIABLE DECLARATIONS
+// =============================================================================
+
+// Core map data (defined in mapgen_utils.c)
+extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
+extern Room rooms[MAX_ROOMS];
+extern unsigned char room_count;
+extern unsigned int rng_seed;
+
+// Display and camera system (defined in main.c)
+extern unsigned char camera_center_x, camera_center_y;
+extern Viewport view;
+extern unsigned char screen_buffer[VIEW_H][VIEW_W];
+extern unsigned char screen_dirty;
+extern unsigned char last_scroll_direction;
+```
+
+This approach eliminates 36+ lines of redundant extern declarations across modules.
+
+#### Optimized Include Structure
+
+All source files now follow a standardized include organization:
+
+```c
+// System headers
+#include <c64/vic.h>
+#include <conio.h>
+// Project headers  
+#include "mapgen_types.h"
+#include "mapgen_utils.h"
+```
+
+Benefits include reduced compilation dependencies, eliminated circular includes, and cleaner code organization.
 
 ### Stage 1: System Initialization and State Management
 
@@ -265,7 +332,7 @@ Stair placement uses a sophisticated priority system to ensure optimal dungeon n
 
 The display system implements advanced viewport management with hardware-optimized rendering for smooth, responsive user interaction.
 
-### Viewport Management (`testdisplay.c`)
+### Viewport Management (`mapgen_display.c`)
 
 - **Camera System**: Smooth scrolling viewport with configurable center tracking
 - **Boundary Protection**: Prevents viewport from moving outside map boundaries

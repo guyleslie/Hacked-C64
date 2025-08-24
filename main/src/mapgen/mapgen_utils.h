@@ -12,7 +12,7 @@ unsigned char rnd(unsigned char max);
 // Console functions for Oscar64
 void print_text(const char* text);
 
-// Tile access and manipulation
+// Tile access and manipulation (optimized for C64 performance)
 unsigned char get_compact_tile(unsigned char x, unsigned char y);
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile);
 unsigned char get_tile_raw(unsigned char x, unsigned char y);
@@ -22,6 +22,9 @@ unsigned char tile_is_wall(unsigned char x, unsigned char y);
 unsigned char tile_is_door(unsigned char x, unsigned char y);
 unsigned char tile_is_empty(unsigned char x, unsigned char y);
 void clear_map(void);
+
+// Centralized PETSCII conversion for all display modules
+unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y);
 
 // Coordinate and bounds checking
 unsigned char coords_in_bounds(unsigned char x, unsigned char y);
