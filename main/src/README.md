@@ -13,7 +13,7 @@ The project follows a modular, layered architecture designed specifically for C6
 |-------------------------|------------------------------------|--------------------------------------------|---------------------------------------------------|
 | **main.c**              | System initialization, main loop   | VIC-II configuration, input processing     | Direct hardware register access                   |
 | **map_generation.c**    | Generation pipeline coordination   | Two-pass wall placement, stair positioning | Memory-efficient iteration patterns               |
-| **connection_system.c** | Room connectivity and corridors    | MST algorithm, path finding                | Static memory pools, optimized distance caching   |
+| **connection_system.c** | Room connectivity and corridors    | MST algorithm, position-based corridor selection, comprehensive path validation | Static memory pools, optimized distance caching   |
 | **room_management.c**   | Room placement and validation      | Grid-based placement, collision detection  | Bit-packed validation, fast bounds checking       |
 | **testdisplay.c**       | Display and user interaction       | Delta refresh, viewport management         | Direct screen memory access, PETSCII optimization |
 | **mapgen_utils.c**      | Mathematical and utility functions | Random number generation, coordinate math  | Hardware entropy, optimized arithmetic            |
@@ -139,22 +139,65 @@ The connection system implements a sophisticated Minimum Spanning Tree algorithm
 - **Connectivity Verification**: Ensures all rooms are reachable through DFS traversal
 - **Fallback Mechanisms**: Handles edge cases where optimal connections are impossible
 
-#### Intelligent Corridor Generation (`draw_corridor()`)
+#### Position-Based Corridor Generation (`draw_corridor()`)
 
-- **Axis Alignment Analysis**: Determines optimal corridor type based on room positioning
-- **Path Type Selection**:
-  - **Straight Corridors**: For rooms with overlapping projections on X or Y axis
-  - **L-Shaped Corridors**: For diagonal connections with medium distances
-  - **Z-Shaped Corridors**: For complex long-distance connections requiring intermediate segments
-- **Collision Avoidance**: Ensures corridors never intersect existing rooms or create invalid layouts
+- **Spatial Relationship Analysis**: Determines corridor type based on room alignment (not distance)
+- **Position-Based Path Selection**:
+  - **Aligned Rooms** (horizontal/vertical overlap): 70% straight corridors, 30% Z-shaped, never L-shaped
+  - **Diagonal Rooms** (no axis overlap): 50% L-shaped, 50% Z-shaped, never straight
+- **Comprehensive Path Validation**: All corridor types validate against room intersections before drawing
+  - **Straight**: Single-segment validation using `path_intersects_other_rooms()`
+  - **L-Shaped**: Two-segment validation using `l_path_avoids_rooms()`
+  - **Z-Shaped**: Three-segment validation using `z_path_avoids_rooms()`
+- **Architectural Consistency**: Ensures perpendicular wall connections and natural corridor flow
 - **Exit Point Optimization**: Places corridor endpoints 2 tiles from room perimeters for clean connections
 
 #### Advanced Pathfinding Features
 
 - **Multi-Segment Coordination**: Manages complex corridors with multiple directional changes
-- **Endpoint Override System**: Allows flexible corridor placement at room boundaries when necessary
-- **Path Validation**: Comprehensive checking ensures all corridor tiles are placeable
+- **Three-Tier Validation System**: Comprehensive intersection checking for all corridor types
+- **Buffer Zone Protection**: Maintains 1-tile buffer around rooms preventing invalid path intersections
 - **Memory Pool Management**: Efficient reuse of corridor segment data structures
+- **Architectural Logic**: Perpendicular wall connections ensure natural corridor flow patterns
+
+### Position-Based Corridor Selection Logic (Issue #18 Resolution)
+
+The corridor generation system uses sophisticated spatial analysis to determine the most appropriate corridor type based on room positioning rather than distance, ensuring architecturally consistent and visually natural connections.
+
+#### Room Relationship Detection
+
+**Aligned Room Detection** (`check_room_axis_alignment()`):
+- **Horizontal Overlap**: Rooms share Y-axis projection ranges
+- **Vertical Overlap**: Rooms share X-axis projection ranges
+- **Spatial Logic**: Rooms are considered "aligned" if they can connect with a single straight line
+
+**Diagonal Room Detection**:
+- **No Axis Overlap**: Rooms have no shared projection on either axis
+- **True Diagonal**: Requires multi-segment connection paths
+- **Perpendicular Connections**: Exit points placed on complementary wall sides
+
+#### Probabilistic Corridor Assignment
+
+**For Aligned Rooms** (horizontal/vertical overlap):
+```c
+unsigned char use_straight = (rng_seed % 100) < 70; // 70% probability
+// Result: 70% straight, 30% Z-shaped, 0% L-shaped
+```
+
+**For Diagonal Rooms** (no axis overlap):
+```c
+unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% probability  
+// Result: 50% L-shaped, 50% Z-shaped, 0% straight
+```
+
+#### Architectural Rationale
+
+- **Straight Corridors**: Natural for aligned rooms, provide direct efficient paths
+- **L-Shaped Corridors**: Optimal for diagonal rooms, create perpendicular wall connections
+- **Z-Shaped Corridors**: Versatile for both scenarios, handle complex routing requirements
+- **Forbidden Combinations**: Prevents architecturally inconsistent corridor types (straight for diagonal, L-shaped for aligned)
+
+This position-based approach ensures that corridor selection matches the spatial relationship between rooms, creating more natural and architecturally sound dungeon layouts.
 
 ## Stage 4: Advanced Wall and Corner Generation
 
