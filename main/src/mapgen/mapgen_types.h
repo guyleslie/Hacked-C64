@@ -13,7 +13,7 @@
 #define MAP_H  64
 #define VIEW_W 40
 #define VIEW_H 25
-#define MAX_ROOMS 5
+#define MAX_ROOMS 20
 #define MIN_SIZE 4
 #define MAX_SIZE 8
 #define MIN_ROOM_DISTANCE 4
@@ -29,7 +29,6 @@
 // Map tile characters (PETSCII)
 #define EMPTY  32
 #define WALL   160
-#define CORNER 230
 #define FLOOR  46
 #define DOOR   219
 #define UP     60
@@ -46,7 +45,6 @@
 #define TILE_DOOR   3
 #define TILE_UP     4
 #define TILE_DOWN   5
-#define TILE_CORNER 6
 #define TILE_MASK   7
 
 // Conversion macro from compact tile to PETSCII
@@ -55,8 +53,7 @@
                                (tile) == TILE_FLOOR ? FLOOR : \
                                (tile) == TILE_DOOR ? DOOR : \
                                (tile) == TILE_UP ? UP : \
-                               (tile) == TILE_DOWN ? DOWN : \
-                               (tile) == TILE_CORNER ? CORNER : EMPTY)
+                               (tile) == TILE_DOWN ? DOWN : EMPTY)
 
 // Tile validation bit flags
 #define TILE_CHECK_EMPTY  0x01

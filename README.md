@@ -22,7 +22,7 @@ Final generated dungeon map display:
 
 ## Map Data Structure
 
-The map is represented as a 2D grid of tiles, with each tile encoded using 3 bits for compact storage. The map dimensions are defined as 64x64 tiles (MAP_W x MAP_H). Each tile can represent different features such as empty space, wall, floor, door, stairs, or corner.
+The map is represented as a 2D grid of tiles, with each tile encoded using 3 bits for compact storage. The map dimensions are defined as 64x64 tiles (MAP_W x MAP_H). Each tile can represent different features such as empty space, wall, floor, door, or stairs.
 
 ### Tile Types and Encoding
 
@@ -30,7 +30,6 @@ The map is represented as a 2D grid of tiles, with each tile encoded using 3 bit
 |----------------|-------------|--------------|--------------------|---------------------|
 | Empty space    | EMPTY       | 32           | (space)            | Blank/empty tile    |
 | Wall           | WALL        | 160          |' █ '               | Solid block         |
-| Corner         | CORNER      | 230          |' ▓ '               | Shaded block/corner |
 | Floor (path)   | FLOOR       | 46           |' . '               | Walkable path       |
 | Door           | DOOR        | 219          |' + ' (invers char) | Door                |
 | Stairs up      | UP          | 60           |' < '               | Up stairs           |
@@ -85,7 +84,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Position-Based MST**: Uses Minimum Spanning Tree algorithm with position-based corridor selection for reliable connectivity
 - **Intelligent Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
 - **Position-Based Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships (aligned vs diagonal positioning) with intelligent door reuse
-- **Advanced Wall Generation**: Two-pass algorithm with proper corner detection and visual enclosure
+- **Streamlined Wall Generation**: Single-pass algorithm with complete visual enclosure
 - **Priority-Based Stair Placement**: Stairs placed in highest-priority rooms for optimal dungeon flow
 - **Simplified Connection Rules**: Dynamic distance-based validation (30-80 tiles depending on room density), intelligent door reuse for all corridor types
 
@@ -105,8 +104,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Real-Time Navigation**: WASD movement with smooth viewport scrolling
 - **Live Map Generation**: Press SPACE for new dungeon layouts  
 - **Map Export**: Press 'M' to save maps as C64 PRG files to disk
-- **Progress Feedback**: Simple connection progress indicators
-  - **.** = Successful connections
+- **Progress Indicator**: Each major generation step prints a dot (`"."`) to the screen, showing real-time progress as rooms, corridors, walls, and stairs are created.
 
 ## Developer Pipeline and Module Responsibilities
 
@@ -138,7 +136,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 - **Room Placement:** O(n) with grid constraints
 - **MST Generation:** O(n²) for small room counts (optimal for C64)
-- **Wall Generation:** O(map_size) two-pass algorithm
+- **Wall Generation:** O(map_size) single-pass algorithm
 - **Rendering:** O(viewport_size) with delta optimization
 
 ## Usage (Build & Run)
@@ -181,6 +179,7 @@ The downloadable artifact includes:
    - Download the `build-output` artifact zip file
 
 2. **Extract and Run:**
+
    ```bash
    # Extract the zip file to any directory
    unzip build-output.zip -d my_project_folder
@@ -196,20 +195,5 @@ The downloadable artifact includes:
    - Loads symbol files (`.lbl`) automatically if available for debugging
    - Uses `-autojmp` and `-unpause` flags for immediate program execution
    - Provides detailed error messages if files are missing
-
-### Manual RetroDebugger Launch
-
-If you prefer manual control, you can also launch RetroDebugger directly:
-
-```bash
-cd RetroDebugger
-retrodebugger-notsigned.exe -prg "..\build\Hacked C64.prg" -symbols "..\build\Hacked C64.lbl" -autojmp -unpause
-```
-
-### Troubleshooting
-
-- **"retrodebugger-notsigned.exe not found"**: Run the CI/CD build first to download RetroDebugger
-- **"PRG file not found"**: Ensure the build completed successfully and generated the PRG file
-- **RetroDebugger won't start**: Check that all ROM files are present in the `RetroDebugger/roms/` directory
 
 **For developer documentation, pipeline, API, and detailed module responsibilities see: [main/src/README.md](https://github.com/guyleslie/Hacked-C64/blob/main/main%2Fsrc%2FREADME.md)**

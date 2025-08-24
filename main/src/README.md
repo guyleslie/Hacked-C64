@@ -45,7 +45,6 @@ These constants provide direct mapping to PETSCII character codes for immediate 
 // PETSCII Display Constants
 #define EMPTY   32    // Space character: empty/unoccupied tiles
 #define WALL    160   // Solid block: structural walls
-#define CORNER  230   // Shaded block: architectural corners and junctions
 #define FLOOR   46    // Period (.): walkable floor surfaces
 #define DOOR    171   // Inverse plus (+): doorways and passages
 #define UP      60    // Less-than (<): ascending stairs
@@ -66,7 +65,6 @@ For algorithmic processing and memory-optimized storage, each tile uses a compac
 #define TILE_DOOR    3 // Passage/doorway tile
 #define TILE_UP      4 // Upward staircase
 #define TILE_DOWN    5 // Downward staircase
-#define TILE_CORNER  6 // Architectural corner element
 ```
 
 **Memory Efficiency**: This encoding enables 8 tiles to be packed into 3 bytes (8 * 3 bits = 24 bits), achieving 12.5% memory overhead for a 4096-tile map stored in only 1536 bytes.
@@ -82,7 +80,7 @@ The conversion between internal and display representations is handled by an opt
                                (tile) == TILE_DOOR ? DOOR : \
                                (tile) == TILE_UP ? UP : \
                                (tile) == TILE_DOWN ? DOWN : \
-                               (tile) == TILE_CORNER ? CORNER : EMPTY)
+                               EMPTY)
 ```
 
 This dual-encoding approach provides the benefits of compact storage during generation and fast rendering during display, optimized specifically for C64 hardware constraints.
@@ -274,40 +272,21 @@ unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% probability
 
 This position-based approach ensures that corridor selection matches the spatial relationship between rooms, creating more natural and architecturally sound dungeon layouts.
 
-## Stage 4: Advanced Wall and Corner Generation
+## Stage 4: Wall Generation System
 
-The wall generation system implements a sophisticated two-pass algorithm ensuring complete visual enclosure and proper corner detection.
+The wall generation system implements a streamlined algorithm ensuring complete visual enclosure around all walkable areas.
 
-### Two-Pass Wall Placement Algorithm (`add_walls()`)
+### Wall Placement Algorithm (`add_walls()`)
 
-**Pass 1: Perimeter Wall Placement**:
+**Perimeter Wall Placement**:
 
 - **Walkable Tile Scanning**: Iterates through all map positions identifying floor, door, and stair tiles
 - **Adjacent Empty Detection**: Places wall tiles in all cardinal directions (N/S/E/W) from walkable areas
+- **Diagonal Wall Coverage**: Places walls at diagonal positions for complete enclosure
 - **Enclosure Guarantee**: Ensures complete wall coverage around all accessible areas
 - **Performance Optimization**: Single-pass iteration with immediate wall placement
 
-**Pass 2: Advanced Corner Detection**:
-
-- **L-Junction Recognition**: Identifies 90-degree wall intersections for corner placement
-- **T-Junction Handling**: Places corners at three-way wall intersections
-- **Door Adjacent Logic**: Adds corners near doorways for visual consistency
-- **Straight Wall Preservation**: Maintains clean wall runs by avoiding unnecessary corner placement
-
-### Advanced Corner Detection Logic (`is_true_corner()`)
-
-```c
-// Sophisticated corner detection algorithm
-if (wall_count == 2) {
-    // L-shaped corners - perpendicular wall patterns
-    if ((wall_north && wall_east) || (wall_north && wall_west) ||
-        (wall_south && wall_east) || (wall_south && wall_west)) {
-        return 1; // Place corner tile
-    }
-}
-```
-
-This approach produces visually appealing dungeons with proper architectural features while maintaining optimal C64 performance.
+This streamlined approach produces clean, functional dungeon walls while maintaining optimal C64 performance.
 
 ## Stage 5: Priority-Based Stair Placement
 

@@ -267,7 +267,7 @@ unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y) {
         case TILE_DOOR:   return DOOR;    // 219 - door character
         case TILE_UP:     return UP;      // 60 - less than
         case TILE_DOWN:   return DOWN;    // 62 - greater than
-        case TILE_CORNER: return CORNER;  // 230 - corner block
+        // TILE_CORNER removed - corners now use regular walls
         default:          return EMPTY;   // Safety fallback
     }
 }
