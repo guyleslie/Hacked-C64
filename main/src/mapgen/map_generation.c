@@ -234,10 +234,9 @@ unsigned char generate_level(void) {
         return 0; // Generation failed
     }
     
-    // Phase 2: Position-Based MST with Minimal Fallback
+    // Phase 2: Position-Based MST
     // - Position-based corridor selection ensures near-perfect connectivity
     // - Standard MST with attempted connection filtering (prevents infinite loops)
-    // - Simple fallback safety mechanism (rarely activated due to position-based success)
     // - Dynamic distance limits: 30-80 tiles based on room density for optimal connectivity
     print_text("\n\nCreating corridors...");
     unsigned char connected[MAX_ROOMS];
