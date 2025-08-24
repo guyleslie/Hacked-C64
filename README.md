@@ -168,6 +168,48 @@ The downloadable artifact includes:
 
 - `build/*.prg` – Compiled C64 program files
 - `build/*.map`, `build/*.lbl`, `build/*.asm` – Additional Oscar64 build files (map, label, assembly)
-- `RetroDebugger/**` – Downloaded Retro Debugger tool (C64 emulator and debugger)
+- `RetroDebugger/**` – Downloaded Retro Debugger tool (C64 emulator and debugger) with ROM files
+- `run_retrodebugger.bat` – **Launch script for easy debugging** (see [Running the Debugger](#running-the-debugger) section)
+
+## Running the Debugger
+
+### Using the CI/CD Artifact
+
+1. **Download the Build Artifact:**
+   - Go to the [GitHub Actions](../../actions) page
+   - Click on the latest successful build
+   - Download the `build-output` artifact zip file
+
+2. **Extract and Run:**
+   ```bash
+   # Extract the zip file to any directory
+   unzip build-output.zip -d my_project_folder
+   cd my_project_folder
+   
+   # Double-click or run from command line:
+   run_retrodebugger.bat
+   ```
+
+3. **What the Script Does:**
+   - Automatically changes to the RetroDebugger directory
+   - Launches `retrodebugger-notsigned.exe` with the compiled PRG file
+   - Loads symbol files (`.lbl`) automatically if available for debugging
+   - Uses `-autojmp` and `-unpause` flags for immediate program execution
+   - Provides detailed error messages if files are missing
+
+### Manual RetroDebugger Launch
+
+If you prefer manual control, you can also launch RetroDebugger directly:
+
+```bash
+cd RetroDebugger
+retrodebugger-notsigned.exe -prg "..\build\Hacked C64.prg" -symbols "..\build\Hacked C64.lbl" -autojmp -unpause
+```
+
+### Troubleshooting
+
+- **"retrodebugger-notsigned.exe not found"**: Run the CI/CD build first to download RetroDebugger
+- **"PRG file not found"**: Ensure the build completed successfully and generated the PRG file
+- **RetroDebugger won't start**: Check that all ROM files are present in the `RetroDebugger/roms/` directory
 
 **For developer documentation, pipeline, API, and detailed module responsibilities see: [main/src/README.md](https://github.com/guyleslie/Hacked-C64/blob/main/main%2Fsrc%2FREADME.md)**
