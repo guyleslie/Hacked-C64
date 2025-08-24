@@ -9,19 +9,23 @@
 // 4. Prevents duplicate connections through matrix tracking
 // 5. Avoids multiple corridors between same room pairs
 // 6. Creates new corridors for each connection request
+// 6.1. PATH VALIDATION: All corridor types validate against room intersections
+//      - STRAIGHT: Uses path_intersects_other_rooms() for single segment
+//      - L-SHAPED: Uses l_path_avoids_rooms() for two-segment validation  
+//      - Z-SHAPED: Uses z_path_avoids_rooms() for three-segment validation
 // 7. CORRIDOR TYPES:
-//    - STRAIGHT CORRIDORS: When rooms have overlapping projections on X or Y axis
+//    - STRAIGHT CORRIDORS: For aligned rooms ONLY (horizontal/vertical overlap)
 //      * Exit points placed at center of overlapping region, facing each other
 //      * Single straight line connection (horizontal or vertical only)
-//      * Simple direct path logic for aligned rooms
-//    - L-SHAPED CORRIDORS: For diagonal connections without axis overlap (short/medium distances)
+//      * Simple direct path logic for aligned rooms (70% chance when axis overlap detected)
+//    - L-SHAPED CORRIDORS: For diagonal rooms ONLY (no axis overlap)
 //      * Two perpendicular segments meeting at intersection point
-//      * Exit points placed on opposite-side corners facing each other
+//      * Exit points placed on complementary sides for natural L-shape formation
 //      * Vertical walls connect naturally to horizontal walls (and vice versa)
-//      * Movement direction based on room layout: facing walls connect naturally
-//      * Each room sends a straight line toward the other forming L-shape
-//      * Used for distances ≤4 tiles, or as fallback for medium distances
-//    - Z-SHAPED CORRIDORS: For complex diagonal connections (longer distances)
+//      * Movement direction based on room layout: perpendicular wall connections
+//      * Each room sends a straight line toward intersection forming natural L-shape
+//      * Used exclusively for diagonal positioning (50% chance when no axis overlap)
+//    - Z-SHAPED CORRIDORS: For both aligned rooms (30%) and diagonal rooms (50%)
 //      * Three segments: starting legs + perpendicular connector
 //      * Starting legs: Extend from each room away from room walls (avoiding parallel paths)
 //      * Exit points placed on facing (opposite) sides of rooms for natural connection
@@ -29,18 +33,20 @@
 //      * First segment: extends from room 1 perpendicular to its exit wall
 //      * Middle segment: connects perpendicular to first segment direction
 //      * Final segment: reaches room 2 perpendicular to its exit wall
-//      * More natural-looking paths for distant room connections (>8 tiles)
+//      * Provides natural flow for both aligned and diagonal room connections
 // 8. EXIT POINT PLACEMENT: Always 1 tile away from room walkable perimeter
 // 9. DOOR PLACEMENT: Always 1 tile from room walkable perimeter (toward corridor)
-// 10. CORRIDOR DECISION LOGIC:
-//     - Check axis alignment: If rooms share horizontal or vertical projection
-//       → Use STRAIGHT CORRIDOR only (simple direct line)
-//     - Check diagonal positioning: If no axis alignment 
-//       → Use L-SHAPED or Z-SHAPED based on room distance and obstacles
-//       → Short distance (≤4): Prefer L-shaped
-//       → Long distance (>8): Prefer Z-shaped  
-//       → Medium distance (5-8): Try L-shaped first, fallback to Z-shaped if needed
-//     - Each corridor type has its own specific logic and movement patterns
+// 10. CORRIDOR DECISION LOGIC (Issue #18 Fix - Position-Based Selection):
+//     - ALIGNED ROOMS (horizontal/vertical overlap detected):
+//       → 70% chance: STRAIGHT CORRIDOR (direct connection)
+//       → 30% chance: Z-SHAPED CORRIDOR (natural flow)
+//       → NEVER use L-shaped corridors for aligned rooms
+//     - DIAGONAL ROOMS (no axis overlap - true diagonal positioning):
+//       → 50% chance: L-SHAPED CORRIDOR (perpendicular wall connections)
+//       → 50% chance: Z-SHAPED CORRIDOR (complex routing)
+//       → NEVER use straight corridors for diagonal rooms
+//     - Selection based on ROOM POSITIONING, not distance or obstacles
+//     - Each corridor type has specific architectural logic and natural flow patterns
 // 11. Z-CORRIDOR DIRECTION: First leg direction based on exit wall type
 //     - Horizontal walls (top/bottom): Start with vertical movement (away from wall)
 //     - Vertical walls (left/right): Start with horizontal movement (away from wall)
@@ -866,6 +872,71 @@ static unsigned char draw_straight_corridor(unsigned char exit1_x, unsigned char
 }
 
 /**
+ * @brief Check if Z-shaped path would intersect any rooms other than source/destination
+ * @param exit1_x First exit X coordinate
+ * @param exit1_y First exit Y coordinate
+ * @param exit2_x Second exit X coordinate
+ * @param exit2_y Second exit Y coordinate
+ * @param start_with_x 1 to start with X movement, 0 to start with Y movement
+ * @param source_room Source room index to exclude from intersection check
+ * @param dest_room Destination room index to exclude from intersection check
+ * @return 1 if path avoids room intersections, 0 if it intersects rooms
+ */
+static unsigned char z_path_avoids_rooms(unsigned char exit1_x, unsigned char exit1_y,
+                                        unsigned char exit2_x, unsigned char exit2_y,
+                                        unsigned char start_with_x,
+                                        unsigned char source_room, unsigned char dest_room) {
+    signed char leg1_end_x, leg1_end_y;
+    signed char leg2_end_x, leg2_end_y;
+    
+    // Calculate Z-corridor segments (same logic as draw_z_corridor)
+    unsigned char dx = (exit1_x > exit2_x) ? (exit1_x - exit2_x) : (exit2_x - exit1_x);
+    unsigned char dy = (exit1_y > exit2_y) ? (exit1_y - exit2_y) : (exit2_y - exit1_y);
+    
+    if (start_with_x) {
+        // Z-CORRIDOR X-FIRST: horizontal → vertical → horizontal
+        unsigned char leg_length = dx / 3 + 1;
+        
+        if (exit2_x > exit1_x) {
+            leg1_end_x = exit1_x + leg_length;
+        } else {
+            leg1_end_x = exit1_x - leg_length;
+        }
+        leg1_end_y = exit1_y;
+        leg2_end_x = leg1_end_x;
+        leg2_end_y = exit2_y;
+        
+    } else {
+        // Z-CORRIDOR Y-FIRST: vertical → horizontal → vertical
+        unsigned char leg_length = dy / 3 + 1;
+        
+        if (exit2_y > exit1_y) {
+            leg1_end_y = exit1_y + leg_length;
+        } else {
+            leg1_end_y = exit1_y - leg_length;
+        }
+        leg1_end_x = exit1_x;
+        leg2_end_x = exit2_x;
+        leg2_end_y = leg1_end_y;
+    }
+    
+    // Check all three Z-corridor segments for room intersections
+    if (path_intersects_other_rooms(exit1_x, exit1_y, leg1_end_x, leg1_end_y, source_room, dest_room)) {
+        return 0; // First segment intersects rooms
+    }
+    
+    if (path_intersects_other_rooms(leg1_end_x, leg1_end_y, leg2_end_x, leg2_end_y, source_room, dest_room)) {
+        return 0; // Second segment intersects rooms
+    }
+    
+    if (path_intersects_other_rooms(leg2_end_x, leg2_end_y, exit2_x, exit2_y, source_room, dest_room)) {
+        return 0; // Third segment intersects rooms
+    }
+    
+    return 1; // All segments are clear
+}
+
+/**
  * @brief Create a Z-shaped corridor with three segments
  * Z-SHAPED CORRIDOR LOGIC: Three segments for complex diagonal connections
  * - Starting legs extend from each room in direction that avoids running parallel to room walls
@@ -1155,71 +1226,94 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
     // Reset corridor path for this connection
     corridor_path_static.length = 0;
     
-    // Determine corridor type based on room alignment
+    // Determine corridor type based on room alignment (NOT distance!)
     unsigned char has_horizontal_overlap, has_vertical_overlap;
     check_room_axis_alignment(room1, room2, &has_horizontal_overlap, &has_vertical_overlap);
-    unsigned char room_distance = calculate_room_distance(room1, room2);
     
     // =================================================================
-    // STRAIGHT CORRIDOR LOGIC - For aligned rooms
+    // CORRIDOR TYPE SELECTION BASED ON ROOM POSITIONING
+    // Issue #18 Fix: Use room positioning instead of distance
     // =================================================================
+    
     if (has_horizontal_overlap || has_vertical_overlap) {
-        // Check if straight corridor path is clear using door positions for proper connection
-        if (!path_intersects_other_rooms(exit1.door_x, exit1.door_y, 
-                                        exit2.door_x, exit2.door_y, room1, room2)) {
-            
-            // Use door positions for path building to ensure direct connection
-            if (draw_straight_corridor(exit1.door_x, exit1.door_y, 
-                                     exit2.door_x, exit2.door_y)) {
+        // ALIGNED ROOMS: Use straight or Z-shaped corridors only
+        // 70% chance of straight corridor, 30% chance of Z-shaped
+        // NEVER use L-shaped for aligned rooms
+        
+        unsigned char use_straight = (rng_seed % 100) < 70; // 70% chance
+        
+        if (use_straight) {
+            // Try straight corridor first
+            if (!path_intersects_other_rooms(exit1.door_x, exit1.door_y, 
+                                            exit2.door_x, exit2.door_y, room1, room2)) {
                 
-                // Use door positions for door placement (doors at endpoints)
+                if (draw_straight_corridor(exit1.door_x, exit1.door_y, 
+                                         exit2.door_x, exit2.door_y)) {
+                    
+                    place_door(exit1.door_x, exit1.door_y);
+                    place_door(exit2.door_x, exit2.door_y);
+                    return 1;
+                }
+            }
+        }
+        
+        // Try Z-shaped corridor (30% chance initially, or fallback if straight failed)
+        unsigned char start_with_x = get_optimal_corridor_direction(exit1.wall_side, exit2.wall_side);
+        
+        // Check if Z-shaped path avoids room intersections
+        if (z_path_avoids_rooms(exit1.door_x, exit1.door_y, 
+                               exit2.door_x, exit2.door_y, start_with_x, room1, room2)) {
+            
+            if (draw_z_corridor(exit1.door_x, exit1.door_y, 
+                              exit2.door_x, exit2.door_y, start_with_x)) {
+                
                 place_door(exit1.door_x, exit1.door_y);
                 place_door(exit2.door_x, exit2.door_y);
                 return 1;
             }
         }
-    }
-    
-    // =================================================================
-    // DIAGONAL CORRIDOR LOGIC - L-shaped and Z-shaped
-    // =================================================================
-    
-    // Try L-shaped corridor for short to medium distances
-    if (room_distance <= 8) {
-        // Check if L-shaped path avoids room intersections using door positions
-        unsigned char l_path_clear = l_path_avoids_rooms(exit1.door_x, exit1.door_y, 
-                                                        exit2.door_x, exit2.door_y, 
-                                                        room1, room2, 1) ||
-                                    l_path_avoids_rooms(exit1.door_x, exit1.door_y, 
-                                                        exit2.door_x, exit2.door_y, 
-                                                        room1, room2, 0);
         
-        if (l_path_clear) {
-            // Use door positions for L-corridor drawing to ensure proper connection
-            draw_l_corridor(exit1.door_x, exit1.door_y, 
-                          exit2.door_x, exit2.door_y, 
-                          exit1.wall_side, exit2.wall_side);
+    } else {
+        // DIAGONAL ROOMS: Use L-shaped or Z-shaped corridors only
+        // 50-50% chance between L-shaped and Z-shaped
+        // NEVER use straight corridors for diagonal rooms
+        
+        unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% chance
+        
+        if (use_l_shaped) {
+            // Try L-shaped corridor first
+            unsigned char l_path_clear = l_path_avoids_rooms(exit1.door_x, exit1.door_y, 
+                                                            exit2.door_x, exit2.door_y, 
+                                                            room1, room2, 1) ||
+                                        l_path_avoids_rooms(exit1.door_x, exit1.door_y, 
+                                                            exit2.door_x, exit2.door_y, 
+                                                            room1, room2, 0);
             
-            // Use door positions for door placement (doors at endpoints)
-            place_door(exit1.door_x, exit1.door_y);
-            place_door(exit2.door_x, exit2.door_y);
-            return 1;
+            if (l_path_clear) {
+                draw_l_corridor(exit1.door_x, exit1.door_y, 
+                              exit2.door_x, exit2.door_y, 
+                              exit1.wall_side, exit2.wall_side);
+                
+                place_door(exit1.door_x, exit1.door_y);
+                place_door(exit2.door_x, exit2.door_y);
+                return 1;
+            }
         }
-    }
-    
-    // Try Z-shaped corridor for longer distances or when L-shaped fails
-    if (room_distance >= 5) {
-        // Apply Z-corridor direction rule based on wall sides
+        
+        // Try Z-shaped corridor (50% chance initially, or fallback if L-shaped failed)
         unsigned char start_with_x = get_optimal_corridor_direction(exit1.wall_side, exit2.wall_side);
         
-        // Use door positions for Z-corridor drawing to ensure proper connection
-        if (draw_z_corridor(exit1.door_x, exit1.door_y, 
-                          exit2.door_x, exit2.door_y, start_with_x)) {
+        // Check if Z-shaped path avoids room intersections
+        if (z_path_avoids_rooms(exit1.door_x, exit1.door_y, 
+                               exit2.door_x, exit2.door_y, start_with_x, room1, room2)) {
             
-            // Use door positions for door placement (doors at endpoints)
-            place_door(exit1.door_x, exit1.door_y);
-            place_door(exit2.door_x, exit2.door_y);
-            return 1;
+            if (draw_z_corridor(exit1.door_x, exit1.door_y, 
+                              exit2.door_x, exit2.door_y, start_with_x)) {
+                
+                place_door(exit1.door_x, exit1.door_y);
+                place_door(exit2.door_x, exit2.door_y);
+                return 1;
+            }
         }
     }
     
