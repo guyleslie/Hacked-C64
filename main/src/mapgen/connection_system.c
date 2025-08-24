@@ -456,6 +456,7 @@ static void find_z_corridor_exits(unsigned char room1, unsigned char room2,
 
 /**
  * @brief Find optimal exit points for L-shaped corridor between diagonal rooms
+ * Enhanced with intelligent door reuse - checks for existing doors on both perpendicular room sides
  * @param room1 First room index
  * @param room2 Second room index
  * @param exit1_x Pointer to store room1 exit X coordinate
@@ -497,7 +498,7 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
         room2_exit_side = 3; // Room2 exits from bottom side
     }
     
-    // Calculate exit coordinates based on chosen sides
+    // Calculate initial exit coordinates based on chosen sides
     switch (room1_exit_side) {
         case 0: // Left side
             *exit1_x = r1->x - 2;
@@ -517,6 +518,33 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
             break;
     }
     
+    // Check for existing door on room1's chosen side and adjust if found
+    unsigned char existing_door_x, existing_door_y;
+    unsigned char target_x = *exit1_x;
+    unsigned char target_y = *exit1_y;
+    
+    if (find_existing_door_on_room_side(room1, room1_exit_side, target_x, target_y, &existing_door_x, &existing_door_y)) {
+        // Adjust exit1 to align with existing door
+        switch (room1_exit_side) {
+            case 0: // Left side
+                *exit1_y = existing_door_y;
+                *exit1_x = existing_door_x - 1; // Exit 1 tile away from door
+                break;
+            case 1: // Right side
+                *exit1_y = existing_door_y;
+                *exit1_x = existing_door_x + 1; // Exit 1 tile away from door
+                break;
+            case 2: // Top side
+                *exit1_x = existing_door_x;
+                *exit1_y = existing_door_y - 1; // Exit 1 tile away from door
+                break;
+            case 3: // Bottom side
+                *exit1_x = existing_door_x;
+                *exit1_y = existing_door_y + 1; // Exit 1 tile away from door
+                break;
+        }
+    }
+    
     switch (room2_exit_side) {
         case 0: // Left side
             *exit2_x = r2->x - 2;
@@ -534,6 +562,32 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
             *exit2_x = r2->x + r2->w / 2; // Center of bottom wall
             *exit2_y = r2->y + r2->h + 1;
             break;
+    }
+    
+    // Check for existing door on room2's chosen side and adjust if found
+    target_x = *exit2_x;
+    target_y = *exit2_y;
+    
+    if (find_existing_door_on_room_side(room2, room2_exit_side, target_x, target_y, &existing_door_x, &existing_door_y)) {
+        // Adjust exit2 to align with existing door
+        switch (room2_exit_side) {
+            case 0: // Left side
+                *exit2_y = existing_door_y;
+                *exit2_x = existing_door_x - 1; // Exit 1 tile away from door
+                break;
+            case 1: // Right side
+                *exit2_y = existing_door_y;
+                *exit2_x = existing_door_x + 1; // Exit 1 tile away from door
+                break;
+            case 2: // Top side
+                *exit2_x = existing_door_x;
+                *exit2_y = existing_door_y - 1; // Exit 1 tile away from door
+                break;
+            case 3: // Bottom side
+                *exit2_x = existing_door_x;
+                *exit2_y = existing_door_y + 1; // Exit 1 tile away from door
+                break;
+        }
     }
 }
 

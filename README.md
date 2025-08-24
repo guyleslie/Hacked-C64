@@ -12,13 +12,11 @@ Debug generation with progress indicators:
 
 <img width="1425" height="1075" alt="image" src="https://github.com/user-attachments/assets/073ae738-2326-4c22-9e0d-1ae86e55e3d7" />
 
-
 ---
 
 Final generated dungeon map display:
 
 <img width="1206" height="909" alt="image" src="https://github.com/user-attachments/assets/fd236d58-617f-42f6-a885-10a56329ea31" />
-
 
 ---
 
@@ -86,10 +84,10 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 - **Position-Based MST**: Uses Minimum Spanning Tree algorithm with position-based corridor selection for reliable connectivity
 - **Intelligent Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
-- **Position-Based Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships (aligned vs diagonal positioning)
+- **Position-Based Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships (aligned vs diagonal positioning) with intelligent door reuse
 - **Advanced Wall Generation**: Two-pass algorithm with proper corner detection and visual enclosure
 - **Priority-Based Stair Placement**: Stairs placed in highest-priority rooms for optimal dungeon flow
-- **Simplified Connection Rules**: Dynamic distance-based validation (30-80 tiles depending on room density), no minimum room distance restrictions during connection phase
+- **Simplified Connection Rules**: Dynamic distance-based validation (30-80 tiles depending on room density), intelligent door reuse for all corridor types
 
 ### Memory and Performance Optimization
 

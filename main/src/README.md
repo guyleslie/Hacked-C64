@@ -138,8 +138,6 @@ The connection system implements a sophisticated Minimum Spanning Tree algorithm
 - **Incremental Construction**: Builds MST one connection at a time, validating each addition
 - **Attempted Connection Filtering**: Prevents infinite loops by skipping previously attempted connections
 - **Position-Based Corridor Logic**: Sophisticated spatial analysis and probabilistic corridor selection ensures reliable connectivity
-- **Progress Indicators**: 
-    - **.** = Successful MST connection
 
 #### Position-Based Corridor Generation (`draw_corridor()`)
 
@@ -151,8 +149,12 @@ The connection system implements a sophisticated Minimum Spanning Tree algorithm
   - **Straight**: Single-segment validation using `path_intersects_other_rooms()`
   - **L-Shaped**: Two-segment validation using `l_path_avoids_rooms()`
   - **Z-Shaped**: Three-segment validation using `z_path_avoids_rooms()`
+- **Intelligent Door Reuse**: All corridor types check for existing doors and align connections
+  - **Straight & Z-Shaped**: Uses `find_existing_door_on_room_side()` for aligned room connections
+  - **L-Shaped**: Enhanced with door detection on both perpendicular wall sides
 - **Architectural Consistency**: Ensures perpendicular wall connections and natural corridor flow
-- **Exit Point Optimization**: Places corridor endpoints 2 tiles from room perimeters for clean connections
+- **Exit Point Optimization**: Places corridor endpoints 2 tiles from room perimeters, or 1 tile from existing doors
+- **Door Integration Logic**: Automatically detects and reuses existing doors on appropriate room sides
 
 #### Advanced Pathfinding Features
 
@@ -169,11 +171,13 @@ The corridor generation system uses sophisticated spatial analysis to determine 
 #### Room Relationship Detection
 
 **Aligned Room Detection** (`check_room_axis_alignment()`):
+
 - **Horizontal Overlap**: Rooms share Y-axis projection ranges
 - **Vertical Overlap**: Rooms share X-axis projection ranges
 - **Spatial Logic**: Rooms are considered "aligned" if they can connect with a single straight line
 
 **Diagonal Room Detection**:
+
 - **No Axis Overlap**: Rooms have no shared projection on either axis
 - **True Diagonal**: Requires multi-segment connection paths
 - **Perpendicular Connections**: Exit points placed on complementary wall sides
@@ -181,12 +185,14 @@ The corridor generation system uses sophisticated spatial analysis to determine 
 #### Probabilistic Corridor Assignment
 
 **For Aligned Rooms** (horizontal/vertical overlap):
+
 ```c
 unsigned char use_straight = (rng_seed % 100) < 70; // 70% probability
 // Result: 70% straight, 30% Z-shaped, 0% L-shaped
 ```
 
 **For Diagonal Rooms** (no axis overlap):
+
 ```c
 unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% probability  
 // Result: 50% L-shaped, 50% Z-shaped, 0% straight
@@ -195,7 +201,7 @@ unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% probability
 #### Architectural Rationale
 
 - **Straight Corridors**: Natural for aligned rooms, provide direct efficient paths
-- **L-Shaped Corridors**: Optimal for diagonal rooms, create perpendicular wall connections
+- **L-Shaped Corridors**: Optimal for diagonal rooms, create perpendicular wall connections with door reuse on both segments
 - **Z-Shaped Corridors**: Versatile for both scenarios, handle complex routing requirements
 - **Forbidden Combinations**: Prevents architecturally inconsistent corridor types (straight for diagonal, L-shaped for aligned)
 
