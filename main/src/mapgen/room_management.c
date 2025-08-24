@@ -49,62 +49,40 @@ static void get_grid_position(unsigned char grid_index, unsigned char *x, unsign
     if (*y + MAX_SIZE + 3 >= MAP_H) *y = MAP_H - MAX_SIZE - 4;
 }
 
-// Validates room placement by checking boundaries and overlaps
+/**
+ * @brief Validates if a room can be placed at the specified location
+ * @param x Room top-left X coordinate
+ * @param y Room top-left Y coordinate  
+ * @param w Room width in tiles
+ * @param h Room height in tiles
+ * @return 1 if placement is valid, 0 if placement conflicts
+ */
 unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
-    // Check map boundary constraints
-    if (x < 3 || y < 3) return 0;
-    if (x + w + 3 >= MAP_W || y + h + 3 >= MAP_H) return 0;
-    
-    // Check if room area is clear
-    for (unsigned char iy = y; iy < y + h; iy++) {
-        for (unsigned char ix = x; ix < x + w; ix++) {
-            if (!tile_is_empty(ix, iy)) {
-                return 0; // Area already occupied
-            }
-        }
-    }
-    
-    // Calculate buffer zone boundaries
-    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE) ? x - MIN_ROOM_DISTANCE : 0;
-    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE) ? y - MIN_ROOM_DISTANCE : 0;
+    // Calculate buffer zone boundaries with minimum room distance
+    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE + 3) ? x - MIN_ROOM_DISTANCE : 3;
+    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE + 3) ? y - MIN_ROOM_DISTANCE : 3;
     unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
     unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
+    
+    // Check map boundaries
+    if (buffer_x2 + 3 >= MAP_W || buffer_y2 + 3 >= MAP_H) {
+        return 0;
+    }
     
     // Clamp buffer zone to map boundaries
     if (buffer_x2 >= MAP_W) buffer_x2 = MAP_W - 1;
     if (buffer_y2 >= MAP_H) buffer_y2 = MAP_H - 1;
     
-    // Check buffer zone for conflicts (excluding the room area)
+    // Check if buffer zone is clear
     for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
         for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
-            // Skip the room area itself
-            if (ix >= x && ix < x + w && iy >= y && iy < y + h) continue;
-            
-            if (!tile_is_empty(ix, iy)) {
-                return 0; // Buffer zone conflict
+            if (get_compact_tile(ix, iy) != TILE_EMPTY) {
+                return 0;
             }
         }
     }
     
-    // Check distance to existing rooms
-    for (unsigned char i = 0; i < room_count; i++) {
-        unsigned char existing_x1, existing_y1, existing_x2, existing_y2;
-        get_room_bounds(i, &existing_x1, &existing_y1, &existing_x2, &existing_y2);
-        
-        unsigned char new_x2 = x + w;
-        unsigned char new_y2 = y + h;
-        
-        // Check minimum distance constraint
-        unsigned char min_dist = MIN_ROOM_DISTANCE + 1;
-        
-        // Test for bounding box overlap with minimum distance
-        if (!(x >= existing_x2 + min_dist || new_x2 + min_dist <= existing_x1 ||
-              y >= existing_y2 + min_dist || new_y2 + min_dist <= existing_y1)) {
-            return 0; // Too close to existing room
-        }
-    }
-    
-    return 1; // Placement is valid
+    return 1;
 }
 
 // Attempts to place room at specified grid position with random variation

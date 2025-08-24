@@ -180,11 +180,13 @@ Room placement uses advanced grid-based algorithms with sophisticated validation
 
 #### Advanced Validation System (`can_place_room()`)
 
-- **Edge Distance Checking**: Ensures minimum 3-tile distance from map boundaries
-- **Collision Detection**: Multi-stage overlap checking with both bounding box and per-tile validation
-- **Minimum Distance Enforcement**: Maintains MIN_ROOM_DISTANCE between all room pairs
-- **Terrain Analysis**: Verifies all proposed tiles are empty and suitable for room placement
-- **Performance Optimization**: Early termination on first validation failure
+- **Optimized Buffer Zone Calculation**: Calculates buffer boundaries with minimum room distance in a single pass
+- **Boundary Validation**: Ensures buffer zone + safety margin (3 tiles) doesn't exceed map boundaries  
+- **Zone Clamping**: Automatically clamps buffer boundaries to map limits for edge cases
+- **Efficient Collision Detection**: Single nested loop checks entire buffer zone for TILE_EMPTY
+- **Early Termination**: Immediately returns 0 on first non-empty tile found for maximum performance
+- **Memory-Optimized**: Uses compact tile access (`get_compact_tile()`) for fast validation
+- **Distance Enforcement**: Maintains MIN_ROOM_DISTANCE between all room pairs automatically through buffer zone
 
 #### Room Commitment Process (`place_room()`)
 
