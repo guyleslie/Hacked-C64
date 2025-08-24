@@ -104,6 +104,7 @@ jobs:
             build/*.lbl
             build/*.asm
             RetroDebugger/**
+            run_retrodebugger.bat
       - name: List build output
         run: |
           dir build
