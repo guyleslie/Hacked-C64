@@ -15,7 +15,7 @@
 void save_compact_map(const char* filename) {
     // Calculate the exact size of the compact map in bytes
     // 64x64 tiles * 3 bits per tile = 12288 bits = 1536 bytes
-    const unsigned int map_size = (MAP_H * MAP_W * 3 + 7) / 8; // Round up division
+    const unsigned short map_size = (MAP_H * MAP_W * 3 + 7) / 8; // Round up division
     
     // Set the filename for KERNAL SAVE
     krnio_setnam(filename);

@@ -86,7 +86,7 @@ void move_camera(unsigned char new_x, unsigned char new_y) {
 // Full screen update - redraws entire viewport
 void update_full_screen(void) {
     unsigned char screen_y, x;
-    unsigned int screen_pos;
+    unsigned short screen_pos;
     unsigned char tile;
     
     // Update all 25 rows
@@ -233,7 +233,7 @@ void process_navigation_input(unsigned char key) {
 // based on scroll direction, with edge and boundary checks.
 
 void update_screen_with_scroll(unsigned char scroll_dir) {
-    unsigned int screen_offset;
+    unsigned short screen_offset;
     unsigned char x, y;
     
     // Validate scroll direction parameter

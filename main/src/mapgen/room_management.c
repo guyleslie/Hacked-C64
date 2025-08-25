@@ -210,6 +210,17 @@ void create_rooms(void) {
         grid_positions[j] = temp;
     }
     
+    // Additional shuffle passes
+    for (unsigned char pass = 0; pass < 2; pass++) {
+        for (unsigned char i = 0; i < grid_count - 1; i++) {
+            if (rnd(2)) {  // 50% chance to swap adjacent pairs
+                unsigned char temp = grid_positions[i];
+                grid_positions[i] = grid_positions[i + 1];
+                grid_positions[i + 1] = temp;
+            }
+        }
+    }
+
     // Generate rooms at shuffled grid positions
     for (unsigned char i = 0; i < MAX_ROOMS && placed_rooms < MAX_ROOMS && i < grid_count; i++) {
         unsigned char w, h, x, y;

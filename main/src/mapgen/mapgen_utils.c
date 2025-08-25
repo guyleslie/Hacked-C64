@@ -170,7 +170,7 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     
     // Calculate bit offset: (y * 64 + x) * 3 = y * 192 + x * 3
     // Using bit shifts for multiplication: y * 192 = y * 128 + y * 64 = y << 7 + y << 6
-    unsigned int bit_offset = ((unsigned int)y << 7) + ((unsigned int)y << 6) + x + x + x;
+    unsigned short bit_offset = ((unsigned short)y << 7) + ((unsigned short)y << 6) + x + x + x;
     
     // Calculate byte position and bit position within byte
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];  // Divide by 8 to get byte
@@ -204,7 +204,7 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     if (x >= MAP_W || y >= MAP_H) return;
     
     // Calculate bit offset: (y * 64 + x) * 3 = y * 192 + x * 3
-    unsigned int bit_offset = ((unsigned int)y << 7) + ((unsigned int)y << 6) + x + x + x;
+    unsigned short bit_offset = ((unsigned short)y << 7) + ((unsigned short)y << 6) + x + x + x;
     
     // Calculate byte position and bit position within byte
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
@@ -239,7 +239,7 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
  */
 static inline unsigned char get_tile_core(unsigned char x, unsigned char y) {
     // Calculate bit offset: (y * 64 + x) * 3
-    unsigned int bit_offset = ((unsigned int)y << 7) + ((unsigned int)y << 6) + x + x + x;
+    unsigned short bit_offset = ((unsigned short)y << 7) + ((unsigned short)y << 6) + x + x + x;
     
     // Byte and bit position extraction
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
@@ -346,8 +346,8 @@ inline unsigned char tile_is_empty(unsigned char x, unsigned char y) {
 void clear_map(void) {
     // Calculate total bytes needed for compact map
     // 64x64 tiles * 3 bits = 12288 bits = 1536 bytes
-    unsigned int total_bytes = (MAP_H * MAP_W * 3 + 7) / 8; // Round up division
-    unsigned int i;
+    unsigned short total_bytes = (MAP_H * MAP_W * 3 + 7) / 8; // Round up division
+    unsigned short i;
     
     // Clear all bytes to 0 (TILE_EMPTY = 0)
     for (i = 0; i < total_bytes; i++) {
@@ -1148,8 +1148,8 @@ unsigned char mapgen_get_room_center(unsigned char room_index, unsigned char *ce
 
 // Count specific tile types in the map
 // Expects raw tile value (0-5)
-unsigned int mapgen_count_tiles(unsigned char tile_type) {
-    unsigned int count = 0;
+unsigned char mapgen_count_tiles(unsigned char tile_type) {
+    unsigned char count = 0;
     unsigned char x, y;
     
     for (y = 0; y < MAP_H; y++) {
@@ -1164,8 +1164,8 @@ unsigned int mapgen_count_tiles(unsigned char tile_type) {
 }
 
 // Get map statistics
-void mapgen_get_statistics(unsigned int *floor_tiles, unsigned int *wall_tiles, 
-                          unsigned int *door_tiles, unsigned char *total_rooms) {
+void mapgen_get_statistics(unsigned char *floor_tiles, unsigned char *wall_tiles, 
+                          unsigned char *door_tiles, unsigned char *total_rooms) {
     if (floor_tiles) *floor_tiles = mapgen_count_tiles(TILE_FLOOR);
     if (wall_tiles) *wall_tiles = mapgen_count_tiles(TILE_WALL);
     if (door_tiles) *door_tiles = mapgen_count_tiles(TILE_DOOR);
@@ -1280,8 +1280,8 @@ unsigned char mapgen_validate_map(void) {
     }
     
     // Check for stairs
-    unsigned int up_stairs = mapgen_count_tiles(TILE_UP);
-    unsigned int down_stairs = mapgen_count_tiles(TILE_DOWN);
+    unsigned char up_stairs = mapgen_count_tiles(TILE_UP);
+    unsigned char down_stairs = mapgen_count_tiles(TILE_DOWN);
     
     if (up_stairs == 0 || down_stairs == 0) {
         return 0; // Missing stairs
