@@ -33,6 +33,10 @@ __zeropage unsigned char mst_best_room1;
 __zeropage unsigned char mst_best_room2; 
 __zeropage unsigned char mst_best_distance;
 
+// Oscar64 zero page variables for critical tile checking data (-Oz flag manages automatically)
+__zeropage unsigned char tile_check_cache;
+__zeropage unsigned char adjacent_tile_temp;
+
 // Tracks the current number of rooms generated in the dungeon
 unsigned char room_count = 0;
 
@@ -397,6 +401,36 @@ unsigned char is_inside_any_room(unsigned char x, unsigned char y) {
     return 0; 
 }
 
+// Enhanced room containment with register optimization
+#pragma optimize(push)
+#pragma optimize(3, speed, inline, constparams) // Maximum optimization for critical function
+
+unsigned char point_in_any_room(unsigned char x, unsigned char y, unsigned char *room_id) {
+    // Oscar64 Range Analysis hints for 8-bit optimization
+    __assume(x < MAP_W);
+    __assume(y < MAP_H);
+    
+    unsigned char i; // Oscar64 loop register allocation
+    
+    // Oscar64 optimizes this loop with register allocation and strength reduction
+    for (i = 0; i < room_count; i++) {
+        // Oscar64 Common Subexpression Elimination - cache frequently accessed values
+        unsigned char rx = rooms[i].x;
+        unsigned char ry = rooms[i].y;
+        unsigned char rw = rooms[i].w;
+        unsigned char rh = rooms[i].h;
+        
+        // Single comparison chain - Oscar64 Branch Optimization
+        if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) {
+            if (room_id) *room_id = i; // Optional room ID return
+            return 1;
+        }
+    }
+    return 0;
+}
+
+#pragma optimize(pop)
+
 // Inverse check - outside all rooms
 unsigned char is_outside_any_room(unsigned char x, unsigned char y) {
     return !is_inside_any_room(x, y);
@@ -639,24 +673,37 @@ unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char mi
 // =============================================================================
 
 // Checks if the given coordinate is on the edge (perimeter) of any room.
+// Register-optimized with early exit and cached room coordinates
+#pragma optimize(push)
+#pragma optimize(3, speed, inline, constparams)
+
 unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
     unsigned char i;
     for (i = 0; i < room_count; i++) {
-        Room *room = &rooms[i];
-        unsigned char right_edge = get_room_right_edge(i);
-        unsigned char bottom_edge = get_room_bottom_edge(i);
+        // Cache room coordinates in registers for faster access - Oscar64 CSE optimization
+        unsigned char room_x = rooms[i].x;
+        unsigned char room_y = rooms[i].y;
+        unsigned char room_w = rooms[i].w;
+        unsigned char room_h = rooms[i].h;
+        unsigned char right_edge = room_x + room_w - 1;
+        unsigned char bottom_edge = room_y + room_h - 1;
         
-        // Top edge (perimeter)
-        if (y == room->y && x >= room->x && x <= right_edge) return 1;
+        // Early exit optimization - check bounds first for quick rejection
+        if (x < room_x || x > right_edge || y < room_y || y > bottom_edge) continue;
+        
+        // Top edge (perimeter) - immediate return on match
+        if (y == room_y && x >= room_x && x <= right_edge) return 1;
         // Bottom edge (perimeter)
-        if (y == bottom_edge && x >= room->x && x <= right_edge) return 1;
+        if (y == bottom_edge && x >= room_x && x <= right_edge) return 1;
         // Left edge (perimeter)
-        if (x == room->x && y >= room->y && y <= bottom_edge) return 1;
+        if (x == room_x && y >= room_y && y <= bottom_edge) return 1;
         // Right edge (perimeter)
-        if (x == right_edge && y >= room->y && y <= bottom_edge) return 1;
+        if (x == right_edge && y >= room_y && y <= bottom_edge) return 1;
     }
     return 0;
 }
+
+#pragma optimize(pop)
 
 // =============================================================================
 // MATHEMATICAL AND COMPUTATIONAL UTILITIES
@@ -846,68 +893,75 @@ inline unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsi
     return (tile <= 3) ? (tile_type_masks[tile] & type_flags) != 0 : 0;
 }
 
-// Single-pass adjacency checking with minimal function calls
-unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y, unsigned char type_flags, unsigned char include_diagonals) {
-    // Fast early bounds check for center position
+// =============================================================================
+// EARLY EXIT TILE CHECKING - OSCAR64 REGISTER OPTIMIZED
+// Stop immediately when condition is met - major performance gain
+// =============================================================================
+
+#pragma optimize(push)
+#pragma optimize(3, speed, inline, maxinline) // Aggressive optimization for hot path
+
+unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y, 
+                                       unsigned char type_flags, unsigned char include_diagonals) {
+    // Oscar64 Range Analysis hints
+    __assume(x < MAP_W);
+    __assume(y < MAP_H);
+    __assume(type_flags != 0);
+    
     if (x >= MAP_W || y >= MAP_H) return 0;
     
-    unsigned char found = 0;
-    unsigned char tile;
+    // Unrolled cardinal checks with immediate return - Oscar64 optimizes branch prediction
+    // Check most common directions first for better average performance
     
-    // Cardinal directions - unrolled with minimal bounds checking
-    // North
+    // North - most frequently matched in dungeon generation
     if (y > 0) {
-        tile = get_tile_raw(x, y-1);
-        if (tile <= 3 && (tile_type_masks[tile] & type_flags)) found = 1;
+        adjacent_tile_temp = get_tile_core(x, y-1);
+        if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
     
     // South  
-    if (!found && y < MAP_H-1) {
-        tile = get_tile_raw(x, y+1);
-        if (tile <= 3 && (tile_type_masks[tile] & type_flags)) found = 1;
-    }
-    
-    // West
-    if (!found && x > 0) {
-        tile = get_tile_raw(x-1, y);
-        if (tile <= 3 && (tile_type_masks[tile] & type_flags)) found = 1;
+    if (y < MAP_H-1) {
+        adjacent_tile_temp = get_tile_core(x, y+1);
+        if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
     
     // East
-    if (!found && x < MAP_W-1) {
-        tile = get_tile_raw(x+1, y);
-        if (tile <= 3 && (tile_type_masks[tile] & type_flags)) found = 1;
+    if (x < MAP_W-1) {
+        adjacent_tile_temp = get_tile_core(x+1, y);
+        if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
     
-    // Diagonal directions if requested and not found yet
-    if (!found && include_diagonals) {
-        // Northwest
+    // West
+    if (x > 0) {
+        adjacent_tile_temp = get_tile_core(x-1, y);
+        if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+    }
+    
+    // Diagonal checks only if needed and no match found yet
+    if (include_diagonals) {
+        // Oscar64 optimizes these bounds checks automatically
         if (x > 0 && y > 0) {
-            tile = get_tile_raw(x-1, y-1);
-            if (tile <= 3 && (tile_type_masks[tile] & type_flags)) found = 1;
+            adjacent_tile_temp = get_tile_core(x-1, y-1);
+            if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
-        
-        // Northeast
-        if (!found && x < MAP_W-1 && y > 0) {
-            tile = get_tile_raw(x+1, y-1);
-            if (tile <= 3 && (tile_type_masks[tile] & type_flags)) found = 1;
+        if (x < MAP_W-1 && y > 0) {
+            adjacent_tile_temp = get_tile_core(x+1, y-1);
+            if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
-        
-        // Southwest
-        if (!found && x > 0 && y < MAP_H-1) {
-            tile = get_tile_raw(x-1, y+1);
-            if (tile <= 3 && (tile_type_masks[tile] & type_flags)) found = 1;
+        if (x > 0 && y < MAP_H-1) {
+            adjacent_tile_temp = get_tile_core(x-1, y+1);
+            if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
-        
-        // Southeast
-        if (!found && x < MAP_W-1 && y < MAP_H-1) {
-            tile = get_tile_raw(x+1, y+1);
-            if (tile <= 3 && (tile_type_masks[tile] & type_flags)) found = 1;
+        if (x < MAP_W-1 && y < MAP_H-1) {
+            adjacent_tile_temp = get_tile_core(x+1, y+1);
+            if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
     }
     
-    return found;
+    return 0; // No matching adjacent tiles found
 }
+
+#pragma optimize(pop)
 
 // Legacy adjacency checker
 unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned char include_diagonals, unsigned char tile_types) {
@@ -1044,13 +1098,11 @@ unsigned char mapgen_get_room_info(unsigned char room_index, unsigned char *x, u
     return 1; // Success
 }
 
-// Find the room containing a specific position
+// Find the room containing a specific position - optimized with point_in_any_room
 unsigned char mapgen_find_room_at_position(unsigned char x, unsigned char y) {
-    for (unsigned char i = 0; i < room_count; i++) {
-        if (x >= rooms[i].x && x < rooms[i].x + rooms[i].w &&
-            y >= rooms[i].y && y < rooms[i].y + rooms[i].h) {
-            return i;
-        }
+    unsigned char room_id;
+    if (point_in_any_room(x, y, &room_id)) {
+        return room_id;
     }
     return 255; // No room found (using 255 as "not found" value)
 }

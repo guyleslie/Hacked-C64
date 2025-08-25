@@ -10,10 +10,10 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 |--------|----------|------------|
 | **main.c** | System initialization, main loop | VIC-II setup, input handling |
 | **map_generation.c** | Generation pipeline | Room placement, MST connectivity, wall generation |
-| **connection_system.c** | Room connectivity | MST algorithm, corridor pathfinding, bounding box collision detection |
+| **connection_system.c** | Room connectivity | MST algorithm, corridor pathfinding, bounding box collision detection, early exit path validation |
 | **room_management.c** | Room placement | Grid-based placement, collision detection |
 | **mapgen_display.c** | Display system | Viewport management, screen rendering |
-| **mapgen_utils.c** | Utility functions | Math, random generation, tile conversion |
+| **mapgen_utils.c** | Utility functions | Math, random generation, tile conversion, early exit adjacency checking, register-optimized room detection |
 | **map_export.c** | File I/O | Binary serialization, KERNAL routines |
 
 ## Tile Encoding System
@@ -72,9 +72,11 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 
 **OSCAR64 Optimizations**:
 
-- Zero page variables: `mst_best_room1`, `mst_best_room2`, `mst_best_distance`
-- Speed pragma: `#pragma optimize(speed)` on nested loops
+- Zero page variables: `mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`
+- Speed pragma: `#pragma optimize(speed)` on nested loops and critical path functions
 - Bitwise operations for modulo: `y & 7` instead of `y % 8`
+- Early exit optimization with immediate return on first match
+- Register caching for frequently accessed room coordinates
 
 **MST Process**:
 

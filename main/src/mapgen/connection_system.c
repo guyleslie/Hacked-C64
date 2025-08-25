@@ -115,8 +115,8 @@ unsigned char is_room_reachable(unsigned char room1, unsigned char room2) {
     unsigned char i;  // C64 optimization
     unsigned char sp = 0; // Stack pointer - C64 optimization
     
-    // Initialize visited array
-    for (i = 0; i < MAX_ROOMS; i++) {
+    // Initialize visited array - optimized to actual room count
+    for (i = 0; i < room_count; i++) {
         visited_global[i] = 0;
     }
     

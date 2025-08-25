@@ -112,11 +112,11 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
 - `map_generation.c`: Main generation pipeline (rooms, corridors, stairs, walls)
-- `connection_system.c`: Position-based corridor selection, bounding box collision detection, comprehensive path validation, MST algorithm
+- `connection_system.c`: Position-based corridor selection, bounding box collision detection, early exit path validation, comprehensive path validation, MST algorithm
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions
 - `mapgen_display.c`: Screen handling, viewport management, input processing, delta refresh
-- `mapgen_utils.c`: Math utilities, random number generation, helper functions, PETSCII conversion
+- `mapgen_utils.c`: Math utilities, random number generation, early exit adjacency checking, register-optimized room detection, helper functions, PETSCII conversion
 - `mapgen_api.h`: Public API definitions for map generation
 - `mapgen_types.h`: Type definitions, constants, tile encoding, and shared hardware constants
 - `mapgen_display.h`: Display and rendering function declarations
@@ -143,8 +143,10 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ### OSCAR64 Implementation Details
 
-- **Zero Page Variables:** MST algorithm uses `__zeropage` variables (`mst_best_room1`, `mst_best_room2`, `mst_best_distance`) for 6502 fast memory access
-- **Pragma Directives:** `#pragma optimize(speed)` applied to MST nested loops
+- **Zero Page Variables:** Critical functions use `__zeropage` variables (`mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`) for 6502 fast memory access
+- **Pragma Directives:** `#pragma optimize(3, speed, inline, maxinline)` applied to critical path functions including MST loops, tile checking, and room detection
+- **Early Exit Optimization:** Immediate return on first match in adjacency checking and path validation
+- **Register Caching:** Room coordinates cached in local variables to eliminate redundant array access
 - **Bitwise Operations:** Uses `y & 7` instead of `y % 8` for modulo operations
 - **Build Configuration:** Compiled with `-O0` debug flags
 

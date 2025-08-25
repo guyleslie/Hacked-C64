@@ -34,6 +34,7 @@ void clamp_to_bounds(unsigned char *x, unsigned char *y);
 // Room containment functions - available for all modules
 unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room_id);
 unsigned char is_inside_any_room(unsigned char x, unsigned char y);
+unsigned char point_in_any_room(unsigned char x, unsigned char y, unsigned char *room_id);
 unsigned char is_outside_any_room(unsigned char x, unsigned char y);
 unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char room_id);
 
