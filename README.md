@@ -112,7 +112,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
 - `map_generation.c`: Main generation pipeline (rooms, corridors, stairs, walls)
-- `connection_system.c`: Position-based corridor selection, comprehensive path validation, MST algorithm
+- `connection_system.c`: Position-based corridor selection, bounding box collision detection, comprehensive path validation, MST algorithm
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions
 - `mapgen_display.c`: Screen handling, viewport management, input processing, delta refresh

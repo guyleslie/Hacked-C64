@@ -152,37 +152,97 @@ unsigned char is_room_reachable(unsigned char room1, unsigned char room2) {
 // BASE RULE CHECKS
 // =============================================================================
 
+// =============================================================================
+// OPTIMIZED BOUNDING BOX PRE-FILTERING - OSCAR64 OPTIMIZATION
+// Eliminates expensive detailed path checking for non-overlapping bounds
+// =============================================================================
+
+#pragma optimize(push)
+#pragma optimize(3, speed, inline, constparams) // Maximum optimization for critical function
+
+// Helper function for detailed intersection (when bounding box check passes)
+static unsigned char detailed_path_room_intersection(unsigned char start_x, unsigned char start_y,
+                                                   unsigned char end_x, unsigned char end_y,
+                                                   unsigned char room_index) {
+    signed char x = start_x;
+    signed char y = start_y;
+    
+    while (x != end_x || y != end_y) {
+        // Move one step towards destination
+        if (x < end_x) x++;
+        else if (x > end_x) x--;
+        
+        if (y < end_y) y++;
+        else if (y > end_y) y--;
+        
+        // Check if point intersects room buffer zone with overflow protection
+        unsigned char room_min_x = (rooms[room_index].x > 0) ? rooms[room_index].x - 1 : 0;
+        unsigned char room_max_x = (rooms[room_index].x < 255 - rooms[room_index].w - 1) ? 
+                                   rooms[room_index].x + rooms[room_index].w + 1 : 255;
+        unsigned char room_min_y = (rooms[room_index].y > 0) ? rooms[room_index].y - 1 : 0;
+        unsigned char room_max_y = (rooms[room_index].y < 255 - rooms[room_index].h - 1) ?
+                                   rooms[room_index].y + rooms[room_index].h + 1 : 255;
+        
+        if (x >= room_min_x && x <= room_max_x &&
+            y >= room_min_y && y <= room_max_y) {
+            return 1; // Path intersects room's buffer zone
+        }
+    }
+    return 0;
+}
+
 // Check if a corridor path would intersect any rooms other than source/destination
 unsigned char path_intersects_other_rooms(unsigned char start_x, unsigned char start_y, 
                                          unsigned char end_x, unsigned char end_y,
                                          unsigned char source_room, unsigned char dest_room) {
-    signed char x = start_x;  // C64 optimization: use register
-    signed char y = start_y;
+    // Oscar64 Range Analysis hints for optimal code generation
+    __assume(start_x < MAP_W);
+    __assume(start_y < MAP_H);
+    __assume(end_x < MAP_W);
+    __assume(end_y < MAP_H);
+    __assume(source_room < room_count);
+    __assume(dest_room < room_count);
     
-        // Check every point along the path
-        while (x != end_x || y != end_y) {
-            // Move one step towards destination
-            if (x < end_x) x++;
-            else if (x > end_x) x--;
+    unsigned char i; // Oscar64 loop register optimization
+    
+    // Pre-compute path bounding box using local variables (faster than array access on 6502)
+    // Oscar64 Strength Reduction optimizes min/max operations
+    unsigned char path_min_x = (start_x < end_x) ? start_x : end_x;
+    unsigned char path_max_x = (start_x > end_x) ? start_x : end_x;
+    unsigned char path_min_y = (start_y < end_y) ? start_y : end_y;
+    unsigned char path_max_y = (start_y > end_y) ? start_y : end_y;
+    
+    // Oscar64 optimizes this loop with register allocation and range analysis  
+    for (i = 0; i < room_count; i++) {
+        if (i == source_room || i == dest_room) continue;
+        
+        // Oscar64 Common Subexpression Elimination optimizes repeated room access
+        unsigned char room_x = rooms[i].x; // Cache in register
+        unsigned char room_y = rooms[i].y;
+        unsigned char room_w = rooms[i].w;
+        unsigned char room_h = rooms[i].h;
+        
+        // Compute room buffer bounds with overflow protection - Oscar64 Value Forwarding optimizes
+        unsigned char room_min_x = (room_x > 0) ? room_x - 1 : 0;
+        unsigned char room_max_x = (room_x < 255 - room_w - 1) ? room_x + room_w + 1 : 255;
+        unsigned char room_min_y = (room_y > 0) ? room_y - 1 : 0;
+        unsigned char room_max_y = (room_y < 255 - room_h - 1) ? room_y + room_h + 1 : 255;
+        
+        // Quick bounding box overlap test - Oscar64 Branch Optimization
+        if (path_max_x >= room_min_x && path_min_x <= room_max_x &&
+            path_max_y >= room_min_y && path_min_y <= room_max_y) {
             
-            if (y < end_y) y++;
-            else if (y > end_y) y--;
-            
-            // Check if this point is inside any room other than source/destination
-            for (unsigned char i = 0; i < room_count; i++) {  // C64 optimization
-                if (i == source_room || i == dest_room) continue; // Skip source/dest rooms
-                
-                // Check if point is inside rooms extended boundary (+1 buffer around walkable area)
-                // This prevents corridors from passing too close to room walls
-                if (x >= (rooms[i].x > 0 ? rooms[i].x - 1 : 0) && 
-                    x < rooms[i].x + rooms[i].w + 1 &&
-                    y >= (rooms[i].y > 0 ? rooms[i].y - 1 : 0) && 
-                    y < rooms[i].y + rooms[i].h + 1) {
-                    return 1; // Path intersects room's buffer zone
-                }
+            // Potential intersection - only now do expensive detailed check
+            if (detailed_path_room_intersection(start_x, start_y, end_x, end_y, i)) {
+                return 1;
             }
-        }    return 0; // Path is clear
+        }
+        // Else: No bounding box overlap - skip expensive detailed check entirely
+    }
+    return 0; // Path is clear
 }
+
+#pragma optimize(pop)
 
 // Check if L-shaped path between two points avoids room intersections
 unsigned char l_path_avoids_rooms(unsigned char sx, unsigned char sy, unsigned char ex, unsigned char ey,

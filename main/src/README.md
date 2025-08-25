@@ -10,7 +10,7 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 |--------|----------|------------|
 | **main.c** | System initialization, main loop | VIC-II setup, input handling |
 | **map_generation.c** | Generation pipeline | Room placement, MST connectivity, wall generation |
-| **connection_system.c** | Room connectivity | MST algorithm, corridor pathfinding |
+| **connection_system.c** | Room connectivity | MST algorithm, corridor pathfinding, bounding box collision detection |
 | **room_management.c** | Room placement | Grid-based placement, collision detection |
 | **mapgen_display.c** | Display system | Viewport management, screen rendering |
 | **mapgen_utils.c** | Utility functions | Math, random generation, tile conversion |
