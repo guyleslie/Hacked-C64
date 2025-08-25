@@ -1,66 +1,6 @@
 // =============================================================================
 // ROOM CONNECTION SYSTEM
-// Room connection system with position-based corridor logic and fallback
-// =============================================================================
-// Features:
-// 1. MST with Fallback System
-// 2. Position-Based Corridor Selection
-// 3. Path Validation for All Corridor Types
-// 4. Loop Prevention through Connection Tracking
-// 5. Room Pairing with Distance Calculation
-// 6. L-Shaped Corridor Fix with Proper Door Positioning
-// 7. Fallback Override for Isolated Rooms
-// 8. CORRIDOR VALIDATION SYSTEM:
-//    - STRAIGHT: Uses path_intersects_other_rooms() for single segment
-//    - L-SHAPED: Uses l_path_avoids_rooms() with specialized exit points  
-//    - Z-SHAPED: Uses z_path_avoids_rooms() for three-segment validation
-// 9. FALLBACK RECOVERY MECHANISM:
-//    - Systematic evaluation of all unconnected rooms
-//    - Distance-based pairing with connected rooms
-//    - Multi-attempt strategy prevents premature termination
-//    - Override capability for previously failed attempts (isolated room rescue)
-// 10. CORRIDOR TYPES:
-//    - STRAIGHT CORRIDORS: For aligned rooms ONLY (horizontal/vertical overlap)
-//      * Exit points placed at center of overlapping region, facing each other
-//      * Single straight line connection (horizontal or vertical only)
-//      * Simple direct path logic for aligned rooms (70% chance when axis overlap detected)
-//    - L-SHAPED CORRIDORS: For diagonal rooms ONLY (no axis overlap)
-//      * Two perpendicular segments meeting at intersection point
-//      * Exit points placed on complementary sides for natural L-shape formation
-//      * Vertical walls connect naturally to horizontal walls (and vice versa)
-//      * Movement direction based on room layout: perpendicular wall connections
-//      * Each room sends a straight line toward intersection forming natural L-shape
-//      * Used exclusively for diagonal positioning (50% chance when no axis overlap)
-//    - Z-SHAPED CORRIDORS: For both aligned rooms (30%) and diagonal rooms (50%)
-//      * Three segments: starting legs + perpendicular connector
-//      * Starting legs: Extend from each room away from room walls (avoiding parallel paths)
-//      * Exit points placed on facing (opposite) sides of rooms for natural connection
-//      * Vertical walls connect to vertical walls, horizontal walls to horizontal walls
-//      * First segment: extends from room 1 perpendicular to its exit wall
-//      * Middle segment: connects perpendicular to first segment direction
-//      * Final segment: reaches room 2 perpendicular to its exit wall
-//      * Provides natural flow for both aligned and diagonal room connections
-// 11. EXIT POINT PLACEMENT: Always 1 tile away from room walkable perimeter
-// 12. DOOR PLACEMENT: Always 1 tile from room walkable perimeter (toward corridor)
-// 13. CORRIDOR DECISION LOGIC:
-//     - ALIGNED ROOMS (horizontal/vertical overlap detected):
-//       → 70% chance: STRAIGHT CORRIDOR (direct connection)
-//       → 30% chance: Z-SHAPED CORRIDOR (natural flow)
-//       → NEVER use L-shaped corridors for aligned rooms
-//     - DIAGONAL ROOMS (no axis overlap - true diagonal positioning):
-//       → 50% chance: L-SHAPED CORRIDOR (perpendicular wall connections)
-//       → 50% chance: Z-SHAPED CORRIDOR (complex routing)
-//       → NEVER use straight corridors for diagonal rooms
-//     - Selection based on ROOM POSITIONING, not distance or obstacles
-//     - Each corridor type has specific architectural logic and natural flow patterns
-// 14. Z-CORRIDOR DIRECTION: First leg direction based on exit wall type
-//     - Horizontal walls (top/bottom): Start with vertical movement (away from wall)
-//     - Vertical walls (left/right): Start with horizontal movement (away from wall)
-//     This avoids corridors running parallel to room walls for natural appearance
-// 15. SAFETY RULES SIMPLIFIED WITH DYNAMIC DISTANCE:
-//     - Dynamic distance validation based on room count and map size
-//     - Sparse layouts (≤8 rooms): allow up to 80 tiles distance
-//     - Normal layouts (>8 rooms): limit to 30 tiles distance
+// Implements MST-based room connectivity with multiple corridor types
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS 

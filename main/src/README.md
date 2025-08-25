@@ -89,16 +89,48 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 - Use traditional room distance cache for Manhattan distance calculations
 - Build exactly (room_count - 1) connections
 
+**Connection Features**:
+
+- **Duplicate Prevention**: Reachability check using DFS to avoid redundant connections
+- **Path Validation**: Bounding box pre-filtering with detailed intersection checking
+- **Dynamic Distance Limits**: Adaptive max distance based on room count (≤8 rooms: 80 tiles, >8 rooms: 30 tiles)
+- **Door Reuse**: Existing doors are detected and reused when possible
+- **Fallback Recovery**: Systematic evaluation of unconnected rooms with override capability
+
 **Corridor Types**:
 
-- **Straight**: Single line segment for aligned rooms
-- **L-shaped**: Two perpendicular segments for diagonal rooms
-- **Z-shaped**: Three segments for complex routing
+- **Straight Corridors**: Direct single-segment connection
+  - Used for rooms with axis alignment (horizontal/vertical overlap)
+  - Exit points placed at center of overlapping region
+  - Simple pathfinding with single validation check
+
+- **L-Shaped Corridors**: Two perpendicular segments meeting at intersection
+  - Used for diagonal room positioning (no axis overlap)
+  - Exit points on complementary sides for natural L-formation
+  - Both segments validated independently for room avoidance
+  - Supports both X-first and Y-first path routing
+
+- **Z-Shaped Corridors**: Three-segment complex routing
+  - Used for both aligned and diagonal rooms as alternative
+  - Exit points on facing (opposite) sides of rooms
+  - First leg extends perpendicular from exit wall direction
+  - Three-segment validation ensures complete path clearance
 
 **Corridor Selection Logic**:
 
-- Aligned rooms (axis overlap): 70% straight, 30% Z-shaped
-- Diagonal rooms (no axis overlap): 50% L-shaped, 50% Z-shaped
+- **Aligned Rooms** (horizontal/vertical overlap detected):
+  - 70% chance: Straight corridor (direct connection)
+  - 30% chance: Z-shaped corridor (alternative routing)
+
+- **Diagonal Rooms** (no axis overlap):
+  - 50% chance: L-shaped corridor (perpendicular wall connections)
+  - 50% chance: Z-shaped corridor (complex routing)
+
+**Exit Point Placement**:
+
+- Exit points positioned 2 tiles away from room edge
+- Door placement 1 tile from room edge toward corridor
+- Automatic adjustment to align with existing doors when found
 
 ### 4. Stair Placement
 
