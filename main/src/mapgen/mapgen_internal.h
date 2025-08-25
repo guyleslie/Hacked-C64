@@ -15,8 +15,7 @@
  * in a single pass, removing the need for corridor_endpoint_override mechanisms.
  */
 typedef struct {
-    unsigned char corridor_x, corridor_y;  // 2 tiles from perimeter (corridor start/end)
-    unsigned char door_x, door_y;          // 1 tile from perimeter (door placement)
+    unsigned char x, y;                    // Door/corridor position (1 tile from perimeter)
     unsigned char wall_side;               // 0=left, 1=right, 2=top, 3=bottom
     unsigned char edge_position;           // Position along the selected edge
 } ExitPoint;

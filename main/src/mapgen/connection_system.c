@@ -43,6 +43,7 @@ static CorridorPool corridor_pool = {0};
 static ConnectionCache connection_cache = {0};
 
 
+
 // =============================================================================
 // DUPLICATE CONNECTION PREVENTION - REACHABILITY CHECK
 // =============================================================================
@@ -739,7 +740,7 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
  * @param exit2_side Side of room2 where exit2 is located (0=left, 1=right, 2=top, 3=bottom)
  * @return 1 if should start with X-axis movement, 0 if should start with Y-axis movement
  */
-static unsigned char get_optimal_corridor_direction(unsigned char exit1_side, unsigned char exit2_side) {
+static unsigned char get_z_corridor_direction(unsigned char exit1_side, unsigned char exit2_side) {
     // Rule: If starting from horizontal wall (top/bottom), start with vertical movement (Y-axis)
     //       If starting from vertical wall (left/right), start with horizontal movement (X-axis)
     
@@ -1171,7 +1172,7 @@ void init_connection_system(void) {
     corridor_pool.next_free_index = 0;
     connection_cache.count = 0;
     
-    // Initialize room distance cache (moved to mapgen_utils)
+    // Initialize room distance cache (defined in mapgen_utils.c)
     init_room_distance_cache();
     
     // Initialize MST edge candidate cache
@@ -1345,31 +1346,31 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         
         if (use_straight) {
             // Try straight corridor first
-            if (!path_intersects_other_rooms(exit1.door_x, exit1.door_y, 
-                                            exit2.door_x, exit2.door_y, room1, room2)) {
+            if (!path_intersects_other_rooms(exit1.x, exit1.y, 
+                                            exit2.x, exit2.y, room1, room2)) {
                 
-                if (draw_straight_corridor(exit1.door_x, exit1.door_y, 
-                                         exit2.door_x, exit2.door_y)) {
+                if (draw_straight_corridor(exit1.x, exit1.y, 
+                                         exit2.x, exit2.y)) {
                     
-                    place_door(exit1.door_x, exit1.door_y);
-                    place_door(exit2.door_x, exit2.door_y);
+                    place_door(exit1.x, exit1.y);
+                    place_door(exit2.x, exit2.y);
                     return 1;
                 }
             }
         }
         
         // Try Z-shaped corridor (30% chance initially, or fallback if straight failed)
-        unsigned char start_with_x = get_optimal_corridor_direction(exit1.wall_side, exit2.wall_side);
+        unsigned char start_with_x = get_z_corridor_direction(exit1.wall_side, exit2.wall_side);
         
         // Check if Z-shaped path avoids room intersections
-        if (z_path_avoids_rooms(exit1.door_x, exit1.door_y, 
-                               exit2.door_x, exit2.door_y, start_with_x, room1, room2)) {
+        if (z_path_avoids_rooms(exit1.x, exit1.y, 
+                               exit2.x, exit2.y, start_with_x, room1, room2)) {
             
-            if (draw_z_corridor(exit1.door_x, exit1.door_y, 
-                              exit2.door_x, exit2.door_y, start_with_x)) {
+            if (draw_z_corridor(exit1.x, exit1.y, 
+                              exit2.x, exit2.y, start_with_x)) {
                 
-                place_door(exit1.door_x, exit1.door_y);
-                place_door(exit2.door_x, exit2.door_y);
+                place_door(exit1.x, exit1.y);
+                place_door(exit2.x, exit2.y);
                 return 1;
             }
         }
@@ -1382,63 +1383,37 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% chance
         
         if (use_l_shaped) {
-            // Try L-shaped corridor first with specialized exit points
-            unsigned char l_exit1_x, l_exit1_y, l_exit2_x, l_exit2_y;
-            find_l_corridor_exits(room1, room2, &l_exit1_x, &l_exit1_y, &l_exit2_x, &l_exit2_y);
-            
-            // Convert corridor coordinates to door coordinates for consistent validation and drawing
-            unsigned char door1_x = l_exit1_x, door1_y = l_exit1_y;
-            unsigned char door2_x = l_exit2_x, door2_y = l_exit2_y;
-            
-            // Determine wall sides for coordinate conversion
-            unsigned char exit1_side = get_exit_side(&rooms[room1], l_exit1_x, l_exit1_y);
-            unsigned char exit2_side = get_exit_side(&rooms[room2], l_exit2_x, l_exit2_y);
-            
-            // Convert to door coordinates (1 tile from room perimeter)
-            switch (exit1_side) {
-                case 0: door1_x = rooms[room1].x - 1; break;        // Left: move 1 tile closer
-                case 1: door1_x = rooms[room1].x + rooms[room1].w; break;  // Right: move 1 tile closer
-                case 2: door1_y = rooms[room1].y - 1; break;        // Top: move 1 tile closer
-                case 3: door1_y = rooms[room1].y + rooms[room1].h; break;  // Bottom: move 1 tile closer
-            }
-            
-            switch (exit2_side) {
-                case 0: door2_x = rooms[room2].x - 1; break;        // Left: move 1 tile closer
-                case 1: door2_x = rooms[room2].x + rooms[room2].w; break;  // Right: move 1 tile closer
-                case 2: door2_y = rooms[room2].y - 1; break;        // Top: move 1 tile closer
-                case 3: door2_y = rooms[room2].y + rooms[room2].h; break;  // Bottom: move 1 tile closer
-            }
-            
-            // Check if L-shaped path with door coordinates avoids room intersections
-            unsigned char l_path_clear = l_path_avoids_rooms(door1_x, door1_y, 
-                                                            door2_x, door2_y, 
+            // Try L-shaped corridor using standard door positions
+            // Check if L-shaped path avoids room intersections
+            unsigned char l_path_clear = l_path_avoids_rooms(exit1.x, exit1.y, 
+                                                            exit2.x, exit2.y, 
                                                             room1, room2, 1) ||
-                                        l_path_avoids_rooms(door1_x, door1_y, 
-                                                            door2_x, door2_y, 
+                                        l_path_avoids_rooms(exit1.x, exit1.y, 
+                                                            exit2.x, exit2.y, 
                                                             room1, room2, 0);
             
             if (l_path_clear) {
-                // Draw L-corridor using door coordinates (ensures connection to doors)
-                draw_l_corridor(door1_x, door1_y, door2_x, door2_y, exit1_side, exit2_side);
+                // Draw L-corridor using door coordinates
+                draw_l_corridor(exit1.x, exit1.y, exit2.x, exit2.y, exit1.wall_side, exit2.wall_side);
                 
-                place_door(door1_x, door1_y);
-                place_door(door2_x, door2_y);
+                place_door(exit1.x, exit1.y);
+                place_door(exit2.x, exit2.y);
                 return 1;
             }
         }
         
         // Try Z-shaped corridor (50% chance initially, or fallback if L-shaped failed)
-        unsigned char start_with_x = get_optimal_corridor_direction(exit1.wall_side, exit2.wall_side);
+        unsigned char start_with_x = get_z_corridor_direction(exit1.wall_side, exit2.wall_side);
         
         // Check if Z-shaped path avoids room intersections
-        if (z_path_avoids_rooms(exit1.door_x, exit1.door_y, 
-                               exit2.door_x, exit2.door_y, start_with_x, room1, room2)) {
+        if (z_path_avoids_rooms(exit1.x, exit1.y, 
+                               exit2.x, exit2.y, start_with_x, room1, room2)) {
             
-            if (draw_z_corridor(exit1.door_x, exit1.door_y, 
-                              exit2.door_x, exit2.door_y, start_with_x)) {
+            if (draw_z_corridor(exit1.x, exit1.y, 
+                              exit2.x, exit2.y, start_with_x)) {
                 
-                place_door(exit1.door_x, exit1.door_y);
-                place_door(exit2.door_x, exit2.door_y);
+                place_door(exit1.x, exit1.y);
+                place_door(exit2.x, exit2.y);
                 return 1;
             }
         }

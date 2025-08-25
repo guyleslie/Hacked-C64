@@ -577,23 +577,21 @@ void calculate_exit_points(Room *room, unsigned char target_x, unsigned char tar
     unsigned char dx = abs_diff(target_x, room_center_x);
     unsigned char dy = abs_diff(target_y, room_center_y);
     
-    // Determine optimal edge and calculate both positions in one pass
+    // Determine optimal edge and calculate door position
     if (dx > dy) {
         // Horizontal movement preferred - calculate X-axis positions
         unsigned char edge_pos = room->y + calculate_optimal_exit_position(room->h, target_y, room->y);
         
         if (target_x > room_center_x) {
-            // Right edge
-            exit->corridor_x = room->x + room->w + 1;  // 2 tiles away from perimeter
-            exit->door_x = room->x + room->w;          // 1 tile away from perimeter
+            // Right edge - door position is 1 tile away from perimeter
+            exit->x = room->x + room->w;
             exit->wall_side = 1; // Right wall
         } else {
-            // Left edge  
-            exit->corridor_x = room->x - 2;            // 2 tiles away from perimeter
-            exit->door_x = room->x - 1;               // 1 tile away from perimeter
+            // Left edge - door position is 1 tile away from perimeter
+            exit->x = room->x - 1;
             exit->wall_side = 0; // Left wall
         }
-        exit->corridor_y = exit->door_y = edge_pos;
+        exit->y = edge_pos;
         exit->edge_position = edge_pos - room->y;
         
         // Check for existing door alignment on horizontal sides
@@ -601,31 +599,24 @@ void calculate_exit_points(Room *room, unsigned char target_x, unsigned char tar
         if (find_existing_door_on_room_side(room_id, exit->wall_side, target_x, target_y, 
                                                 &existing_door_x, &existing_door_y)) {
             // Align to existing door
-            exit->corridor_y = exit->door_y = existing_door_y;
+            exit->x = existing_door_x;
+            exit->y = existing_door_y;
             exit->edge_position = existing_door_y - room->y;
-            // Adjust corridor position based on door location
-            if (exit->wall_side == 1) { // Right wall
-                exit->corridor_x = existing_door_x + 1;
-            } else { // Left wall
-                exit->corridor_x = existing_door_x - 1;
-            }
         }
     } else {
         // Vertical movement preferred - calculate Y-axis positions
         unsigned char edge_pos = room->x + calculate_optimal_exit_position(room->w, target_x, room->x);
         
         if (target_y > room_center_y) {
-            // Bottom edge
-            exit->corridor_y = room->y + room->h + 1;  // 2 tiles away from perimeter
-            exit->door_y = room->y + room->h;          // 1 tile away from perimeter
+            // Bottom edge - door position is 1 tile away from perimeter
+            exit->y = room->y + room->h;
             exit->wall_side = 3; // Bottom wall
         } else {
-            // Top edge
-            exit->corridor_y = room->y - 2;            // 2 tiles away from perimeter
-            exit->door_y = room->y - 1;               // 1 tile away from perimeter
+            // Top edge - door position is 1 tile away from perimeter
+            exit->y = room->y - 1;
             exit->wall_side = 2; // Top wall
         }
-        exit->corridor_x = exit->door_x = edge_pos;
+        exit->x = edge_pos;
         exit->edge_position = edge_pos - room->x;
         
         // Check for existing door alignment on vertical sides
@@ -633,14 +624,9 @@ void calculate_exit_points(Room *room, unsigned char target_x, unsigned char tar
         if (find_existing_door_on_room_side(room_id, exit->wall_side, target_x, target_y,
                                                 &existing_door_x, &existing_door_y)) {
             // Align to existing door
-            exit->corridor_x = exit->door_x = existing_door_x;
+            exit->x = existing_door_x;
+            exit->y = existing_door_y;
             exit->edge_position = existing_door_x - room->x;
-            // Adjust corridor position based on door location
-            if (exit->wall_side == 3) { // Bottom wall
-                exit->corridor_y = existing_door_y + 1;
-            } else { // Top wall
-                exit->corridor_y = existing_door_y - 1;
-            }
         }
     }
 }
@@ -1238,6 +1224,7 @@ unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2)
     
     return cached_distance;
 }
+
 
 // Initialize room distance cache
 void init_room_distance_cache(void) {
