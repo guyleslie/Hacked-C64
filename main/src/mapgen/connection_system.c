@@ -470,14 +470,15 @@ static void find_z_corridor_exits(unsigned char room1, unsigned char room2,
 }
 
 /**
- * @brief Find optimal exit points for L-shaped corridor between diagonal rooms
+ * @brief Find optimal door positions for L-shaped corridor between diagonal rooms
+ * Returns door coordinates (1 tile from room perimeter) on diagonally opposite sides
  * Door reuse - checks for existing doors on both perpendicular room sides
  * @param room1 First room index
  * @param room2 Second room index
- * @param exit1_x Pointer to store room1 exit X coordinate
- * @param exit1_y Pointer to store room1 exit Y coordinate
- * @param exit2_x Pointer to store room2 exit X coordinate
- * @param exit2_y Pointer to store room2 exit Y coordinate
+ * @param exit1_x Pointer to store room1 door X coordinate
+ * @param exit1_y Pointer to store room1 door Y coordinate
+ * @param exit2_x Pointer to store room2 door X coordinate
+ * @param exit2_y Pointer to store room2 door Y coordinate
  */
 static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
                                  unsigned char *exit1_x, unsigned char *exit1_y,
@@ -513,50 +514,59 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
         room2_exit_side = 3; // Room2 exits from bottom side
     }
     
-    // Calculate initial exit coordinates based on chosen sides
+    // Calculate door coordinates (1 tile from room perimeter)
     switch (room1_exit_side) {
-        case 0: // Left side
-            *exit1_x = r1->x - 2;
+        case 0: // Left side - door 1 tile from room
+            *exit1_x = r1->x - 1;
             *exit1_y = r1->y + r1->h / 2; // Center of left wall
             break;
-        case 1: // Right side
-            *exit1_x = r1->x + r1->w + 1;
+        case 1: // Right side - door 1 tile from room
+            *exit1_x = r1->x + r1->w;
             *exit1_y = r1->y + r1->h / 2; // Center of right wall
             break;
-        case 2: // Top side
+        case 2: // Top side - door 1 tile from room
             *exit1_x = r1->x + r1->w / 2; // Center of top wall
-            *exit1_y = r1->y - 2;
+            *exit1_y = r1->y - 1;
             break;
-        case 3: // Bottom side
+        case 3: // Bottom side - door 1 tile from room
             *exit1_x = r1->x + r1->w / 2; // Center of bottom wall
-            *exit1_y = r1->y + r1->h + 1;
+            *exit1_y = r1->y + r1->h;
             break;
     }
     
-    // Check for existing door on room1's chosen side and adjust if found
-    adjust_exit_to_existing_door(room1, room1_exit_side, exit1_x, exit1_y);
+    // Check for existing door on room1's chosen side and align to it
+    unsigned char existing_door_x, existing_door_y;
+    if (find_existing_door_on_room_side(room1, room1_exit_side, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+        // Use existing door coordinates directly (for L-shaped corridors we want door positions)
+        *exit1_x = existing_door_x;
+        *exit1_y = existing_door_y;
+    }
     
     switch (room2_exit_side) {
-        case 0: // Left side
-            *exit2_x = r2->x - 2;
+        case 0: // Left side - door 1 tile from room
+            *exit2_x = r2->x - 1;
             *exit2_y = r2->y + r2->h / 2; // Center of left wall
             break;
-        case 1: // Right side
-            *exit2_x = r2->x + r2->w + 1;
+        case 1: // Right side - door 1 tile from room
+            *exit2_x = r2->x + r2->w;
             *exit2_y = r2->y + r2->h / 2; // Center of right wall
             break;
-        case 2: // Top side
+        case 2: // Top side - door 1 tile from room
             *exit2_x = r2->x + r2->w / 2; // Center of top wall
-            *exit2_y = r2->y - 2;
+            *exit2_y = r2->y - 1;
             break;
-        case 3: // Bottom side
+        case 3: // Bottom side - door 1 tile from room
             *exit2_x = r2->x + r2->w / 2; // Center of bottom wall
-            *exit2_y = r2->y + r2->h + 1;
+            *exit2_y = r2->y + r2->h;
             break;
     }
     
-    // Check for existing door on room2's chosen side and adjust if found
-    adjust_exit_to_existing_door(room2, room2_exit_side, exit2_x, exit2_y);
+    // Check for existing door on room2's chosen side and align to it
+    if (find_existing_door_on_room_side(room2, room2_exit_side, *exit2_x, *exit2_y, &existing_door_x, &existing_door_y)) {
+        // Use existing door coordinates directly (for L-shaped corridors we want door positions)
+        *exit2_x = existing_door_x;
+        *exit2_y = existing_door_y;
+    }
 }
 
 /**
@@ -577,45 +587,67 @@ static void draw_l_corridor(unsigned char exit1_x, unsigned char exit1_y,
                                unsigned char exit1_side, unsigned char exit2_side) {
     signed char intersection_x, intersection_y;
     
-    // L-SHAPED CORRIDOR LOGIC: Calculate intersection based on exit wall compatibility
-    // Vertical wall (left/right) connects naturally to horizontal wall (top/bottom)
-    if ((exit1_side == 0 || exit1_side == 1) && (exit2_side == 2 || exit2_side == 3)) {
-        // Room1 has vertical exit, Room2 has horizontal exit
-        // Natural L-shape: horizontal line from room1, then vertical to room2
-        intersection_x = exit2_x;
-        intersection_y = exit1_y;
-        
-        // Draw L-shape: horizontal first, then vertical
-        straight_corridor_path(exit1_x, exit1_y, intersection_x, exit1_y, 1); // X-first to intersection
-        straight_corridor_path(intersection_x, exit1_y, exit2_x, exit2_y, 0); // Y-first to destination
-        
-    } else if ((exit1_side == 2 || exit1_side == 3) && (exit2_side == 0 || exit2_side == 1)) {
-        // Room1 has horizontal exit, Room2 has vertical exit
-        // Natural L-shape: vertical line from room1, then horizontal to room2
-        intersection_x = exit1_x;
-        intersection_y = exit2_y;
-        
-        // Draw L-shape: vertical first, then horizontal
-        straight_corridor_path(exit1_x, exit1_y, exit1_x, intersection_y, 0); // Y-first to intersection
-        straight_corridor_path(exit1_x, intersection_y, exit2_x, exit2_y, 1); // X-first to destination
-        
-    } else {
-        // Both exits on same type of wall - use midpoint approach for balanced L-shape
-        intersection_x = (exit1_x + exit2_x) / 2;
-        intersection_y = (exit1_y + exit2_y) / 2;
-        
-        // Choose direction based on distance - shorter leg first
-        unsigned char dx = (exit1_x > exit2_x) ? (exit1_x - exit2_x) : (exit2_x - exit1_x);
-        unsigned char dy = (exit1_y > exit2_y) ? (exit1_y - exit2_y) : (exit2_y - exit1_y);
-        
-        if (dx > dy) {
-            // Horizontal distance is greater - go X-first for more direct path
-            straight_corridor_path(exit1_x, exit1_y, exit2_x, exit2_y, 1); // X-first
-        } else {
-            // Vertical distance is greater - go Y-first for more direct path
-            straight_corridor_path(exit1_x, exit1_y, exit2_x, exit2_y, 0); // Y-first
-        }
+    // L-SHAPED CORRIDOR LOGIC: Each door must start in its wall's perpendicular direction
+    // Calculate intersection point ensuring proper directional flow from both doors
+    
+    // Calculate intermediate points based on wall directions
+    unsigned char corridor1_x = exit1_x, corridor1_y = exit1_y;
+    unsigned char corridor2_x = exit2_x, corridor2_y = exit2_y;
+    
+    // Move from door1 in its wall's perpendicular direction
+    switch (exit1_side) {
+        case 0: corridor1_x = exit1_x - 1; break; // Left wall -> go left
+        case 1: corridor1_x = exit1_x + 1; break; // Right wall -> go right  
+        case 2: corridor1_y = exit1_y - 1; break; // Top wall -> go up
+        case 3: corridor1_y = exit1_y + 1; break; // Bottom wall -> go down
     }
+    
+    // Move from door2 in its wall's perpendicular direction
+    switch (exit2_side) {
+        case 0: corridor2_x = exit2_x - 1; break; // Left wall -> go left
+        case 1: corridor2_x = exit2_x + 1; break; // Right wall -> go right
+        case 2: corridor2_y = exit2_y - 1; break; // Top wall -> go up  
+        case 3: corridor2_y = exit2_y + 1; break; // Bottom wall -> go down
+    }
+    
+    // Calculate intersection point for L-shape
+    if ((exit1_side == 0 || exit1_side == 1) && (exit2_side == 2 || exit2_side == 3)) {
+        // Room1 vertical exit, Room2 horizontal exit
+        intersection_x = corridor2_x;
+        intersection_y = corridor1_y;
+    } else if ((exit1_side == 2 || exit1_side == 3) && (exit2_side == 0 || exit2_side == 1)) {
+        // Room1 horizontal exit, Room2 vertical exit
+        intersection_x = corridor1_x;
+        intersection_y = corridor2_y;
+    } else {
+        // Both exits same type - create balanced L-shape
+        intersection_x = (corridor1_x + corridor2_x) / 2;
+        intersection_y = (corridor1_y + corridor2_y) / 2;
+    }
+    
+    // Draw three segments: door1->corridor1->intersection->corridor2->door2
+    straight_corridor_path(exit1_x, exit1_y, corridor1_x, corridor1_y, 
+                          (exit1_side == 0 || exit1_side == 1) ? 1 : 0);
+    straight_corridor_path(corridor1_x, corridor1_y, intersection_x, intersection_y, 
+                          (corridor1_x != intersection_x) ? 1 : 0);
+    straight_corridor_path(intersection_x, intersection_y, corridor2_x, corridor2_y,
+                          (intersection_x != corridor2_x) ? 1 : 0);
+    straight_corridor_path(corridor2_x, corridor2_y, exit2_x, exit2_y,
+                          (exit2_side == 0 || exit2_side == 1) ? 1 : 0);
+}
+
+/**
+ * @brief Determine which wall side a door position is on relative to a room
+ * @param door_x Door X coordinate
+ * @param door_y Door Y coordinate  
+ * @param room Pointer to the room
+ * @return Wall side: 0=left, 1=right, 2=top, 3=bottom
+ */
+static unsigned char get_wall_side_from_position(unsigned char door_x, unsigned char door_y, Room *room) {
+    if (door_x < room->x) return 0; // Left
+    else if (door_x >= room->x + room->w) return 1; // Right
+    else if (door_y < room->y) return 2; // Top
+    else return 3; // Bottom
 }
 
 /**
@@ -1383,21 +1415,29 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% chance
         
         if (use_l_shaped) {
-            // Try L-shaped corridor using standard door positions
+            // Try L-shaped corridor using diagonal exit points
+            unsigned char l_exit1_x, l_exit1_y, l_exit2_x, l_exit2_y;
+            find_l_corridor_exits(room1, room2, &l_exit1_x, &l_exit1_y, &l_exit2_x, &l_exit2_y);
+            
             // Check if L-shaped path avoids room intersections
-            unsigned char l_path_clear = l_path_avoids_rooms(exit1.x, exit1.y, 
-                                                            exit2.x, exit2.y, 
+            unsigned char l_path_clear = l_path_avoids_rooms(l_exit1_x, l_exit1_y, 
+                                                            l_exit2_x, l_exit2_y, 
                                                             room1, room2, 1) ||
-                                        l_path_avoids_rooms(exit1.x, exit1.y, 
-                                                            exit2.x, exit2.y, 
+                                        l_path_avoids_rooms(l_exit1_x, l_exit1_y, 
+                                                            l_exit2_x, l_exit2_y, 
                                                             room1, room2, 0);
             
             if (l_path_clear) {
-                // Draw L-corridor using door coordinates
-                draw_l_corridor(exit1.x, exit1.y, exit2.x, exit2.y, exit1.wall_side, exit2.wall_side);
+                // Determine wall sides using utility function
+                unsigned char wall_side1 = get_wall_side_from_position(l_exit1_x, l_exit1_y, &rooms[room1]);
+                unsigned char wall_side2 = get_wall_side_from_position(l_exit2_x, l_exit2_y, &rooms[room2]);
                 
-                place_door(exit1.x, exit1.y);
-                place_door(exit2.x, exit2.y);
+                // Draw L-corridor using door coordinates with correct wall sides
+                draw_l_corridor(l_exit1_x, l_exit1_y, l_exit2_x, l_exit2_y, wall_side1, wall_side2);
+                
+                // Place doors at the positions returned by find_l_corridor_exits
+                place_door(l_exit1_x, l_exit1_y);
+                place_door(l_exit2_x, l_exit2_y);
                 return 1;
             }
         }
