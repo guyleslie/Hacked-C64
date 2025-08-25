@@ -1,6 +1,6 @@
 // =============================================================================
 // Map Generation Module for C64 Map Generator
-// Contains stair generation, wall placement, and main map generation logic
+// Logically ordered structure following the generation pipeline
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
@@ -8,8 +8,7 @@
 #include "mapgen_utils.h"      // For get_room_center, coords_in_bounds, calculate_room_distance
 
 // =============================================================================
-// OPTIMIZED WALL PLACEMENT - OSCAR64 ENHANCED
-// Corner detection completely removed - Oscar64 loop unrolling applied
+// HELPER FUNCTIONS & UTILITIES
 // =============================================================================
 
 // Oscar64 zero page variables for critical data (auto-managed with -Oz flag)
@@ -26,6 +25,72 @@ unsigned char get_tile_safe(unsigned char x, unsigned char y) {
 unsigned char is_walkable_tile(unsigned char tile) {
     return (tile == TILE_FLOOR || tile == TILE_DOOR);
 }
+
+// =============================================================================
+// PHASE 1: ROOM CREATION
+// =============================================================================
+// Note: create_rooms() function is implemented in room_management.c
+// This phase creates rooms using efficient grid-based placement
+
+// =============================================================================
+// PHASE 2: ROOM CONNECTION SYSTEM
+// =============================================================================
+// Note: Connection logic is implemented inline in generate_level()
+// - Position-based corridor selection ensures near-perfect connectivity
+// - Standard MST with attempted connection filtering (prevents infinite loops)
+// - Dynamic distance limits: 30-80 tiles based on room density for optimal connectivity
+
+// =============================================================================
+// PHASE 3: STAIR PLACEMENT SYSTEM
+// =============================================================================
+
+// Place stairs in appropriate rooms based on priority
+void add_stairs(void) {
+    print_text("\n\nPlacing stairs");
+
+    if (room_count < 2) return; // Need at least 2 rooms for stairs
+    
+    unsigned char start_room = 0;
+    unsigned char end_room = room_count - 1;
+    
+    // Find highest priority room for up stairs (usually starting room)
+    unsigned char highest_priority = 0;
+    for (unsigned char i = 0; i < room_count; i++) {
+        if (i % 4 == 0) print_text("."); // Progress indicator every 4th room
+        if (rooms[i].priority > highest_priority) {
+            highest_priority = rooms[i].priority;
+            start_room = i;
+        }
+    }
+    
+    // Find second highest priority room for down stairs (usually ending room)
+    unsigned char second_highest = 0;
+    for (unsigned char i = 0; i < room_count; i++) {
+        if (i % 4 == 0) print_text("."); // Progress indicator every 4th room
+        if (i != start_room && rooms[i].priority > second_highest) {
+            second_highest = rooms[i].priority;
+            end_room = i;
+        }
+    }
+    
+    // Place up stairs in starting room
+    unsigned char up_x, up_y;
+    get_room_center(start_room, &up_x, &up_y);
+    if (coords_in_bounds(up_x, up_y)) {
+        set_tile_raw(up_x, up_y, TILE_UP);
+    }
+    
+    // Place down stairs in ending room
+    unsigned char down_x, down_y;
+    get_room_center(end_room, &down_x, &down_y);
+    if (coords_in_bounds(down_x, down_y)) {
+        set_tile_raw(down_x, down_y, TILE_DOWN);
+    }
+}
+
+// =============================================================================
+// PHASE 4: OPTIMIZED WALL PLACEMENT - OSCAR64 ENHANCED
+// =============================================================================
 
 void add_walls(void) {
     unsigned char x, y; // Oscar64 register allocation automatic
@@ -75,61 +140,13 @@ void add_walls(void) {
         // Oscar64 strength reduction: bit operations instead of modulo
         if ((y & 7) == 0) print_text(".");
     }
-    
-    // PHASE 2 COMPLETELY ELIMINATED
 }
 
 // =============================================================================
-// STAIR PLACEMENT SYSTEM
+// MAIN MAP GENERATION PIPELINE
 // =============================================================================
 
-// Place stairs in appropriate rooms based on priority
-void add_stairs(void) {
-
-    print_text("\n\nPlacing stairs");
-
-    if (room_count < 2) return; // Need at least 2 rooms for stairs
-    
-    unsigned char start_room = 0;
-    unsigned char end_room = room_count - 1;
-      // Find highest priority room for up stairs (usually starting room)
-    unsigned char highest_priority = 0;
-    for (unsigned char i = 0; i < room_count; i++) {
-        if (i % 4 == 0) print_text("."); // Progress indicator every 4th room
-        if (rooms[i].priority > highest_priority) {
-            highest_priority = rooms[i].priority;
-            start_room = i;
-        }
-    }
-    
-    // Find second highest priority room for down stairs (usually ending room)
-    unsigned char second_highest = 0;
-    for (unsigned char i = 0; i < room_count; i++) {
-        if (i % 4 == 0) print_text("."); // Progress indicator every 4th room
-        if (i != start_room && rooms[i].priority > second_highest) {
-            second_highest = rooms[i].priority;
-            end_room = i;
-        }
-    }// Place up stairs in starting room
-    unsigned char up_x, up_y;
-    get_room_center(start_room, &up_x, &up_y);
-    if (coords_in_bounds(up_x, up_y)) {
-        set_tile_raw(up_x, up_y, TILE_UP);
-    }
-    
-    // Place down stairs in ending room
-    unsigned char down_x, down_y;
-    get_room_center(end_room, &down_x, &down_y);
-    if (coords_in_bounds(down_x, down_y)) {
-        set_tile_raw(down_x, down_y, TILE_DOWN);
-    }
-}
-
-// =============================================================================
-// MAIN MAP GENERATION
-// =============================================================================
-
-// Complete level generation pipeline 
+// Complete level generation pipeline following logical order
 unsigned char generate_level(void) {
     // Display map generation progress message
     // Print the map generation message centered horizontally (40 columns)
@@ -211,10 +228,10 @@ unsigned char generate_level(void) {
         }
     }
     
-    // Phase 4: Place stairs for level navigation
+    // Phase 3: Place stairs for level navigation
     add_stairs();
-
-    // Phase 5: Add walls around all floor areas
+    
+    // Phase 4: Add walls around all floor areas
     add_walls();
     
     return 1; // Generation successful
