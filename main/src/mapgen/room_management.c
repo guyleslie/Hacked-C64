@@ -10,10 +10,23 @@
 #include "mapgen_internal.h"   // For room placement/validation and global variable declarations
 #include "mapgen_utils.h"      // For utility functions
 
+// Local constants
+#define MAP_BORDER 4
+#define BORDER_PADDING 3
+#define SCATTER_RANGE 3
+#define PLACEMENT_ATTEMPTS 15
+#define VARIATION_THRESHOLD 5
+#define DEFAULT_PRIORITY 5
+#define START_ROOM_PRIORITY 10
+#define END_ROOM_PRIORITY 8
+#define PRIORITY_VARIATION 3
+#define RECTANGLE_CHANCE 6
+#define RECTANGLE_TOTAL 10
+#define SHUFFLE_PASSES 2
 
 // =============================================================================
-// ROOM VALIDATION AND PLACEMENT FUNCTIONS
-// =============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================="
 
 // Calculates grid-based position with randomization for room placement
 static void get_grid_position(unsigned char grid_index, unsigned char *x, unsigned char *y) {
@@ -39,15 +52,19 @@ static void get_grid_position(unsigned char grid_index, unsigned char *x, unsign
     *y = base_y + random_offset_y - (extra_range_y / 2);
     
     // Add scatter to break grid patterns
-    *x += rnd(6) - 3;  // ±3 pixel random scatter
-    *y += rnd(6) - 3;  // ±3 pixel random scatter
+    *x += rnd(SCATTER_RANGE * 2 + 1) - SCATTER_RANGE;  // ±3 pixel random scatter
+    *y += rnd(SCATTER_RANGE * 2 + 1) - SCATTER_RANGE;  // ±3 pixel random scatter
     
     // Clamp to valid map bounds
-    if (*x < 4) *x = 4;
-    if (*y < 4) *y = 4;
-    if (*x + MAX_SIZE + 3 >= MAP_W) *x = MAP_W - MAX_SIZE - 4;
-    if (*y + MAX_SIZE + 3 >= MAP_H) *y = MAP_H - MAX_SIZE - 4;
+    if (*x < MAP_BORDER) *x = MAP_BORDER;
+    if (*y < MAP_BORDER) *y = MAP_BORDER;
+    if (*x + MAX_SIZE + BORDER_PADDING >= MAP_W) *x = MAP_W - MAX_SIZE - MAP_BORDER;
+    if (*y + MAX_SIZE + BORDER_PADDING >= MAP_H) *y = MAP_H - MAX_SIZE - MAP_BORDER;
 }
+
+// =============================================================================
+// ROOM VALIDATION FUNCTIONS
+// =============================================================================
 
 /**
  * @brief Validates if a room can be placed at the specified location
@@ -59,13 +76,13 @@ static void get_grid_position(unsigned char grid_index, unsigned char *x, unsign
  */
 unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     // Calculate buffer zone boundaries with minimum room distance
-    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE + 3) ? x - MIN_ROOM_DISTANCE : 3;
-    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE + 3) ? y - MIN_ROOM_DISTANCE : 3;
+    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? x - MIN_ROOM_DISTANCE : BORDER_PADDING;
+    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? y - MIN_ROOM_DISTANCE : BORDER_PADDING;
     unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
     unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
     
     // Check map boundaries
-    if (buffer_x2 + 3 >= MAP_W || buffer_y2 + 3 >= MAP_H) {
+    if (buffer_x2 + BORDER_PADDING >= MAP_W || buffer_y2 + BORDER_PADDING >= MAP_H) {
         return 0;
     }
     
@@ -85,30 +102,34 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
     return 1;
 }
 
+// =============================================================================
+// ROOM PLACEMENT FUNCTIONS
+// =============================================================================
+
 // Attempts to place room at specified grid position with random variation
 unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
                                     unsigned char *result_x, unsigned char *result_y) {
     unsigned char attempts = 0;
     
     // Try multiple placement attempts
-    while (attempts < 15) {
+    while (attempts < PLACEMENT_ATTEMPTS) {
         unsigned char x, y;
         
         // Get base grid position
         get_grid_position(grid_index, &x, &y);
         
         // Add random variation for later attempts
-        if (attempts > 5) {
+        if (attempts > VARIATION_THRESHOLD) {
             // Increase variation with more attempts
-            unsigned char extra_variation = attempts - 5;
+            unsigned char extra_variation = attempts - VARIATION_THRESHOLD;
             x += rnd(extra_variation * 2) - extra_variation;
             y += rnd(extra_variation * 2) - extra_variation;
             
             // Clamp to valid bounds
-            if (x < 4) x = 4;
-            if (y < 4) y = 4;
-            if (x + w + 3 >= MAP_W) x = MAP_W - w - 4;
-            if (y + h + 3 >= MAP_H) y = MAP_H - h - 4;
+            if (x < MAP_BORDER) x = MAP_BORDER;
+            if (y < MAP_BORDER) y = MAP_BORDER;
+            if (x + w + BORDER_PADDING >= MAP_W) x = MAP_W - w - MAP_BORDER;
+            if (y + h + BORDER_PADDING >= MAP_H) y = MAP_H - h - MAP_BORDER;
         }
         
         // Test placement validity
@@ -139,7 +160,7 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         rooms[room_count].y = y;
         rooms[room_count].w = w;
         rooms[room_count].h = h;
-        rooms[room_count].priority = 5;    // Default priority
+        rooms[room_count].priority = 0;    // Will be set by assign_room_priorities()
         rooms[room_count].connections = 0; // Initialize connections
         room_count++;
     }
@@ -153,15 +174,16 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
 void assign_room_priorities(void) {
     for (unsigned char i = 0; i < room_count; i++) {
         if (i == 0) {
-            rooms[i].priority = 10; // Starting room
+            rooms[i].priority = START_ROOM_PRIORITY; // Starting room
         } else if (i == room_count - 1) {
-            rooms[i].priority = 8;  // End room
+            rooms[i].priority = END_ROOM_PRIORITY;  // End room
         } else {
             // Random priority variation for other rooms
-            rooms[i].priority = 5 + rnd(3);
+            rooms[i].priority = DEFAULT_PRIORITY + rnd(PRIORITY_VARIATION);
         }
     }
 }
+
 // =============================================================================
 // ROOM GENERATION
 // =============================================================================
@@ -188,23 +210,12 @@ void create_rooms(void) {
         grid_positions[j] = temp;
     }
     
-    // Additional shuffle passes
-    for (unsigned char pass = 0; pass < 2; pass++) {
-        for (unsigned char i = 0; i < grid_count - 1; i++) {
-            if (rnd(2)) {  // 50% chance to swap adjacent pairs
-                unsigned char temp = grid_positions[i];
-                grid_positions[i] = grid_positions[i + 1];
-                grid_positions[i + 1] = temp;
-            }
-        }
-    }
-    
     // Generate rooms at shuffled grid positions
     for (unsigned char i = 0; i < MAX_ROOMS && placed_rooms < MAX_ROOMS && i < grid_count; i++) {
         unsigned char w, h, x, y;
         
         // Generate room size with bias toward rectangles
-        if (rnd(10) < 6) {
+        if (rnd(RECTANGLE_TOTAL) < RECTANGLE_CHANCE) {
             // 60% chance for rectangular rooms
             if (rnd(2)) {
                 // Wider than tall

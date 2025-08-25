@@ -35,10 +35,8 @@ unsigned char is_walkable_tile(unsigned char tile) {
 // =============================================================================
 // PHASE 2: ROOM CONNECTION SYSTEM
 // =============================================================================
-// Note: Connection logic is implemented inline in generate_level()
-// - Position-based corridor selection for connectivity
-// - Standard MST with connection filtering (prevents infinite loops)
-// - Dynamic distance limits: 30-80 tiles based on room density
+// Note: Connection system is implemented in connection_system.c
+// Creates corridors between rooms using MST algorithm with fallback
 
 // =============================================================================
 // PHASE 3: STAIR PLACEMENT SYSTEM
@@ -156,10 +154,8 @@ unsigned char generate_level(void) {
         return 0; // Generation failed
     }
     
-    // Phase 2: Room Connection System
-    // - Position-based corridor selection for connectivity
-    // - Standard MST with connection filtering (prevents infinite loops)
-    // - Dynamic distance limits: 30-80 tiles based on room density
+    // Phase 2: Room Connection System (see connection_system.c)
+    // Connect rooms using MST algorithm with corridor creation
     print_text("\n\nCreating corridors...");
     unsigned char connected[MAX_ROOMS];
     unsigned char connections_made = 0;
