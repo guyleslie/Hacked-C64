@@ -37,6 +37,41 @@ __zeropage unsigned char mst_best_distance;
 __zeropage unsigned char tile_check_cache;
 __zeropage unsigned char adjacent_tile_temp;
 
+// =============================================================================
+// STRIPED ARRAY OPTIMIZATION - PHASE 1: CONNECTION DISTANCE CACHE
+// Oscar64 unique feature for 6502 performance - hot path cache only
+// =============================================================================
+
+#define MAX_CONNECTION_CACHE_STRIPED 64  // Balanced size for better coverage without excessive memory usage
+
+// STRIPED LAYOUT: [room1_0,room1_1,...][room2_0,room2_1,...][distance_0,distance_1,...][valid_0,valid_1,...]
+// Oscar64 generates optimal absolute,x addressing for all field access
+__striped struct {
+    unsigned char room1;     // Source room indices: [r1_0, r1_1, r1_2, ...]
+    unsigned char room2;     // Target room indices: [r2_0, r2_1, r2_2, ...]  
+    unsigned char distance;  // Cached distances: [dist_0, dist_1, dist_2, ...]
+    unsigned char valid;     // Validity flags: [valid_0, valid_1, valid_2, ...]
+} connection_distance_cache_striped[MAX_CONNECTION_CACHE_STRIPED];
+
+static unsigned char striped_cache_size = 0;
+
+// =============================================================================
+// STRIPED ARRAY OPTIMIZATION - PHASE 2: PATH VALIDATION CACHE
+// High-performance path point validation for corridor pathfinding
+// =============================================================================
+
+#define MAX_PATH_POINTS_STRIPED 64  // Keep under 256 for optimal 6502 indexing
+
+// STRIPED LAYOUT: [x_0,x_1,...][y_0,y_1,...][tile_0,tile_1,...][checked_0,checked_1,...]
+__striped struct {
+    unsigned char x;          // All X coordinates: [x0,x1,x2,...]
+    unsigned char y;          // All Y coordinates: [y0,y1,y2,...]  
+    unsigned char tile_type;  // Tile types: [type0,type1,type2,...]
+    unsigned char checked;    // Validation flags: [check0,check1,check2,...]
+} path_validation_cache_striped[MAX_PATH_POINTS_STRIPED];
+
+static unsigned char path_point_count = 0;
+
 // Tracks the current number of rooms generated in the dungeon
 unsigned char room_count = 0;
 
@@ -1236,6 +1271,297 @@ unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2)
     room_distance_cache[room2][room1] = cached_distance; // Symmetric
     
     return cached_distance;
+}
+
+// =============================================================================
+// STRIPED CONNECTION CACHE IMPLEMENTATION - OSCAR64 OPTIMIZED
+// =============================================================================
+
+#pragma optimize(push)
+#pragma optimize(3, speed, inline, maxinline) // Maximum optimization for hot path
+
+// Get cached distance using striped array optimization
+unsigned char get_cached_distance_striped(unsigned char r1, unsigned char r2) {
+    // Oscar64 Range Analysis hints
+    __assume(r1 < room_count);
+    __assume(r2 < room_count);
+    
+    unsigned char i; // Oscar64 index register optimization
+    
+    // Oscar64 generates optimal absolute,x for all field access - single X register
+    for (i = 0; i < striped_cache_size; i++) {
+        if (connection_distance_cache_striped[i].valid && 
+            ((connection_distance_cache_striped[i].room1 == r1 && 
+              connection_distance_cache_striped[i].room2 == r2) ||
+             (connection_distance_cache_striped[i].room1 == r2 && 
+              connection_distance_cache_striped[i].room2 == r1))) {
+            return connection_distance_cache_striped[i].distance; // Fast absolute,x access
+        }
+    }
+    
+    return 255; // Cache miss indicator
+}
+
+// Store distance in striped cache with overflow protection
+void cache_distance_striped(unsigned char r1, unsigned char r2, unsigned char distance) {
+    // Early exit if cache is full or invalid input
+    if (striped_cache_size >= MAX_CONNECTION_CACHE_STRIPED || r1 >= room_count || r2 >= room_count) {
+        return;
+    }
+    
+    // Check if already cached to avoid duplicates
+    if (get_cached_distance_striped(r1, r2) != 255) {
+        return; // Already cached
+    }
+    
+    unsigned char idx = striped_cache_size++;
+    // Oscar64 optimizes these to efficient absolute,x stores
+    connection_distance_cache_striped[idx].room1 = r1;
+    connection_distance_cache_striped[idx].room2 = r2; 
+    connection_distance_cache_striped[idx].distance = distance;
+    connection_distance_cache_striped[idx].valid = 1;
+}
+
+// Initialize striped cache
+void init_striped_distance_cache(void) {
+    unsigned char i;
+    
+    // Clear all entries - Oscar64 optimized loop
+    for (i = 0; i < MAX_CONNECTION_CACHE_STRIPED; i++) {
+        connection_distance_cache_striped[i].valid = 0;
+        connection_distance_cache_striped[i].room1 = 255;
+        connection_distance_cache_striped[i].room2 = 255;
+        connection_distance_cache_striped[i].distance = 255;
+    }
+    
+    striped_cache_size = 0;
+}
+
+// Pure striped distance cache - simple and fast
+unsigned char get_cached_room_distance_enhanced(unsigned char room1, unsigned char room2) {
+    // Try striped cache first
+    unsigned char cached_distance = get_cached_distance_striped(room1, room2);
+    if (cached_distance != 255) {
+        return cached_distance; // Cache hit
+    }
+    
+    // Cache miss - calculate and store in striped cache
+    unsigned char distance = calculate_room_distance(room1, room2);
+    cache_distance_striped(room1, room2, distance);
+    return distance;
+}
+
+#pragma optimize(pop)
+
+// =============================================================================
+// STRIPED PATH VALIDATION IMPLEMENTATION - OSCAR64 OPTIMIZED
+// =============================================================================
+
+#pragma optimize(push)
+#pragma optimize(3, speed, inline, maxinline) // Hot path optimization
+
+// Add point to striped path validation cache
+unsigned char add_path_point_striped(unsigned char x, unsigned char y) {
+    // Overflow protection
+    if (path_point_count >= MAX_PATH_POINTS_STRIPED) {
+        return 0; // Cache full
+    }
+    
+    // Oscar64 Range Analysis hints
+    __assume(x < MAP_W);
+    __assume(y < MAP_H);
+    
+    unsigned char idx = path_point_count++;
+    // Oscar64 generates optimal absolute,x stores
+    path_validation_cache_striped[idx].x = x;
+    path_validation_cache_striped[idx].y = y;
+    path_validation_cache_striped[idx].tile_type = TILE_EMPTY; // Default
+    path_validation_cache_striped[idx].checked = 0; // Not validated yet
+    
+    return 1; // Success
+}
+
+// Validate all cached path points using striped array optimization  
+unsigned char validate_path_points_striped(void) {
+    unsigned char i, valid_count = 0;
+    
+    // Single loop, multiple field access with same index register
+    // Oscar64 optimizes to use single X register for all array access
+    for (i = 0; i < path_point_count; i++) {
+        if (!path_validation_cache_striped[i].checked) {
+            // All field access uses efficient absolute,x addressing
+            unsigned char x = path_validation_cache_striped[i].x;
+            unsigned char y = path_validation_cache_striped[i].y;
+            unsigned char tile = get_tile_core(x, y);
+            
+            // Update cache with validation results
+            path_validation_cache_striped[i].tile_type = tile;
+            path_validation_cache_striped[i].checked = 1;
+            
+            if (tile == TILE_EMPTY || tile == TILE_FLOOR) {
+                valid_count++;
+            }
+        } else {
+            // Use cached result
+            if (path_validation_cache_striped[i].tile_type == TILE_EMPTY || 
+                path_validation_cache_striped[i].tile_type == TILE_FLOOR) {
+                valid_count++;
+            }
+        }
+    }
+    
+    return valid_count;
+}
+
+// Check if path contains invalid tiles using striped cache
+unsigned char check_path_validity_striped(void) {
+    unsigned char i;
+    
+    // Fast early exit scan using striped access
+    for (i = 0; i < path_point_count; i++) {
+        // Oscar64 optimizes to single index register
+        if (path_validation_cache_striped[i].checked) {
+            unsigned char tile = path_validation_cache_striped[i].tile_type;
+            if (tile == TILE_WALL || tile == TILE_DOOR) {
+                return 0; // Invalid path found
+            }
+        }
+    }
+    
+    return 1; // Path is valid
+}
+
+// Clear striped path validation cache
+void clear_path_validation_cache_striped(void) {
+    unsigned char i;
+    
+    // Oscar64 optimized clear loop
+    for (i = 0; i < path_point_count; i++) {
+        path_validation_cache_striped[i].checked = 0;
+        path_validation_cache_striped[i].tile_type = TILE_EMPTY;
+        path_validation_cache_striped[i].x = 255;
+        path_validation_cache_striped[i].y = 255;
+    }
+    
+    path_point_count = 0;
+}
+
+// Bulk path validation - add multiple points and validate
+unsigned char validate_path_bulk_striped(unsigned char *x_coords, unsigned char *y_coords, unsigned char point_count) {
+    // Clear previous cache
+    clear_path_validation_cache_striped();
+    
+    unsigned char i;
+    // Add all points to cache
+    for (i = 0; i < point_count && i < MAX_PATH_POINTS_STRIPED; i++) {
+        if (!add_path_point_striped(x_coords[i], y_coords[i])) {
+            break; // Cache full
+        }
+    }
+    
+    // Validate all points efficiently  
+    return validate_path_points_striped();
+}
+
+#pragma optimize(pop)
+
+// =============================================================================
+// STRIPED ARRAY BENCHMARKING AND PERFORMANCE MEASUREMENT
+// =============================================================================
+
+// Benchmark timing using CIA timer for cycle-accurate measurement
+static unsigned int benchmark_start_time = 0;
+
+void striped_benchmark_start(void) {
+    benchmark_start_time = cia1.ta;  // Capture current timer value
+}
+
+unsigned int striped_benchmark_end(void) {
+    unsigned int end_time = cia1.ta;
+    // Handle timer wrap-around (CIA timer counts down)
+    if (end_time > benchmark_start_time) {
+        return (0xFFFF - end_time) + benchmark_start_time;
+    } else {
+        return benchmark_start_time - end_time;
+    }
+}
+
+// Benchmark comparison: traditional vs striped array access
+typedef struct {
+    unsigned int traditional_cycles;
+    unsigned int striped_cycles;
+    unsigned char test_iterations;
+    unsigned char cache_hit_ratio;
+} BenchmarkResults;
+
+static BenchmarkResults benchmark_results = {0, 0, 0, 0};
+
+// Performance test for distance caching
+void benchmark_distance_cache_performance(void) {
+    unsigned char test_rooms[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+    unsigned char iterations = 50; // Reasonable test size for C64
+    unsigned char i, j;
+    
+    if (room_count < 8) return; // Need minimum rooms for meaningful test
+    
+    // Clear caches for fair comparison
+    clear_room_distance_cache();
+    init_striped_distance_cache();
+    
+    // TRADITIONAL CACHE BENCHMARK
+    striped_benchmark_start();
+    
+    for (i = 0; i < iterations; i++) {
+        for (j = 0; j < 8; j++) {
+            unsigned char distance = get_cached_room_distance(test_rooms[j], test_rooms[(j+1) % 8]);
+            // Dummy usage to prevent optimization
+            tile_check_cache = distance;
+        }
+    }
+    
+    benchmark_results.traditional_cycles = striped_benchmark_end();
+    
+    // STRIPED CACHE BENCHMARK  
+    striped_benchmark_start();
+    
+    for (i = 0; i < iterations; i++) {
+        for (j = 0; j < 8; j++) {
+            unsigned char distance = get_cached_room_distance_enhanced(test_rooms[j], test_rooms[(j+1) % 8]);
+            // Dummy usage to prevent optimization
+            tile_check_cache = distance;
+        }
+    }
+    
+    benchmark_results.striped_cycles = striped_benchmark_end();
+    benchmark_results.test_iterations = iterations;
+    
+    // Calculate cache hit ratio for striped cache
+    unsigned char hits = 0;
+    for (i = 0; i < 8; i++) {
+        if (get_cached_distance_striped(test_rooms[i], test_rooms[(i+1) % 8]) != 255) {
+            hits++;
+        }
+    }
+    benchmark_results.cache_hit_ratio = (hits * 100) / 8;
+}
+
+// Get benchmark results for display or analysis
+void get_benchmark_results(unsigned int *traditional, unsigned int *striped, unsigned char *hit_ratio) {
+    if (traditional) *traditional = benchmark_results.traditional_cycles;
+    if (striped) *striped = benchmark_results.striped_cycles;
+    if (hit_ratio) *hit_ratio = benchmark_results.cache_hit_ratio;
+}
+
+// Calculate performance improvement percentage
+unsigned char calculate_performance_improvement(void) {
+    if (benchmark_results.traditional_cycles == 0) return 0;
+    
+    if (benchmark_results.striped_cycles < benchmark_results.traditional_cycles) {
+        unsigned long improvement = benchmark_results.traditional_cycles - benchmark_results.striped_cycles;
+        return (unsigned char)((improvement * 100) / benchmark_results.traditional_cycles);
+    }
+    
+    return 0; // No improvement or slower
 }
 
 // Initialize room distance cache

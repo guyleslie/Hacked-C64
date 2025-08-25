@@ -166,30 +166,35 @@ unsigned char generate_level(void) {
         mst_best_distance = 255;
         unsigned char connection_found = 0;
         
-        // STANDARD MST: Find shortest VALID connection between connected and unconnected rooms
-        // Enhanced with attempted connection filtering to prevent infinite loops
-        // OSCAR64 automatically optimizes nested loops with zero page variables
-        for (i = 0; i < room_count; i++) {
-            if (!connected[i]) continue; // Only connected rooms as source
-            
-            for (unsigned char j = 0; j < room_count; j++) {
-                // Only unconnected rooms as target
-                if (connected[j]) continue; 
+        // ENHANCED MST: Try striped array optimization first for maximum performance
+        connection_found = find_best_connection_striped(connected, &mst_best_room1, &mst_best_room2);
+        
+        if (!connection_found) {
+            // Fallback to traditional MST algorithm if striped cache missed
+            // Enhanced with attempted connection filtering to prevent infinite loops
+            // OSCAR64 automatically optimizes nested loops with zero page variables
+            for (i = 0; i < room_count; i++) {
+                if (!connected[i]) continue; // Only connected rooms as source
                 
-                // Only allow connections that comply with safety rules
-                // Dynamic distance limits: 30-80 tiles based on room count for better connectivity
-                if (!can_connect_rooms_safely(i, j)) continue;
-                
-                // INFINITE LOOP PREVENTION: Skip connections already attempted
-                if (is_room_reachable(i, j)) continue;
-                
-                // OSCAR64 strength reduction optimization with zero page distance
-                unsigned char distance = calculate_room_distance(i, j);
-                if (distance < mst_best_distance) {
-                    mst_best_distance = distance;
-                    mst_best_room1 = i;
-                    mst_best_room2 = j;
-                    connection_found = 1;
+                for (unsigned char j = 0; j < room_count; j++) {
+                    // Only unconnected rooms as target
+                    if (connected[j]) continue; 
+                    
+                    // Only allow connections that comply with safety rules
+                    // Dynamic distance limits: 30-80 tiles based on room count for better connectivity
+                    if (!can_connect_rooms_safely(i, j)) continue;
+                    
+                    // INFINITE LOOP PREVENTION: Skip connections already attempted
+                    if (is_room_reachable(i, j)) continue;
+                    
+                    // Use enhanced distance cache with striped optimization
+                    unsigned char distance = get_cached_room_distance_enhanced(i, j);
+                    if (distance < mst_best_distance) {
+                        mst_best_distance = distance;
+                        mst_best_room1 = i;
+                        mst_best_room2 = j;
+                        connection_found = 1;
+                    }
                 }
             }
         }

@@ -73,17 +73,20 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 **OSCAR64 Optimizations**:
 
 - Zero page variables: `mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`
+- Striped array layout optimization: `__striped` arrays for optimal 6502 addressing with connection distance cache, path validation cache, and MST edge candidates
 - Speed pragma: `#pragma optimize(speed)` on nested loops and critical path functions
 - Bitwise operations for modulo: `y & 7` instead of `y % 8`
 - Early exit optimization with immediate return on first match
 - Register caching for frequently accessed room coordinates
+- Pure striped implementation with 64-entry cache size for maximum performance
 
 **MST Process**:
 
 - Start with room 0 as connected
-- Find shortest valid connection between connected/unconnected rooms  
+- Enhanced with striped MST edge candidates for performance acceleration
+- Find shortest valid connection using striped cache optimization first, traditional MST as fallback
 - Skip already attempted connections (infinite loop prevention)
-- Use Manhattan distance for edge weights
+- Use enhanced distance cache with striped optimization for Manhattan distance calculations
 - Build exactly (room_count - 1) connections
 
 **Corridor Types**:

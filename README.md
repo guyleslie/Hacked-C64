@@ -144,10 +144,12 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 ### OSCAR64 Implementation Details
 
 - **Zero Page Variables:** Critical functions use `__zeropage` variables (`mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`) for 6502 fast memory access
+- **Striped Array Layout:** Advanced optimization using Oscar64's `__striped` feature for optimal 6502 indexing with connection distance cache, path validation cache, and MST edge candidates
 - **Pragma Directives:** `#pragma optimize(3, speed, inline, maxinline)` applied to critical path functions including MST loops, tile checking, and room detection
 - **Early Exit Optimization:** Immediate return on first match in adjacency checking and path validation
 - **Register Caching:** Room coordinates cached in local variables to eliminate redundant array access
 - **Bitwise Operations:** Uses `y & 7` instead of `y % 8` for modulo operations
+- **Performance Optimizations:** Pure striped implementation with 64-entry cache size for maximum performance
 - **Build Configuration:** Compiled with `-O0` debug flags
 
 ## Usage (Build & Run)

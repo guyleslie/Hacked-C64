@@ -78,6 +78,23 @@ static unsigned char connection_matrix[MAX_ROOMS][MAX_ROOMS];
 static unsigned char attempted_connections[MAX_ROOMS][MAX_ROOMS];
 
 // =============================================================================
+// STRIPED ARRAY OPTIMIZATION - PHASE 3: MST EDGE CANDIDATES
+// Oscar64 optimized Prim's algorithm hot path for maximum performance
+// =============================================================================
+
+#define MAX_MST_EDGES_STRIPED 48    // Reasonable size for MST edge consideration
+
+// STRIPED LAYOUT: [room1_0,room1_1,...][room2_0,room2_1,...][distance_0,distance_1,...][explored_0,explored_1,...]
+__striped struct {
+    unsigned char room1;      // Source rooms: [r1_0,r1_1,r1_2,...]
+    unsigned char room2;      // Target rooms: [r2_0,r2_1,r2_2,...]
+    unsigned char distance;   // Edge weights: [d0,d1,d2,...]
+    unsigned char explored;   // Exploration flags: [e0,e1,e2,...]
+} mst_edge_candidates_striped[MAX_MST_EDGES_STRIPED];
+
+static unsigned char edge_candidate_count = 0;
+
+// =============================================================================
 // STATIC MEMORY ALLOCATION
 // =============================================================================
 
@@ -1155,6 +1172,128 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
     return 0; // Connection failed
 }
 
+// =============================================================================
+// STRIPED MST EDGE CANDIDATES IMPLEMENTATION - OSCAR64 OPTIMIZED
+// =============================================================================
+
+#pragma optimize(push)
+#pragma optimize(3, speed, inline, maxinline) // Critical MST performance optimization
+
+// Add edge candidate to striped MST cache
+unsigned char add_mst_edge_striped(unsigned char room1, unsigned char room2, unsigned char distance) {
+    // Overflow protection
+    if (edge_candidate_count >= MAX_MST_EDGES_STRIPED) {
+        return 0; // Cache full
+    }
+    
+    // Oscar64 Range Analysis hints
+    __assume(room1 < room_count);
+    __assume(room2 < room_count);
+    __assume(distance > 0);
+    
+    unsigned char idx = edge_candidate_count++;
+    // Oscar64 generates optimal absolute,x stores for striped layout
+    mst_edge_candidates_striped[idx].room1 = room1;
+    mst_edge_candidates_striped[idx].room2 = room2;
+    mst_edge_candidates_striped[idx].distance = distance;
+    mst_edge_candidates_striped[idx].explored = 0; // Not explored yet
+    
+    return 1; // Success
+}
+
+// Find minimum unexplored edge using striped array optimization
+unsigned char find_minimum_edge_striped(void) {
+    unsigned char i, min_idx = 255;
+    unsigned char min_distance = 255;
+    
+    // Single index register serves all striped arrays - Oscar64 optimization
+    for (i = 0; i < edge_candidate_count; i++) {
+        if (!mst_edge_candidates_striped[i].explored && 
+            mst_edge_candidates_striped[i].distance < min_distance) {
+            min_distance = mst_edge_candidates_striped[i].distance;
+            min_idx = i;
+        }
+    }
+    
+    return min_idx; // Return index or 255 if no edge found
+}
+
+// Mark edge as explored and return room pair
+unsigned char get_and_mark_edge_striped(unsigned char edge_idx, unsigned char *room1, unsigned char *room2) {
+    if (edge_idx >= edge_candidate_count || edge_idx == 255) {
+        return 0; // Invalid edge index
+    }
+    
+    // Oscar64 optimized striped access
+    *room1 = mst_edge_candidates_striped[edge_idx].room1;
+    *room2 = mst_edge_candidates_striped[edge_idx].room2;
+    mst_edge_candidates_striped[edge_idx].explored = 1; // Mark as explored
+    
+    return 1; // Success
+}
+
+// Build MST edge candidate list for connected rooms
+void build_mst_candidates_striped(unsigned char *connected) {
+    unsigned char i, j;
+    
+    // Clear previous candidates
+    edge_candidate_count = 0;
+    
+    // Build candidate list: connected rooms to unconnected rooms
+    for (i = 0; i < room_count; i++) {
+        if (!connected[i]) continue; // Only connected rooms as sources
+        
+        for (j = 0; j < room_count; j++) {
+            if (connected[j] || i == j) continue; // Skip connected rooms and self
+            
+            // Get distance using pure striped cache
+            unsigned char distance = get_cached_room_distance_enhanced(i, j);
+            
+            // Add to striped candidate cache if space available
+            if (distance < 255 && !add_mst_edge_striped(i, j, distance)) {
+                // Cache full - stop here (using larger cache now so less likely)
+                return;
+            }
+        }
+    }
+}
+
+// Enhanced MST algorithm using striped edge candidates
+unsigned char find_best_connection_striped(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2) {
+    // Build candidate list using striped optimization
+    build_mst_candidates_striped(connected);
+    
+    if (edge_candidate_count == 0) {
+        return 0; // No candidates available
+    }
+    
+    // Find minimum edge efficiently
+    unsigned char min_edge_idx = find_minimum_edge_striped();
+    if (min_edge_idx == 255) {
+        return 0; // No valid edge found
+    }
+    
+    // Get the best edge and mark as explored
+    return get_and_mark_edge_striped(min_edge_idx, best_room1, best_room2);
+}
+
+// Clear striped MST cache  
+void clear_mst_candidates_striped(void) {
+    unsigned char i;
+    
+    // Oscar64 optimized clear loop
+    for (i = 0; i < edge_candidate_count; i++) {
+        mst_edge_candidates_striped[i].explored = 0;
+        mst_edge_candidates_striped[i].room1 = 255;
+        mst_edge_candidates_striped[i].room2 = 255;
+        mst_edge_candidates_striped[i].distance = 255;
+    }
+    
+    edge_candidate_count = 0;
+}
+
+#pragma optimize(pop)
+
 // Initialize connection system and memory pools
 void init_connection_system(void) {
     // Zero out all matrices
@@ -1172,6 +1311,10 @@ void init_connection_system(void) {
     
     // Initialize room distance cache (moved to mapgen_utils)
     init_room_distance_cache();
+    
+    // Initialize striped caches
+    init_striped_distance_cache();
+    clear_mst_candidates_striped();
 }
 
 // Checks if two rooms are connected

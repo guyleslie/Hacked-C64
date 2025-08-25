@@ -88,6 +88,26 @@ void reset_all_generation_data(void);
 
 // Connection system utilities (moved from connection_system.c)
 unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2);
+
+// Striped array optimized distance caching - Oscar64 performance boost
+unsigned char get_cached_distance_striped(unsigned char r1, unsigned char r2);
+void cache_distance_striped(unsigned char r1, unsigned char r2, unsigned char distance);
+void init_striped_distance_cache(void);
+unsigned char get_cached_room_distance_enhanced(unsigned char room1, unsigned char room2);
+
+// Striped path validation cache - Oscar64 optimized path checking
+unsigned char add_path_point_striped(unsigned char x, unsigned char y);
+unsigned char validate_path_points_striped(void);
+unsigned char check_path_validity_striped(void);
+void clear_path_validation_cache_striped(void);
+unsigned char validate_path_bulk_striped(unsigned char *x_coords, unsigned char *y_coords, unsigned char point_count);
+
+// Striped array benchmarking system - performance measurement
+void striped_benchmark_start(void);
+unsigned int striped_benchmark_end(void);
+void benchmark_distance_cache_performance(void);
+void get_benchmark_results(unsigned int *traditional, unsigned int *striped, unsigned char *hit_ratio);
+unsigned char calculate_performance_improvement(void);
 void init_room_distance_cache(void);
 void clear_room_distance_cache(void);
 
