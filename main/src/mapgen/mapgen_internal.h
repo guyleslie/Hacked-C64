@@ -133,10 +133,10 @@ unsigned char l_path_avoids_rooms(unsigned char sx, unsigned char sy, unsigned c
  */
 unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2);
 
-// Striped MST optimization functions - Oscar64 performance enhancement
-unsigned char find_best_connection_striped(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2);
-unsigned char add_mst_edge_striped(unsigned char room1, unsigned char room2, unsigned char distance);
-void clear_mst_candidates_striped(void);
+// MST optimization functions - Oscar64 performance enhancement
+unsigned char find_best_connection(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2);
+unsigned char add_mst_edge(unsigned char room1, unsigned char room2, unsigned char distance);
+void clear_mst_candidates(void);
 
 
 /**

@@ -78,19 +78,19 @@ static unsigned char connection_matrix[MAX_ROOMS][MAX_ROOMS];
 static unsigned char attempted_connections[MAX_ROOMS][MAX_ROOMS];
 
 // =============================================================================
-// STRIPED ARRAY OPTIMIZATION - PHASE 3: MST EDGE CANDIDATES
+// MST EDGE CANDIDATES CACHE
 // Prim's algorithm hot path
 // =============================================================================
 
-#define MAX_MST_EDGES_STRIPED 32    // Simplified cache size for better memory efficiency
+#define MAX_MST_EDGES 32    // Cache size for MST edge candidates
 
-// STRIPED LAYOUT: [room1_0,room1_1,...][room2_0,room2_1,...][distance_0,distance_1,...][explored_0,explored_1,...]
-__striped struct {
-    unsigned char room1;      // Source rooms: [r1_0,r1_1,r1_2,...]
-    unsigned char room2;      // Target rooms: [r2_0,r2_1,r2_2,...]
-    unsigned char distance;   // Edge weights: [d0,d1,d2,...]
-    unsigned char explored;   // Exploration flags: [e0,e1,e2,...]
-} mst_edge_candidates_striped[MAX_MST_EDGES_STRIPED];
+// Traditional MST edge candidate structure
+struct {
+    unsigned char room1;      // Source room
+    unsigned char room2;      // Target room  
+    unsigned char distance;   // Edge weight
+    unsigned char explored;   // Exploration flag
+} mst_edge_candidates[MAX_MST_EDGES];
 
 static unsigned char edge_candidate_count = 0;
 
@@ -323,6 +323,20 @@ static CorridorPath corridor_path_static;
 // =============================================================================
 // STATIC HELPER FUNCTIONS (defined before use to avoid forward declarations)
 // =============================================================================
+
+// Helper function to adjust exit coordinates to align with existing doors
+static void adjust_exit_to_existing_door(unsigned char room_idx, unsigned char side, 
+                                         unsigned char *exit_x, unsigned char *exit_y) {
+    unsigned char existing_door_x, existing_door_y;
+    if (find_existing_door_on_room_side(room_idx, side, *exit_x, *exit_y, &existing_door_x, &existing_door_y)) {
+        switch (side) {
+            case 0: *exit_y = existing_door_y; *exit_x = existing_door_x - 1; break;
+            case 1: *exit_y = existing_door_y; *exit_x = existing_door_x + 1; break;
+            case 2: *exit_x = existing_door_x; *exit_y = existing_door_y - 1; break;
+            case 3: *exit_x = existing_door_x; *exit_y = existing_door_y + 1; break;
+        }
+    }
+}
 
 // Draw a corridor in two straight segments: first along X, then along Y (or vice versa)
 static void straight_corridor_path(signed char sx, signed char sy, signed char ex, signed char ey, unsigned char xy_first) {
@@ -579,31 +593,7 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
     }
     
     // Check for existing door on room1's chosen side and adjust if found
-    unsigned char existing_door_x, existing_door_y;
-    unsigned char target_x = *exit1_x;
-    unsigned char target_y = *exit1_y;
-    
-    if (find_existing_door_on_room_side(room1, room1_exit_side, target_x, target_y, &existing_door_x, &existing_door_y)) {
-        // Adjust exit1 to align with existing door
-        switch (room1_exit_side) {
-            case 0: // Left side
-                *exit1_y = existing_door_y;
-                *exit1_x = existing_door_x - 1; // Exit 1 tile away from door
-                break;
-            case 1: // Right side
-                *exit1_y = existing_door_y;
-                *exit1_x = existing_door_x + 1; // Exit 1 tile away from door
-                break;
-            case 2: // Top side
-                *exit1_x = existing_door_x;
-                *exit1_y = existing_door_y - 1; // Exit 1 tile away from door
-                break;
-            case 3: // Bottom side
-                *exit1_x = existing_door_x;
-                *exit1_y = existing_door_y + 1; // Exit 1 tile away from door
-                break;
-        }
-    }
+    adjust_exit_to_existing_door(room1, room1_exit_side, exit1_x, exit1_y);
     
     switch (room2_exit_side) {
         case 0: // Left side
@@ -625,30 +615,7 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
     }
     
     // Check for existing door on room2's chosen side and adjust if found
-    target_x = *exit2_x;
-    target_y = *exit2_y;
-    
-    if (find_existing_door_on_room_side(room2, room2_exit_side, target_x, target_y, &existing_door_x, &existing_door_y)) {
-        // Adjust exit2 to align with existing door
-        switch (room2_exit_side) {
-            case 0: // Left side
-                *exit2_y = existing_door_y;
-                *exit2_x = existing_door_x - 1; // Exit 1 tile away from door
-                break;
-            case 1: // Right side
-                *exit2_y = existing_door_y;
-                *exit2_x = existing_door_x + 1; // Exit 1 tile away from door
-                break;
-            case 2: // Top side
-                *exit2_x = existing_door_x;
-                *exit2_y = existing_door_y - 1; // Exit 1 tile away from door
-                break;
-            case 3: // Bottom side
-                *exit2_x = existing_door_x;
-                *exit2_y = existing_door_y + 1; // Exit 1 tile away from door
-                break;
-        }
-    }
+    adjust_exit_to_existing_door(room2, room2_exit_side, exit2_x, exit2_y);
 }
 
 /**
@@ -761,19 +728,13 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             *exit2_x = r2->x - 2;          // 2 tiles from room2 left edge
             *exit2_y = center_y;
             
-            // Check for existing door on room1's right side
+            // Check for existing doors
             unsigned char existing_door_x, existing_door_y;
             if (find_existing_door_on_room_side(room1, 1, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
-                // Adjust exit1 to align with existing door
-                *exit1_y = existing_door_y;
-                *exit1_x = existing_door_x + 1; // Exit 1 tile away from door
+                *exit1_y = existing_door_y; *exit1_x = existing_door_x + 1;
             }
-            
-            // Check for existing door on room2's left side
             if (find_existing_door_on_room_side(room2, 0, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                // Adjust exit2 to align with existing door
-                *exit2_y = existing_door_y;
-                *exit2_x = existing_door_x - 1; // Exit 1 tile away from door
+                *exit2_y = existing_door_y; *exit2_x = existing_door_x - 1;
             }
         } else {
             // Room2 is left, Room1 is right
@@ -782,19 +743,13 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             *exit2_x = r2->x + r2->w + 1;  // 2 tiles from room2 right edge
             *exit2_y = center_y;
             
-            // Check for existing door on room1's left side
+            // Check for existing doors
             unsigned char existing_door_x, existing_door_y;
             if (find_existing_door_on_room_side(room1, 0, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
-                // Adjust exit1 to align with existing door
-                *exit1_y = existing_door_y;
-                *exit1_x = existing_door_x - 1; // Exit 1 tile away from door
+                *exit1_y = existing_door_y; *exit1_x = existing_door_x - 1;
             }
-            
-            // Check for existing door on room2's right side
             if (find_existing_door_on_room_side(room2, 1, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                // Adjust exit2 to align with existing door
-                *exit2_y = existing_door_y;
-                *exit2_x = existing_door_x + 1; // Exit 1 tile away from door
+                *exit2_y = existing_door_y; *exit2_x = existing_door_x + 1;
             }
         }
     } else {
@@ -811,19 +766,13 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             *exit2_x = center_x;
             *exit2_y = r2->y - 2;          // 2 tiles from room2 top edge
             
-            // Check for existing door on room1's bottom side
+            // Check for existing doors
             unsigned char existing_door_x, existing_door_y;
             if (find_existing_door_on_room_side(room1, 3, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
-                // Adjust exit1 to align with existing door
-                *exit1_x = existing_door_x;
-                *exit1_y = existing_door_y + 1; // Exit 1 tile away from door
+                *exit1_x = existing_door_x; *exit1_y = existing_door_y + 1;
             }
-            
-            // Check for existing door on room2's top side
             if (find_existing_door_on_room_side(room2, 2, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                // Adjust exit2 to align with existing door
-                *exit2_x = existing_door_x;
-                *exit2_y = existing_door_y - 1; // Exit 1 tile away from door
+                *exit2_x = existing_door_x; *exit2_y = existing_door_y - 1;
             }
         } else {
             // Room2 is top, Room1 is bottom
@@ -832,19 +781,13 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             *exit2_x = center_x;
             *exit2_y = r2->y + r2->h + 1;  // 2 tiles from room2 bottom edge
             
-            // Check for existing door on room1's top side
+            // Check for existing doors
             unsigned char existing_door_x, existing_door_y;
             if (find_existing_door_on_room_side(room1, 2, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
-                // Adjust exit1 to align with existing door
-                *exit1_x = existing_door_x;
-                *exit1_y = existing_door_y - 1; // Exit 1 tile away from door
+                *exit1_x = existing_door_x; *exit1_y = existing_door_y - 1;
             }
-            
-            // Check for existing door on room2's bottom side
             if (find_existing_door_on_room_side(room2, 3, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                // Adjust exit2 to align with existing door
-                *exit2_x = existing_door_x;
-                *exit2_y = existing_door_y + 1; // Exit 1 tile away from door
+                *exit2_x = existing_door_x; *exit2_y = existing_door_y + 1;
             }
         }
     }
@@ -869,15 +812,7 @@ static unsigned char get_optimal_corridor_direction(unsigned char exit1_side, un
     }
 }
 
-/**
- * @brief Place doors for straight corridor connections (simplified - exits are already aligned to existing doors)
- * @param room1 First room index
- * @param room2 Second room index
- * @param exit1_x First exit X coordinate
- * @param exit1_y First exit Y coordinate
- * @param exit2_x Second exit X coordinate
- * @param exit2_y Second exit Y coordinate
- */
+// Place doors for straight corridor connections
 static void place_doors_for_straight_corridor(unsigned char room1, unsigned char room2,
                                             unsigned char exit1_x, unsigned char exit1_y,
                                             unsigned char exit2_x, unsigned char exit2_y) {
@@ -925,15 +860,7 @@ static void place_doors_for_straight_corridor(unsigned char room1, unsigned char
     place_door(door2_x, door2_y);
 }
 
-/**
- * @brief Place doors for diagonal corridor connections (1 tile from room perimeter)
- * @param room1 First room index
- * @param room2 Second room index
- * @param exit1_x First exit X coordinate
- * @param exit1_y First exit Y coordinate
- * @param exit2_x Second exit X coordinate
- * @param exit2_y Second exit Y coordinate
- */
+// Place doors for diagonal corridor connections
 static void place_doors_for_diagonal_corridor(unsigned char room1, unsigned char room2,
                                             unsigned char exit1_x, unsigned char exit1_y,
                                             unsigned char exit2_x, unsigned char exit2_y) {
@@ -1173,16 +1100,16 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
 }
 
 // =============================================================================
-// STRIPED MST EDGE CANDIDATES IMPLEMENTATION
+// MST EDGE CANDIDATES IMPLEMENTATION
 // =============================================================================
 
 #pragma optimize(push)
 #pragma optimize(3, speed, inline, maxinline) // Critical MST performance optimization
 
-// Simplified edge candidate addition to striped MST cache
-unsigned char add_mst_edge_striped(unsigned char room1, unsigned char room2, unsigned char distance) {
+// Add edge candidate to MST cache
+unsigned char add_mst_edge(unsigned char room1, unsigned char room2, unsigned char distance) {
     // Simple overflow protection - OSCAR64 will optimize bounds check
-    if (edge_candidate_count >= MAX_MST_EDGES_STRIPED) {
+    if (edge_candidate_count >= MAX_MST_EDGES) {
         return 0; // Cache full - fallback will handle remaining connections
     }
     
@@ -1191,26 +1118,26 @@ unsigned char add_mst_edge_striped(unsigned char room1, unsigned char room2, uns
     __assume(room2 < MAX_ROOMS);
     __assume(distance > 0 && distance < 255);
     
-    // OSCAR64 auto-optimizes this to efficient 6502 code with striped layout
+    // OSCAR64 auto-optimizes this to efficient 6502 code
     unsigned char idx = edge_candidate_count++;
-    mst_edge_candidates_striped[idx].room1 = room1;
-    mst_edge_candidates_striped[idx].room2 = room2;
-    mst_edge_candidates_striped[idx].distance = distance;
-    mst_edge_candidates_striped[idx].explored = 0;
+    mst_edge_candidates[idx].room1 = room1;
+    mst_edge_candidates[idx].room2 = room2;
+    mst_edge_candidates[idx].distance = distance;
+    mst_edge_candidates[idx].explored = 0;
     
     return 1;
 }
 
-// Find minimum unexplored edge using striped array optimization
-unsigned char find_minimum_edge_striped(void) {
+// Find minimum unexplored edge
+unsigned char find_minimum_edge(void) {
     unsigned char i, min_idx = 255;
     unsigned char min_distance = 255;
     
-    // Single index register serves all striped arrays - Oscar64 optimization
+    // Single index register for all array access - Oscar64 optimization
     for (i = 0; i < edge_candidate_count; i++) {
-        if (!mst_edge_candidates_striped[i].explored && 
-            mst_edge_candidates_striped[i].distance < min_distance) {
-            min_distance = mst_edge_candidates_striped[i].distance;
+        if (!mst_edge_candidates[i].explored && 
+            mst_edge_candidates[i].distance < min_distance) {
+            min_distance = mst_edge_candidates[i].distance;
             min_idx = i;
         }
     }
@@ -1219,21 +1146,21 @@ unsigned char find_minimum_edge_striped(void) {
 }
 
 // Mark edge as explored and return room pair
-unsigned char get_and_mark_edge_striped(unsigned char edge_idx, unsigned char *room1, unsigned char *room2) {
+unsigned char get_and_mark_edge(unsigned char edge_idx, unsigned char *room1, unsigned char *room2) {
     if (edge_idx >= edge_candidate_count || edge_idx == 255) {
         return 0; // Invalid edge index
     }
     
-    // Striped access
-    *room1 = mst_edge_candidates_striped[edge_idx].room1;
-    *room2 = mst_edge_candidates_striped[edge_idx].room2;
-    mst_edge_candidates_striped[edge_idx].explored = 1; // Mark as explored
+    // Array access
+    *room1 = mst_edge_candidates[edge_idx].room1;
+    *room2 = mst_edge_candidates[edge_idx].room2;
+    mst_edge_candidates[edge_idx].explored = 1; // Mark as explored
     
     return 1; // Success
 }
 
 // Simplified MST edge candidate list builder
-void build_mst_candidates_striped(unsigned char *connected) {
+void build_mst_candidates(unsigned char *connected) {
     // OSCAR64 auto-optimizes loop variables to registers
     unsigned char i, j;
     
@@ -1248,11 +1175,11 @@ void build_mst_candidates_striped(unsigned char *connected) {
             if (connected[j] || i == j) continue; // Skip connected/self
             
             // OSCAR64 optimizes function call if frequently used
-            unsigned char distance = get_cached_room_distance_striped(i, j);
+            unsigned char distance = get_cached_room_distance(i, j);
             
             // Early termination on cache full - fallback will complete MST
             if (distance < 255) {
-                if (!add_mst_edge_striped(i, j, distance)) {
+                if (!add_mst_edge(i, j, distance)) {
                     return; // Cache full - let fallback handle rest
                 }
             }
@@ -1260,27 +1187,27 @@ void build_mst_candidates_striped(unsigned char *connected) {
     }
 }
 
-// MST algorithm using striped edge candidates
-unsigned char find_best_connection_striped(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2) {
-    // Build candidate list using striped optimization
-    build_mst_candidates_striped(connected);
+// MST algorithm using edge candidates
+unsigned char find_best_connection(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2) {
+    // Build candidate list
+    build_mst_candidates(connected);
     
     if (edge_candidate_count == 0) {
         return 0; // No candidates available
     }
     
     // Find minimum edge efficiently
-    unsigned char min_edge_idx = find_minimum_edge_striped();
+    unsigned char min_edge_idx = find_minimum_edge();
     if (min_edge_idx == 255) {
         return 0; // No valid edge found
     }
     
     // Get the best edge and mark as explored
-    return get_and_mark_edge_striped(min_edge_idx, best_room1, best_room2);
+    return get_and_mark_edge(min_edge_idx, best_room1, best_room2);
 }
 
-// Striped MST cache clear
-void clear_mst_candidates_striped(void) {
+// MST edge candidate cache clear
+void clear_mst_candidates(void) {
     // OSCAR64 will optimize this simple reset - no need for complex clearing
     edge_candidate_count = 0;
     // Note: No need to clear array contents - they'll be overwritten when used
@@ -1307,9 +1234,8 @@ void init_connection_system(void) {
     // Initialize room distance cache (moved to mapgen_utils)
     init_room_distance_cache();
     
-    // Initialize striped caches
-    init_striped_distance_cache();
-    clear_mst_candidates_striped();
+    // Initialize MST edge candidate cache
+    clear_mst_candidates();
 }
 
 // Checks if two rooms are connected

@@ -176,11 +176,11 @@ unsigned char generate_level(void) {
         mst_best_distance = 255;
         unsigned char connection_found = 0;
         
-        // MST: Try striped array first
-        connection_found = find_best_connection_striped(connected, &mst_best_room1, &mst_best_room2);
+        // MST: Try optimized connection finding first  
+        connection_found = find_best_connection(connected, &mst_best_room1, &mst_best_room2);
         
         if (!connection_found) {
-            // Fallback to traditional MST algorithm if striped cache missed
+            // Fallback to traditional MST algorithm if cache missed
             // Connection filtering to prevent infinite loops
             for (i = 0; i < room_count; i++) {
                 if (!connected[i]) continue; // Only connected rooms as source
@@ -196,8 +196,8 @@ unsigned char generate_level(void) {
                     // Skip connections already attempted
                     if (is_room_reachable(i, j)) continue;
                     
-                    // Use distance cache with striped layout
-                    unsigned char distance = get_cached_room_distance_striped(i, j);
+                    // Use traditional distance cache
+                    unsigned char distance = get_cached_room_distance(i, j);
                     if (distance < mst_best_distance) {
                         mst_best_distance = distance;
                         mst_best_room1 = i;
