@@ -1,10 +1,10 @@
 # Hacked-C64
 
-Advanced Dungeon Map Generator for Commodore 64 – Implemented with Oscar64
+Dungeon Map Generator for Commodore 64 – Implemented with Oscar64
 
 ## Overview
 
-This project is a sophisticated dungeon map generator written entirely in C and optimized for the Oscar64 cross-assembler. The program generates complex, interconnected dungeon layouts with rooms, corridors, walls, stairs, and doors. Features include real-time navigation, interactive map exploration, compact 3-bit tile encoding, and C64 PRG map export functionality. All code is heavily optimized for C64 hardware constraints with static memory allocation and direct screen memory access.
+This project is a dungeon map generator written in C for the Oscar64 cross-assembler. The program generates interconnected dungeon layouts with rooms, corridors, walls, stairs, and doors. Features include real-time navigation, interactive map exploration, compact 3-bit tile encoding, and C64 PRG map export functionality. Code uses static memory allocation and direct screen memory access.
 
 ## Screenshots
 
@@ -81,25 +81,25 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ## Key Features and Architecture
 
-### Advanced Generation System
+### Generation System
 
-- **Position-Based MST**: Uses Minimum Spanning Tree algorithm with position-based corridor selection for reliable connectivity
-- **Intelligent Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
-- **Position-Based Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships (aligned vs diagonal positioning) with intelligent door reuse
-- **Streamlined Wall Generation**: Single-pass algorithm with complete visual enclosure
-- **Priority-Based Stair Placement**: Stairs placed in highest-priority rooms for optimal dungeon flow
-- **Simplified Connection Rules**: Dynamic distance-based validation (30-80 tiles depending on room density), intelligent door reuse for all corridor types
+- **Position-Based MST**: Uses Minimum Spanning Tree algorithm with position-based corridor selection
+- **Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
+- **Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships with door reuse
+- **Wall Generation**: Single-pass algorithm with complete visual enclosure
+- **Stair Placement**: Stairs placed in highest-priority rooms
+- **Connection Rules**: Distance-based validation (30-80 tiles depending on room density), door reuse for all corridor types
 
-### Memory and Performance Optimization
+### Memory and Performance
 
-- **Compact Storage**: 3-bit tile encoding fits entire 64x64 map in only 1536 bytes
-- **Static Memory**: No dynamic allocation - all data structures use fixed-size arrays
+- **Compact Storage**: 3-bit tile encoding fits entire 64x64 map in 1536 bytes
+- **Static Memory**: No dynamic allocation - all data structures use arrays
 - **Hardware Integration**: Direct VIC-II memory access and PETSCII character display
-- **Delta Refresh**: Screen buffer with dirty flags for flicker-free updates
-- **Optimized Algorithms**: C64-tuned math operations and loop structures
-- **Consolidated Variable Management**: All extern declarations centralized in `mapgen_internal.h`
-- **Optimized Include Structure**: System/project headers separated, redundant includes eliminated
-- **Shared Constants**: Common hardware addresses and values unified in `mapgen_types.h`
+- **Delta Refresh**: Screen buffer with dirty flags for updates
+- **Algorithms**: C64-tuned math operations and loop structures
+- **Variable Management**: All extern declarations centralized in `mapgen_internal.h`
+- **Include Structure**: System/project headers separated
+- **Shared Constants**: Common hardware addresses and values in `mapgen_types.h`
 
 ### Interactive Features
 
@@ -112,11 +112,11 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
 - `map_generation.c`: Main generation pipeline (rooms, corridors, stairs, walls)
-- `connection_system.c`: Position-based corridor selection, bounding box collision detection, early exit path validation, comprehensive path validation, MST algorithm
+- `connection_system.c`: Position-based corridor selection, bounding box collision detection, path validation, MST algorithm
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions
 - `mapgen_display.c`: Screen handling, viewport management, input processing, delta refresh
-- `mapgen_utils.c`: Math utilities, random number generation, early exit adjacency checking, register-optimized room detection, helper functions, PETSCII conversion
+- `mapgen_utils.c`: Math utilities, random number generation, adjacency checking, room detection, helper functions, PETSCII conversion
 - `mapgen_api.h`: Public API definitions for map generation
 - `mapgen_types.h`: Type definitions, constants, tile encoding, and shared hardware constants
 - `mapgen_display.h`: Display and rendering function declarations
@@ -143,20 +143,20 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ### OSCAR64 Implementation Details
 
-- **Zero Page Variables:** Critical functions use `__zeropage` variables (`mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`) for 6502 fast memory access
-- **Striped Array Layout:** Advanced optimization using Oscar64's `__striped` feature for optimal 6502 indexing with connection distance cache, path validation cache, and MST edge candidates
-- **Pragma Directives:** `#pragma optimize(3, speed, inline, maxinline)` applied to critical path functions including MST loops, tile checking, and room detection
-- **Early Exit Optimization:** Immediate return on first match in adjacency checking and path validation
-- **Register Caching:** Room coordinates cached in local variables to eliminate redundant array access
+- **Zero Page Variables:** Critical functions use `__zeropage` variables (`mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`) for 6502 memory access
+- **Striped Array Layout:** Uses Oscar64's `__striped` feature for 6502 indexing with connection distance cache, path validation cache, and MST edge candidates
+- **Pragma Directives:** `#pragma optimize(3, speed, inline, maxinline)` applied to functions including MST loops, tile checking, and room detection
+- **Early Exit:** Immediate return on first match in adjacency checking and path validation
+- **Register Caching:** Room coordinates cached in local variables
 - **Bitwise Operations:** Uses `y & 7` instead of `y % 8` for modulo operations
-- **Performance Optimizations:** Pure striped implementation with 64-entry cache size for maximum performance
+- **Implementation:** Striped implementation with 64-entry cache size
 - **Build Configuration:** Compiled with `-O0` debug flags
 
 ## Usage (Build & Run)
 
 ### Quick Start with Windows Batch Files
 
-- **`build.bat`**: Complete Oscar64 compilation with automatic cleanup
+- **`build.bat`**: Oscar64 compilation with cleanup
 - **`run_vice.bat`**: Build project and launch in VICE emulator automatically
 - **`run_c64debugger.bat`**: Build project and launch in C64 Debugger for development
 

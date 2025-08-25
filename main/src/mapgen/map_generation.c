@@ -1,6 +1,6 @@
 // =============================================================================
 // Map Generation Module for C64 Map Generator
-// Logically ordered structure following the generation pipeline
+// Structure following the generation pipeline
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
@@ -11,7 +11,7 @@
 // HELPER FUNCTIONS & UTILITIES
 // =============================================================================
 
-// Oscar64 zero page variables for critical data (auto-managed with -Oz flag)
+// Oscar64 zero page variables for data
 __zeropage unsigned char wall_loop_counter;
 __zeropage unsigned char wall_tile_cache;
 
@@ -30,15 +30,15 @@ unsigned char is_walkable_tile(unsigned char tile) {
 // PHASE 1: ROOM CREATION
 // =============================================================================
 // Note: create_rooms() function is implemented in room_management.c
-// This phase creates rooms using efficient grid-based placement
+// This phase creates rooms using grid-based placement
 
 // =============================================================================
 // PHASE 2: ROOM CONNECTION SYSTEM
 // =============================================================================
 // Note: Connection logic is implemented inline in generate_level()
-// - Position-based corridor selection ensures near-perfect connectivity
-// - Standard MST with attempted connection filtering (prevents infinite loops)
-// - Dynamic distance limits: 30-80 tiles based on room density for optimal connectivity
+// - Position-based corridor selection for connectivity
+// - Standard MST with connection filtering (prevents infinite loops)
+// - Dynamic distance limits: 30-80 tiles based on room density
 
 // =============================================================================
 // PHASE 3: STAIR PLACEMENT SYSTEM
@@ -53,7 +53,7 @@ void add_stairs(void) {
     unsigned char start_room = 0;
     unsigned char end_room = room_count - 1;
     
-    // Find highest priority room for up stairs (usually starting room)
+    // Find highest priority room for up stairs
     unsigned char highest_priority = 0;
     for (unsigned char i = 0; i < room_count; i++) {
         if (i % 4 == 0) print_text("."); // Progress indicator every 4th room
@@ -63,7 +63,7 @@ void add_stairs(void) {
         }
     }
     
-    // Find second highest priority room for down stairs (usually ending room)
+    // Find second highest priority room for down stairs
     unsigned char second_highest = 0;
     for (unsigned char i = 0; i < room_count; i++) {
         if (i % 4 == 0) print_text("."); // Progress indicator every 4th room
@@ -89,25 +89,23 @@ void add_stairs(void) {
 }
 
 // =============================================================================
-// PHASE 4: OPTIMIZED WALL PLACEMENT - OSCAR64 ENHANCED
+// PHASE 4:  WALL PLACEMENT
 // =============================================================================
 
 void add_walls(void) {
-    unsigned char x, y; // Oscar64 register allocation automatic
+    unsigned char x, y; // Oscar64 register allocation
     unsigned char tile;
 
     print_text("\n\nPlacing walls");
     
-    // SINGLE PHASE ONLY - Phase 2 corner detection completely removed
     for (y = 0; y < MAP_H; y++) {
-        // Oscar64 loop unrolling - process inner loop more efficiently
+        // Loop unrolling
         #pragma unroll(2)
         for (x = 0; x < MAP_W; x++) {
             tile = get_tile_raw(x, y);
             
             // Only place walls around walkable tiles
             if (is_walkable_tile(tile)) {
-                // Oscar64 optimizes repeated bounds checking automatically
                 // Cardinal directions
                 if (y > 0 && get_tile_raw(x, y-1) == TILE_EMPTY) {
                     set_tile_raw(x, y-1, TILE_WALL);
@@ -122,7 +120,7 @@ void add_walls(void) {
                     set_tile_raw(x+1, y, TILE_WALL);
                 }
                 
-                // Diagonal walls for complete enclosure
+                // Diagonal walls
                 if (x > 0 && y > 0 && get_tile_raw(x-1, y-1) == TILE_EMPTY) {
                     set_tile_raw(x-1, y-1, TILE_WALL);
                 }
@@ -137,7 +135,6 @@ void add_walls(void) {
                 }
             }
         }
-        // Oscar64 strength reduction: bit operations instead of modulo
         if ((y & 7) == 0) print_text(".");
     }
 }
@@ -146,13 +143,13 @@ void add_walls(void) {
 // MAIN MAP GENERATION PIPELINE
 // =============================================================================
 
-// Complete level generation pipeline following logical order
+// Level generation pipeline
 unsigned char generate_level(void) {
     // Display map generation progress message
     // Print the map generation message centered horizontally (40 columns)
     print_text("      *** Hacked Map Generator ***\n");
     
-    // Phase 1: Create rooms using efficient grid-based placement
+    // Phase 1: Create rooms using grid-based placement
     create_rooms();
     // Early exit if no rooms were created
     if (room_count == 0) {
@@ -160,9 +157,9 @@ unsigned char generate_level(void) {
     }
     
     // Phase 2: Room Connection System
-    // - Position-based corridor selection ensures near-perfect connectivity
-    // - Standard MST with attempted connection filtering (prevents infinite loops)
-    // - Dynamic distance limits: 30-80 tiles based on room density for optimal connectivity
+    // - Position-based corridor selection for connectivity
+    // - Standard MST with connection filtering (prevents infinite loops)
+    // - Dynamic distance limits: 30-80 tiles based on room density
     print_text("\n\nCreating corridors...");
     unsigned char connected[MAX_ROOMS];
     unsigned char connections_made = 0;
@@ -176,20 +173,19 @@ unsigned char generate_level(void) {
     }
     // Start with room 0 as connected
     connected[0] = 1;
-    // Connect exactly (room_count - 1) rooms for optimal spanning tree
-    // OSCAR64 optimized MST main loop
+    // Connect exactly (room_count - 1) rooms for spanning tree
+    // MST main loop
     #pragma optimize(speed)
     while (connections_made < room_count - 1) {
         mst_best_distance = 255;
         unsigned char connection_found = 0;
         
-        // ENHANCED MST: Try striped array optimization first for maximum performance
+        // MST: Try striped array first
         connection_found = find_best_connection_striped(connected, &mst_best_room1, &mst_best_room2);
         
         if (!connection_found) {
             // Fallback to traditional MST algorithm if striped cache missed
-            // Enhanced with attempted connection filtering to prevent infinite loops
-            // OSCAR64 automatically optimizes nested loops with zero page variables
+            // Connection filtering to prevent infinite loops
             for (i = 0; i < room_count; i++) {
                 if (!connected[i]) continue; // Only connected rooms as source
                 
@@ -198,14 +194,14 @@ unsigned char generate_level(void) {
                     if (connected[j]) continue; 
                     
                     // Only allow connections that comply with safety rules
-                    // Dynamic distance limits: 30-80 tiles based on room count for better connectivity
+                    // Dynamic distance limits: 30-80 tiles based on room count
                     if (!can_connect_rooms_safely(i, j)) continue;
                     
-                    // INFINITE LOOP PREVENTION: Skip connections already attempted
+                    // Skip connections already attempted
                     if (is_room_reachable(i, j)) continue;
                     
-                    // Use enhanced distance cache with striped optimization
-                    unsigned char distance = get_cached_room_distance_enhanced(i, j);
+                    // Use distance cache with striped layout
+                    unsigned char distance = get_cached_room_distance_striped(i, j);
                     if (distance < mst_best_distance) {
                         mst_best_distance = distance;
                         mst_best_room1 = i;
@@ -216,7 +212,7 @@ unsigned char generate_level(void) {
             }
         }
         
-        // Make the best connection found using zero page optimized variables
+        // Make the best connection found using zero page variables
         if (connection_found && connect_rooms_directly(mst_best_room1, mst_best_room2)) {
             // Connection succeeded - connect_rooms_directly handles matrix management
             connected[mst_best_room2] = 1; // Mark new room as connected

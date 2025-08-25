@@ -89,11 +89,11 @@ void reset_all_generation_data(void);
 // Connection system utilities (moved from connection_system.c)
 unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2);
 
-// Striped array optimized distance caching - Oscar64 performance boost
+// Striped array distance caching
 unsigned char get_cached_distance_striped(unsigned char r1, unsigned char r2);
 void cache_distance_striped(unsigned char r1, unsigned char r2, unsigned char distance);
 void init_striped_distance_cache(void);
-unsigned char get_cached_room_distance_enhanced(unsigned char room1, unsigned char room2);
+unsigned char get_cached_room_distance_striped(unsigned char room1, unsigned char room2);
 
 // Striped path validation cache - Oscar64 optimized path checking
 unsigned char add_path_point_striped(unsigned char x, unsigned char y);

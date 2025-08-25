@@ -28,7 +28,7 @@ unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 // Array storing room structure data for dungeon generation
 Room rooms[MAX_ROOMS];
 
-// OSCAR64 zero page optimized variables for MST performance
+// OSCAR64 zero page variables for MST
 __zeropage unsigned char mst_best_room1;
 __zeropage unsigned char mst_best_room2; 
 __zeropage unsigned char mst_best_distance;
@@ -267,7 +267,7 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
 }
 
 /**
- * Optimized core tile reader - inline function for maximum speed
+ * Core tile reader - inline function
  * Used internally by all tile checking functions
  * No bounds checking for maximum performance
  */
@@ -375,7 +375,7 @@ inline unsigned char tile_is_empty(unsigned char x, unsigned char y) {
 
 /**
  * Clear entire map to empty space
- * Optimized to clear all bytes to 0 (since TILE_EMPTY = 0)
+ * Clear all bytes to 0 (since TILE_EMPTY = 0)
  */
 void clear_map(void) {
     // Calculate total bytes needed for compact map
@@ -436,7 +436,7 @@ unsigned char is_inside_any_room(unsigned char x, unsigned char y) {
     return 0; 
 }
 
-// Enhanced room containment with register optimization
+// Room containment with register usage
 #pragma optimize(push)
 #pragma optimize(3, speed, inline, constparams) // Maximum optimization for critical function
 
@@ -518,8 +518,8 @@ static unsigned char calculate_optimal_exit_position(unsigned char room_dim, uns
     return min_pos + offset;
 }
 
-// Room exits finding with optimized positioning to avoid corners and improve corridor flow
-// Maintains 2-tile distance rule while providing intelligent variation
+// Room exits finding with positioning to avoid corners
+// Maintains 2-tile distance rule
 // Now checks for existing doors and aligns exit points to them
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y) {
@@ -589,7 +589,7 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
 }
 
 // =============================================================================
-// OPTIMIZED UNIFIED EXIT POINT CALCULATION
+// UNIFIED EXIT POINT CALCULATION
 // =============================================================================
 
 /**
@@ -708,7 +708,7 @@ unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char mi
 // =============================================================================
 
 // Checks if the given coordinate is on the edge (perimeter) of any room.
-// Register-optimized with early exit and cached room coordinates
+// Register usage with early exit and cached room coordinates
 #pragma optimize(push)
 #pragma optimize(3, speed, inline, constparams)
 
@@ -929,7 +929,7 @@ inline unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsi
 }
 
 // =============================================================================
-// EARLY EXIT TILE CHECKING - OSCAR64 REGISTER OPTIMIZED
+// EARLY EXIT TILE CHECKING
 // Stop immediately when condition is met - major performance gain
 // =============================================================================
 
@@ -1133,7 +1133,7 @@ unsigned char mapgen_get_room_info(unsigned char room_index, unsigned char *x, u
     return 1; // Success
 }
 
-// Find the room containing a specific position - optimized with point_in_any_room
+// Find the room containing a specific position
 unsigned char mapgen_find_room_at_position(unsigned char x, unsigned char y) {
     unsigned char room_id;
     if (point_in_any_room(x, y, &room_id)) {
@@ -1274,7 +1274,7 @@ unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2)
 }
 
 // =============================================================================
-// STRIPED CONNECTION CACHE IMPLEMENTATION - OSCAR64 OPTIMIZED
+// STRIPED CONNECTION CACHE IMPLEMENTATION
 // =============================================================================
 
 #pragma optimize(push)
@@ -1326,7 +1326,7 @@ void cache_distance_striped(unsigned char r1, unsigned char r2, unsigned char di
 void init_striped_distance_cache(void) {
     unsigned char i;
     
-    // Clear all entries - Oscar64 optimized loop
+    // Clear all entries
     for (i = 0; i < MAX_CONNECTION_CACHE_STRIPED; i++) {
         connection_distance_cache_striped[i].valid = 0;
         connection_distance_cache_striped[i].room1 = 255;
@@ -1338,7 +1338,7 @@ void init_striped_distance_cache(void) {
 }
 
 // Pure striped distance cache - simple and fast
-unsigned char get_cached_room_distance_enhanced(unsigned char room1, unsigned char room2) {
+unsigned char get_cached_room_distance_striped(unsigned char room1, unsigned char room2) {
     // Try striped cache first
     unsigned char cached_distance = get_cached_distance_striped(room1, room2);
     if (cached_distance != 255) {
@@ -1354,7 +1354,7 @@ unsigned char get_cached_room_distance_enhanced(unsigned char room1, unsigned ch
 #pragma optimize(pop)
 
 // =============================================================================
-// STRIPED PATH VALIDATION IMPLEMENTATION - OSCAR64 OPTIMIZED
+// STRIPED PATH VALIDATION IMPLEMENTATION
 // =============================================================================
 
 #pragma optimize(push)
@@ -1435,7 +1435,7 @@ unsigned char check_path_validity_striped(void) {
 void clear_path_validation_cache_striped(void) {
     unsigned char i;
     
-    // Oscar64 optimized clear loop
+    // Clear loop
     for (i = 0; i < path_point_count; i++) {
         path_validation_cache_striped[i].checked = 0;
         path_validation_cache_striped[i].tile_type = TILE_EMPTY;
@@ -1513,7 +1513,7 @@ void benchmark_distance_cache_performance(void) {
     
     for (i = 0; i < iterations; i++) {
         for (j = 0; j < 8; j++) {
-            unsigned char distance = get_cached_room_distance(test_rooms[j], test_rooms[(j+1) % 8]);
+            unsigned char distance = get_cached_room_distance_striped(test_rooms[j], test_rooms[(j+1) % 8]);
             // Dummy usage to prevent optimization
             tile_check_cache = distance;
         }
@@ -1526,7 +1526,7 @@ void benchmark_distance_cache_performance(void) {
     
     for (i = 0; i < iterations; i++) {
         for (j = 0; j < 8; j++) {
-            unsigned char distance = get_cached_room_distance_enhanced(test_rooms[j], test_rooms[(j+1) % 8]);
+            unsigned char distance = get_cached_room_distance_striped(test_rooms[j], test_rooms[(j+1) % 8]);
             // Dummy usage to prevent optimization
             tile_check_cache = distance;
         }

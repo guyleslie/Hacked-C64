@@ -10,10 +10,10 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 |--------|----------|------------|
 | **main.c** | System initialization, main loop | VIC-II setup, input handling |
 | **map_generation.c** | Generation pipeline | Room placement, MST connectivity, wall generation |
-| **connection_system.c** | Room connectivity | MST algorithm, corridor pathfinding, bounding box collision detection, early exit path validation |
+| **connection_system.c** | Room connectivity | MST algorithm, corridor pathfinding, bounding box collision detection, path validation |
 | **room_management.c** | Room placement | Grid-based placement, collision detection |
 | **mapgen_display.c** | Display system | Viewport management, screen rendering |
-| **mapgen_utils.c** | Utility functions | Math, random generation, tile conversion, early exit adjacency checking, register-optimized room detection |
+| **mapgen_utils.c** | Utility functions | Math, random generation, tile conversion, adjacency checking, room detection |
 | **map_export.c** | File I/O | Binary serialization, KERNAL routines |
 
 ## Tile Encoding System
@@ -73,20 +73,20 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 **OSCAR64 Optimizations**:
 
 - Zero page variables: `mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`
-- Striped array layout optimization: `__striped` arrays for optimal 6502 addressing with connection distance cache, path validation cache, and MST edge candidates
-- Speed pragma: `#pragma optimize(speed)` on nested loops and critical path functions
+- Striped array layout: `__striped` arrays for 6502 addressing with connection distance cache, path validation cache, and MST edge candidates
+- Speed pragma: `#pragma optimize(speed)` on nested loops
 - Bitwise operations for modulo: `y & 7` instead of `y % 8`
-- Early exit optimization with immediate return on first match
-- Register caching for frequently accessed room coordinates
-- Pure striped implementation with 64-entry cache size for maximum performance
+- Early exit with immediate return on first match
+- Register caching for room coordinates
+- Striped implementation with 64-entry cache size
 
 **MST Process**:
 
 - Start with room 0 as connected
-- Enhanced with striped MST edge candidates for performance acceleration
-- Find shortest valid connection using striped cache optimization first, traditional MST as fallback
+- Uses striped MST edge candidates
+- Find shortest valid connection using striped cache first, traditional MST as fallback
 - Skip already attempted connections (infinite loop prevention)
-- Use enhanced distance cache with striped optimization for Manhattan distance calculations
+- Use distance cache with striped layout for Manhattan distance calculations
 - Build exactly (room_count - 1) connections
 
 **Corridor Types**:

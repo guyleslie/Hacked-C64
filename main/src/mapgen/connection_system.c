@@ -1,13 +1,13 @@
 // =============================================================================
-// ADVANCED ROOM CONNECTION SYSTEM WITH INTELLIGENT FALLBACK
-// Room connection system with position-based corridor logic and multi-attempt fallback
+// ROOM CONNECTION SYSTEM
+// Room connection system with position-based corridor logic and fallback
 // =============================================================================
 // Features:
-// 1. Advanced MST with Multi-Attempt Fallback System
+// 1. MST with Fallback System
 // 2. Position-Based Corridor Selection
-// 3. Comprehensive Path Validation for All Corridor Types
-// 4. Infinite Loop Prevention through Attempted Connection Tracking
-// 5. Intelligent Room Pairing with Distance Optimization
+// 3. Path Validation for All Corridor Types
+// 4. Loop Prevention through Connection Tracking
+// 5. Room Pairing with Distance Calculation
 // 6. L-Shaped Corridor Fix with Proper Door Positioning
 // 7. Fallback Override for Isolated Rooms
 // 8. CORRIDOR VALIDATION SYSTEM:
@@ -79,10 +79,10 @@ static unsigned char attempted_connections[MAX_ROOMS][MAX_ROOMS];
 
 // =============================================================================
 // STRIPED ARRAY OPTIMIZATION - PHASE 3: MST EDGE CANDIDATES
-// Oscar64 optimized Prim's algorithm hot path for maximum performance
+// Prim's algorithm hot path
 // =============================================================================
 
-#define MAX_MST_EDGES_STRIPED 48    // Reasonable size for MST edge consideration
+#define MAX_MST_EDGES_STRIPED 32    // Simplified cache size for better memory efficiency
 
 // STRIPED LAYOUT: [room1_0,room1_1,...][room2_0,room2_1,...][distance_0,distance_1,...][explored_0,explored_1,...]
 __striped struct {
@@ -132,7 +132,7 @@ unsigned char is_room_reachable(unsigned char room1, unsigned char room2) {
     unsigned char i;  // C64 optimization
     unsigned char sp = 0; // Stack pointer - C64 optimization
     
-    // Initialize visited array - optimized to actual room count
+    // Initialize visited array
     for (i = 0; i < room_count; i++) {
         visited_global[i] = 0;
     }
@@ -170,7 +170,7 @@ unsigned char is_room_reachable(unsigned char room1, unsigned char room2) {
 // =============================================================================
 
 // =============================================================================
-// OPTIMIZED BOUNDING BOX PRE-FILTERING - OSCAR64 OPTIMIZATION
+// BOUNDING BOX PRE-FILTERING
 // Eliminates expensive detailed path checking for non-overlapping bounds
 // =============================================================================
 
@@ -310,7 +310,7 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y) {
     if (!is_within_map_bounds(x, y)) return 0;
     if (!is_outside_any_room(x, y)) return 0;
 
-    return 1; // Safe to build - advanced validation handled by path intersection checks
+    return 1; // Safe to build - validation handled by path intersection checks
 }
 
 // =============================================================================
@@ -516,7 +516,7 @@ static void find_z_corridor_exits(unsigned char room1, unsigned char room2,
 
 /**
  * @brief Find optimal exit points for L-shaped corridor between diagonal rooms
- * Enhanced with intelligent door reuse - checks for existing doors on both perpendicular room sides
+ * Door reuse - checks for existing doors on both perpendicular room sides
  * @param room1 First room index
  * @param room2 Second room index
  * @param exit1_x Pointer to store room1 exit X coordinate
@@ -1160,7 +1160,7 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
     connection_matrix[room2][room1] = 1;
     attempted_connections[room1][room2] = 1;
     attempted_connections[room2][room1] = 1;
-    // 4. Create physical corridor between the rooms using optimized algorithm
+    // 4. Create physical corridor between the rooms
     if (draw_corridor(room1, room2)) {
         return 1; // Corridor successfully created
     }
@@ -1173,32 +1173,32 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
 }
 
 // =============================================================================
-// STRIPED MST EDGE CANDIDATES IMPLEMENTATION - OSCAR64 OPTIMIZED
+// STRIPED MST EDGE CANDIDATES IMPLEMENTATION
 // =============================================================================
 
 #pragma optimize(push)
 #pragma optimize(3, speed, inline, maxinline) // Critical MST performance optimization
 
-// Add edge candidate to striped MST cache
+// Simplified edge candidate addition to striped MST cache
 unsigned char add_mst_edge_striped(unsigned char room1, unsigned char room2, unsigned char distance) {
-    // Overflow protection
+    // Simple overflow protection - OSCAR64 will optimize bounds check
     if (edge_candidate_count >= MAX_MST_EDGES_STRIPED) {
-        return 0; // Cache full
+        return 0; // Cache full - fallback will handle remaining connections
     }
     
-    // Oscar64 Range Analysis hints
-    __assume(room1 < room_count);
-    __assume(room2 < room_count);
-    __assume(distance > 0);
+    // OSCAR64 Range Analysis optimization hints
+    __assume(room1 < MAX_ROOMS);
+    __assume(room2 < MAX_ROOMS);
+    __assume(distance > 0 && distance < 255);
     
+    // OSCAR64 auto-optimizes this to efficient 6502 code with striped layout
     unsigned char idx = edge_candidate_count++;
-    // Oscar64 generates optimal absolute,x stores for striped layout
     mst_edge_candidates_striped[idx].room1 = room1;
     mst_edge_candidates_striped[idx].room2 = room2;
     mst_edge_candidates_striped[idx].distance = distance;
-    mst_edge_candidates_striped[idx].explored = 0; // Not explored yet
+    mst_edge_candidates_striped[idx].explored = 0;
     
-    return 1; // Success
+    return 1;
 }
 
 // Find minimum unexplored edge using striped array optimization
@@ -1224,7 +1224,7 @@ unsigned char get_and_mark_edge_striped(unsigned char edge_idx, unsigned char *r
         return 0; // Invalid edge index
     }
     
-    // Oscar64 optimized striped access
+    // Striped access
     *room1 = mst_edge_candidates_striped[edge_idx].room1;
     *room2 = mst_edge_candidates_striped[edge_idx].room2;
     mst_edge_candidates_striped[edge_idx].explored = 1; // Mark as explored
@@ -1232,33 +1232,35 @@ unsigned char get_and_mark_edge_striped(unsigned char edge_idx, unsigned char *r
     return 1; // Success
 }
 
-// Build MST edge candidate list for connected rooms
+// Simplified MST edge candidate list builder
 void build_mst_candidates_striped(unsigned char *connected) {
+    // OSCAR64 auto-optimizes loop variables to registers
     unsigned char i, j;
     
-    // Clear previous candidates
+    // Reset cache - OSCAR64 will optimize this
     edge_candidate_count = 0;
     
-    // Build candidate list: connected rooms to unconnected rooms
+    // OSCAR64 will unroll inner loop if room_count is small
     for (i = 0; i < room_count; i++) {
         if (!connected[i]) continue; // Only connected rooms as sources
         
         for (j = 0; j < room_count; j++) {
-            if (connected[j] || i == j) continue; // Skip connected rooms and self
+            if (connected[j] || i == j) continue; // Skip connected/self
             
-            // Get distance using pure striped cache
-            unsigned char distance = get_cached_room_distance_enhanced(i, j);
+            // OSCAR64 optimizes function call if frequently used
+            unsigned char distance = get_cached_room_distance_striped(i, j);
             
-            // Add to striped candidate cache if space available
-            if (distance < 255 && !add_mst_edge_striped(i, j, distance)) {
-                // Cache full - stop here (using larger cache now so less likely)
-                return;
+            // Early termination on cache full - fallback will complete MST
+            if (distance < 255) {
+                if (!add_mst_edge_striped(i, j, distance)) {
+                    return; // Cache full - let fallback handle rest
+                }
             }
         }
     }
 }
 
-// Enhanced MST algorithm using striped edge candidates
+// MST algorithm using striped edge candidates
 unsigned char find_best_connection_striped(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2) {
     // Build candidate list using striped optimization
     build_mst_candidates_striped(connected);
@@ -1277,19 +1279,12 @@ unsigned char find_best_connection_striped(unsigned char *connected, unsigned ch
     return get_and_mark_edge_striped(min_edge_idx, best_room1, best_room2);
 }
 
-// Clear striped MST cache  
+// Striped MST cache clear
 void clear_mst_candidates_striped(void) {
-    unsigned char i;
-    
-    // Oscar64 optimized clear loop
-    for (i = 0; i < edge_candidate_count; i++) {
-        mst_edge_candidates_striped[i].explored = 0;
-        mst_edge_candidates_striped[i].room1 = 255;
-        mst_edge_candidates_striped[i].room2 = 255;
-        mst_edge_candidates_striped[i].distance = 255;
-    }
-    
+    // OSCAR64 will optimize this simple reset - no need for complex clearing
     edge_candidate_count = 0;
+    // Note: No need to clear array contents - they'll be overwritten when used
+    // This saves CPU cycles on 6502 - OSCAR64 range analysis ensures safety
 }
 
 #pragma optimize(pop)

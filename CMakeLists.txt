@@ -53,7 +53,7 @@ set(OSCAR64_INCLUDES
 # Add custom command to build with Oscar64
 add_custom_command(
     OUTPUT ${OUTPUT_PRG}
-    COMMAND ${OSCAR64_BIN} -o="${OUTPUT_PRG}" -n -g -tf=prg -O0 -tm=c64 -dDEBUG -d__oscar64__ ${OSCAR64_INCLUDES} ${SRC_FILES}
+    COMMAND ${OSCAR64_BIN} -o="${OUTPUT_PRG}" -n -g -tf=prg -O0 -tm=c64 -v2 -dDEBUG -d__oscar64__ ${OSCAR64_INCLUDES} ${SRC_FILES}
     DEPENDS ${SRC_FILES}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Building with Oscar64 cross-assembler"
