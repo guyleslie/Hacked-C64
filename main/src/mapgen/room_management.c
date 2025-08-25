@@ -211,7 +211,7 @@ void create_rooms(void) {
     }
     
     // Additional shuffle passes
-    for (unsigned char pass = 0; pass < 2; pass++) {
+    for (unsigned char pass = 0; pass < SHUFFLE_PASSES; pass++) {
         for (unsigned char i = 0; i < grid_count - 1; i++) {
             if (rnd(2)) {  // 50% chance to swap adjacent pairs
                 unsigned char temp = grid_positions[i];
