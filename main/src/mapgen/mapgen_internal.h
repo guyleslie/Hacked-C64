@@ -8,11 +8,11 @@
 // =============================================================================
 
 /**
- * @brief Unified exit point structure containing both corridor and door positions
+ * @brief Unified exit point structure containing door positions
  * 
- * This structure eliminates redundant calculations by computing both the corridor
- * endpoint (2 tiles from room perimeter) and door position (1 tile from perimeter)
- * in a single pass, removing the need for corridor_endpoint_override mechanisms.
+ * This structure simplifies corridor generation by directly calculating door positions
+ * (1 tile from room perimeter). Exit points and door positions are unified - corridors
+ * connect directly from door to door, eliminating redundant offset calculations.
  */
 typedef struct {
     unsigned char x, y;                    // Door/corridor position (1 tile from perimeter)
@@ -52,14 +52,14 @@ extern unsigned char screen_dirty;
 extern unsigned char last_scroll_direction;
 
 /**
- * @brief Calculates unified exit points for both corridor and door placement
+ * @brief Calculates door positions for corridor connections
  * @param room Pointer to the room
  * @param target_x Target X coordinate to connect towards
  * @param target_y Target Y coordinate to connect towards
  * @param exit Pointer to ExitPoint structure to populate
  * 
- * This function replaces find_room_exit() and eliminates the need for
- * corridor_endpoint_override by calculating both positions in one pass.
+ * This function directly calculates door positions (1 tile from room perimeter).
+ * Corridors connect from door to door, eliminating redundant offset calculations.
  */
 void calculate_exit_points(Room *room, unsigned char target_x, unsigned char target_y, 
                                  ExitPoint *exit);

@@ -126,11 +126,12 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
   - 50% chance: L-shaped corridor (perpendicular wall connections)
   - 50% chance: Z-shaped corridor (complex routing)
 
-**Exit Point Placement**:
+**Door Placement System**:
 
-- Exit points positioned 2 tiles away from room edge
-- Door placement 1 tile from room edge toward corridor
-- Automatic adjustment to align with existing doors when found
+- Doors placed directly at optimal positions (1 tile from room perimeter)
+- Exit points and door positions are unified - corridors connect door to door
+- Automatic alignment with existing doors to prevent redundant placements
+- Eliminates redundant offset calculations for improved performance
 
 ### 4. Stair Placement
 
@@ -197,5 +198,3 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 - CIA timer entropy collection  
 - Screen memory manipulation
 - KERNAL I/O integration
-
-**Compiler**: Oscar64 with -O0 debug flags

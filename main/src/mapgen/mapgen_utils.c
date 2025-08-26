@@ -561,9 +561,9 @@ void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y,
 /**
  * @brief Calculates unified exit points for both corridor and door placement
  * 
- * This function replaces the redundant find_room_exit + corridor_endpoint_override
- * pattern by calculating both corridor endpoints (2 tiles from perimeter) and
- * door positions (1 tile from perimeter) in a single pass.
+ * This function directly calculates door positions (1 tile from perimeter)
+ * for corridor connections. Exit points and door positions are unified,
+ * eliminating the need for redundant offset calculations.
  * 
  * Performance benefit: ~15-20% reduction in corridor generation time
  * Code clarity: Eliminates confusing override pattern and global state

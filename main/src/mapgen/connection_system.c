@@ -42,8 +42,6 @@ static unsigned char edge_candidate_count = 0;
 static CorridorPool corridor_pool = {0};
 static ConnectionCache connection_cache = {0};
 
-
-
 // =============================================================================
 // DUPLICATE CONNECTION PREVENTION - REACHABILITY CHECK
 // =============================================================================
@@ -429,42 +427,42 @@ static void find_z_corridor_exits(unsigned char room1, unsigned char room2,
         }
     }
     
-    // Calculate exit coordinates based on chosen facing sides
+    // Calculate door coordinates based on chosen facing sides
     switch (room1_exit_side) {
         case 0: // Left side
-            *exit1_x = r1->x - 2;
+            *exit1_x = r1->x - 1;
             *exit1_y = r1->y + r1->h / 2; // Center of left wall
             break;
         case 1: // Right side
-            *exit1_x = r1->x + r1->w + 1;
+            *exit1_x = r1->x + r1->w;
             *exit1_y = r1->y + r1->h / 2; // Center of right wall
             break;
         case 2: // Top side
             *exit1_x = r1->x + r1->w / 2; // Center of top wall
-            *exit1_y = r1->y - 2;
+            *exit1_y = r1->y - 1;
             break;
         case 3: // Bottom side
             *exit1_x = r1->x + r1->w / 2; // Center of bottom wall
-            *exit1_y = r1->y + r1->h + 1;
+            *exit1_y = r1->y + r1->h;
             break;
     }
     
     switch (room2_exit_side) {
         case 0: // Left side
-            *exit2_x = r2->x - 2;
+            *exit2_x = r2->x - 1;
             *exit2_y = r2->y + r2->h / 2; // Center of left wall
             break;
         case 1: // Right side
-            *exit2_x = r2->x + r2->w + 1;
+            *exit2_x = r2->x + r2->w;
             *exit2_y = r2->y + r2->h / 2; // Center of right wall
             break;
         case 2: // Top side
             *exit2_x = r2->x + r2->w / 2; // Center of top wall
-            *exit2_y = r2->y - 2;
+            *exit2_y = r2->y - 1;
             break;
         case 3: // Bottom side
             *exit2_x = r2->x + r2->w / 2; // Center of bottom wall
-            *exit2_y = r2->y + r2->h + 1;
+            *exit2_y = r2->y + r2->h;
             break;
     }
 }
@@ -693,36 +691,36 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
         unsigned char overlap_end = ((r1->y + r1->h) < (r2->y + r2->h)) ? (r1->y + r1->h) : (r2->y + r2->h);
         unsigned char center_y = overlap_start + (overlap_end - overlap_start) / 2;
         
-        // Determine which room is left/right and check for existing doors
+        // Determine which room is left/right and place doors at optimal positions
         if (r1->x + r1->w < r2->x) {
-            // Room1 is left, Room2 is right
-            *exit1_x = r1->x + r1->w + 1;  // 2 tiles from room1 right edge
+            // Room1 is left, Room2 is right - place doors on facing sides
+            *exit1_x = r1->x + r1->w;      // Door at room1 right edge
             *exit1_y = center_y;
-            *exit2_x = r2->x - 2;          // 2 tiles from room2 left edge
+            *exit2_x = r2->x - 1;          // Door at room2 left edge  
             *exit2_y = center_y;
             
-            // Check for existing doors
+            // Check for existing doors and align to them
             unsigned char existing_door_x, existing_door_y;
-            if (find_existing_door_on_room_side(room1, 1, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
-                *exit1_y = existing_door_y; *exit1_x = existing_door_x + 1;
+            if (find_existing_door_on_room_side(room1, 1, *exit1_x, center_y, &existing_door_x, &existing_door_y)) {
+                *exit1_x = existing_door_x; *exit1_y = existing_door_y;
             }
-            if (find_existing_door_on_room_side(room2, 0, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                *exit2_y = existing_door_y; *exit2_x = existing_door_x - 1;
+            if (find_existing_door_on_room_side(room2, 0, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
+                *exit2_x = existing_door_x; *exit2_y = existing_door_y;
             }
         } else {
-            // Room2 is left, Room1 is right
-            *exit1_x = r1->x - 2;          // 2 tiles from room1 left edge
+            // Room2 is left, Room1 is right - place doors on facing sides
+            *exit1_x = r1->x - 1;          // Door at room1 left edge
             *exit1_y = center_y;
-            *exit2_x = r2->x + r2->w + 1;  // 2 tiles from room2 right edge
+            *exit2_x = r2->x + r2->w;      // Door at room2 right edge
             *exit2_y = center_y;
             
-            // Check for existing doors
+            // Check for existing doors and align to them
             unsigned char existing_door_x, existing_door_y;
-            if (find_existing_door_on_room_side(room1, 0, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
-                *exit1_y = existing_door_y; *exit1_x = existing_door_x - 1;
+            if (find_existing_door_on_room_side(room1, 0, *exit1_x, center_y, &existing_door_x, &existing_door_y)) {
+                *exit1_x = existing_door_x; *exit1_y = existing_door_y;
             }
-            if (find_existing_door_on_room_side(room2, 1, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                *exit2_y = existing_door_y; *exit2_x = existing_door_x + 1;
+            if (find_existing_door_on_room_side(room2, 1, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
+                *exit2_x = existing_door_x; *exit2_y = existing_door_y;
             }
         }
     } else {
@@ -731,36 +729,36 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
         unsigned char overlap_end = ((r1->x + r1->w) < (r2->x + r2->w)) ? (r1->x + r1->w) : (r2->x + r2->w);
         unsigned char center_x = overlap_start + (overlap_end - overlap_start) / 2;
         
-        // Determine which room is top/bottom and check for existing doors
+        // Determine which room is top/bottom and place doors on facing sides
         if (r1->y + r1->h < r2->y) {
-            // Room1 is top, Room2 is bottom
+            // Room1 is top, Room2 is bottom - place doors on facing sides
             *exit1_x = center_x;
-            *exit1_y = r1->y + r1->h + 1;  // 2 tiles from room1 bottom edge
+            *exit1_y = r1->y + r1->h;      // Door at room1 bottom edge
             *exit2_x = center_x;
-            *exit2_y = r2->y - 2;          // 2 tiles from room2 top edge
+            *exit2_y = r2->y - 1;          // Door at room2 top edge
             
-            // Check for existing doors
+            // Check for existing doors and align to them
             unsigned char existing_door_x, existing_door_y;
-            if (find_existing_door_on_room_side(room1, 3, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
-                *exit1_x = existing_door_x; *exit1_y = existing_door_y + 1;
+            if (find_existing_door_on_room_side(room1, 3, center_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+                *exit1_x = existing_door_x; *exit1_y = existing_door_y;
             }
-            if (find_existing_door_on_room_side(room2, 2, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                *exit2_x = existing_door_x; *exit2_y = existing_door_y - 1;
+            if (find_existing_door_on_room_side(room2, 2, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
+                *exit2_x = existing_door_x; *exit2_y = existing_door_y;
             }
         } else {
-            // Room2 is top, Room1 is bottom
+            // Room2 is top, Room1 is bottom - place doors on facing sides
             *exit1_x = center_x;
-            *exit1_y = r1->y - 2;          // 2 tiles from room1 top edge
+            *exit1_y = r1->y - 1;          // Door at room1 top edge
             *exit2_x = center_x;
-            *exit2_y = r2->y + r2->h + 1;  // 2 tiles from room2 bottom edge
+            *exit2_y = r2->y + r2->h;      // Door at room2 bottom edge
             
-            // Check for existing doors
+            // Check for existing doors and align to them
             unsigned char existing_door_x, existing_door_y;
-            if (find_existing_door_on_room_side(room1, 2, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
-                *exit1_x = existing_door_x; *exit1_y = existing_door_y - 1;
+            if (find_existing_door_on_room_side(room1, 2, center_x, *exit1_y, &existing_door_x, &existing_door_y)) {
+                *exit1_x = existing_door_x; *exit1_y = existing_door_y;
             }
-            if (find_existing_door_on_room_side(room2, 3, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                *exit2_x = existing_door_x; *exit2_y = existing_door_y + 1;
+            if (find_existing_door_on_room_side(room2, 3, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
+                *exit2_x = existing_door_x; *exit2_y = existing_door_y;
             }
         }
     }
@@ -789,48 +787,9 @@ static unsigned char get_z_corridor_direction(unsigned char exit1_side, unsigned
 static void place_doors_for_straight_corridor(unsigned char room1, unsigned char room2,
                                             unsigned char exit1_x, unsigned char exit1_y,
                                             unsigned char exit2_x, unsigned char exit2_y) {
-    Room *r1 = &rooms[room1];
-    Room *r2 = &rooms[room2];
-    
-    // Calculate door positions - doors are placed 1 tile from room perimeter toward corridor
-    unsigned char door1_x = exit1_x;
-    unsigned char door1_y = exit1_y;
-    unsigned char door2_x = exit2_x;
-    unsigned char door2_y = exit2_y;
-    
-    // Determine door1 position based on exit location relative to room1
-    if (exit1_x == r1->x + r1->w + 1) {
-        // Exit is 2 tiles right of room, door is 1 tile right
-        door1_x = r1->x + r1->w;
-    } else if (exit1_x == r1->x - 2) {
-        // Exit is 2 tiles left of room, door is 1 tile left
-        door1_x = r1->x - 1;
-    } else if (exit1_y == r1->y + r1->h + 1) {
-        // Exit is 2 tiles below room, door is 1 tile below
-        door1_y = r1->y + r1->h;
-    } else if (exit1_y == r1->y - 2) {
-        // Exit is 2 tiles above room, door is 1 tile above
-        door1_y = r1->y - 1;
-    }
-    
-    // Determine door2 position based on exit location relative to room2
-    if (exit2_x == r2->x + r2->w + 1) {
-        // Exit is 2 tiles right of room, door is 1 tile right
-        door2_x = r2->x + r2->w;
-    } else if (exit2_x == r2->x - 2) {
-        // Exit is 2 tiles left of room, door is 1 tile left
-        door2_x = r2->x - 1;
-    } else if (exit2_y == r2->y + r2->h + 1) {
-        // Exit is 2 tiles below room, door is 1 tile below
-        door2_y = r2->y + r2->h;
-    } else if (exit2_y == r2->y - 2) {
-        // Exit is 2 tiles above room, door is 1 tile above
-        door2_y = r2->y - 1;
-    }
-    
-    // Place doors (will automatically skip if door already exists)
-    place_door(door1_x, door1_y);
-    place_door(door2_x, door2_y);
+    // Exit points are already at door positions - no conversion needed
+    place_door(exit1_x, exit1_y);
+    place_door(exit2_x, exit2_y);
 }
 
 // Place doors for diagonal corridor connections
@@ -1354,7 +1313,7 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
     get_room_center(room1, &room1_center_x, &room1_center_y);
     get_room_center(room2, &room2_center_x, &room2_center_y);
     
-    // Single calculation for both corridor and door positions
+    // Calculate door positions for corridor connections
     calculate_exit_points(&rooms[room1], room2_center_x, room2_center_y, &exit1);
     calculate_exit_points(&rooms[room2], room1_center_x, room1_center_y, &exit2);
     
