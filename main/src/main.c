@@ -12,8 +12,8 @@
 // Project headers
 #include "mapgen/mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
 #include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon, etc.
-#include "mapgen/mapgen_utils.h"      // For init_rng
-#include "mapgen/mapgen_display.h"    // For render_map_viewport, move_camera_direction
+#include "mapgen/mapgen_utils.h"      // For mapgen utility functions
+#include "mapgen/mapgen_display.h"    // For move_camera_direction
 #include "mapgen/map_export.h"        // For save_compact_map
 
 // VIC-II base address and memory control register definitions
@@ -59,17 +59,11 @@ int main(void) {
     // Switch to mixed (lowercase/uppercase) character set for C64
     set_mixed_charset();
     
-    // Initialize RNG (random number generator) for map generation
-    init_rng();
-    
     // Initialize map generation system with seed
     mapgen_init(1);
     
     // Generate complete level (includes all necessary resets)
     mapgen_generate_dungeon();
-    
-    // Refresh point of view
-    render_map_viewport(1);
     
     // Interactive loop
     while (1) {
@@ -83,8 +77,6 @@ int main(void) {
             clrscr();
             // Generate new level (includes all necessary resets)
             mapgen_generate_dungeon();
-            // Refresh point of view
-            render_map_viewport(1);
 
         } else if (key == 'M' || key == 'm') {
             // Save the current map to disk
@@ -100,9 +92,6 @@ int main(void) {
             } else if (key == 'd' || key == 'D') {
                 move_camera_direction(MOVE_RIGHT);
             }
-            
-            // Update display after any movement
-            render_map_viewport(0);
         }
     }
     

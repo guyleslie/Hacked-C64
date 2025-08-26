@@ -36,6 +36,9 @@ void initialize_camera(void) {
         get_room_center(0, &camera_center_x, &camera_center_y);
         update_camera();
     }
+    
+    // Render initial view with full refresh
+    render_map_viewport(1);
 }
 
 // Update viewport based on camera center position with boundary checking
@@ -234,6 +237,9 @@ void move_camera_direction(unsigned char direction) {
         
         // Mark screen as dirty for redraw
         screen_dirty = 1;
+        
+        // Update display after movement
+        render_map_viewport(0);
     }
 }
 
