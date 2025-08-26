@@ -136,7 +136,7 @@ void update_full_screen(void) {
         // Update all 40 columns in this row
         for (x = 0; x < VIEW_W; x++) {
             // Get tile from map and convert to PETSCII
-            tile = get_map_tile_fast(view.x + x, view.y + screen_y);
+            tile = get_map_tile(view.x + x, view.y + screen_y);
             
             // Update both screen memory and buffer
             screen_memory[screen_pos + x] = tile;
@@ -165,7 +165,7 @@ void render_map_viewport(unsigned char force_refresh) {
     // Choose rendering method based on scroll direction
     if (current_scroll_direction != 0) {
         // Use scroll for single-tile movements
-        update_screen_with_scroll(current_scroll_direction);
+        update_partial_screen(current_scroll_direction);
     } else {
         // Full screen update for initial display or force refresh
         update_full_screen();
@@ -274,7 +274,7 @@ void move_camera_direction(unsigned char direction) {
 // Shifts only affected rows or columns in screen memory and buffer
 // based on scroll direction, with edge and boundary checks.
 
-void update_screen_with_scroll(unsigned char scroll_dir) {
+void update_partial_screen(unsigned char scroll_dir) {
     unsigned short screen_offset;
     unsigned char x, y;
     
@@ -311,7 +311,7 @@ void update_screen_with_scroll(unsigned char scroll_dir) {
         }
         // Fill top line with new content
         for (x = 0; x < VIEW_W; x++) {
-            unsigned char tile = get_map_tile_fast(view.x + x, view.y);
+            unsigned char tile = get_map_tile(view.x + x, view.y);
             screen_memory[0 * 40 + x] = tile;
             screen_buffer[0][x] = tile;
         }
@@ -331,7 +331,7 @@ void update_screen_with_scroll(unsigned char scroll_dir) {
         // Fill bottom line with new content
         screen_offset = max_y * 40;
         for (x = 0; x < VIEW_W; x++) {
-            unsigned char tile = get_map_tile_fast(view.x + x, view.y + max_y);
+            unsigned char tile = get_map_tile(view.x + x, view.y + max_y);
             screen_memory[screen_offset + x] = tile;
             screen_buffer[max_y][x] = tile;
         }
@@ -347,7 +347,7 @@ void update_screen_with_scroll(unsigned char scroll_dir) {
             // Shift buffer content
             memmove(&screen_buffer[y][1], &screen_buffer[y][0], max_x);
             // Fill leftmost column
-            unsigned char tile = get_map_tile_fast(view.x, view.y + y);
+            unsigned char tile = get_map_tile(view.x, view.y + y);
             screen_memory[y * 40] = tile;
             screen_buffer[y][0] = tile;
         }
@@ -363,7 +363,7 @@ void update_screen_with_scroll(unsigned char scroll_dir) {
             // Shift buffer content
             memmove(&screen_buffer[y][0], &screen_buffer[y][1], max_x);
             // Fill rightmost column
-            unsigned char tile = get_map_tile_fast(view.x + max_x, view.y + y);
+            unsigned char tile = get_map_tile(view.x + max_x, view.y + y);
             screen_memory[y * 40 + max_x] = tile;
             screen_buffer[y][max_x] = tile;
         }

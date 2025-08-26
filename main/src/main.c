@@ -1,5 +1,5 @@
 // Main Module for C64 Map Generator
-// Contains: main program loop, VIC-II setup, global variables, and user input handling
+// Contains: VIC-II mixed character setup, main program loop, and user input handling
 
 // System headers
 #include <conio.h>

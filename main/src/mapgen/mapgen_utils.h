@@ -24,7 +24,7 @@ unsigned char tile_is_empty(unsigned char x, unsigned char y);
 void clear_map(void);
 
 // Centralized PETSCII conversion for all display modules
-unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y);
+unsigned char get_map_tile(unsigned char map_x, unsigned char map_y);
 
 // Coordinate and bounds checking
 unsigned char coords_in_bounds(unsigned char x, unsigned char y);

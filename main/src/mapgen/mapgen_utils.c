@@ -260,7 +260,7 @@ static inline unsigned char get_tile_core(unsigned char x, unsigned char y) {
 }
 
 // Get single tile from map and convert to PETSCII for display
-unsigned char get_map_tile_fast(unsigned char map_x, unsigned char map_y) {
+unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
     // Bounds check
     if (map_x >= MAP_W || map_y >= MAP_H) {
         return EMPTY; // Return space character for out of bounds
