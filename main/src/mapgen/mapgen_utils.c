@@ -41,8 +41,8 @@ __zeropage unsigned char adjacent_tile_temp;
 // Tracks the current number of rooms generated in the dungeon
 unsigned char room_count = 0;
 
-// Seed value for random number generation
-unsigned int rng_seed = 1;
+// Random number generator state
+unsigned char rng_state = 1;
 
 // =============================================================================
 // EXTERNAL GLOBAL REFERENCES
@@ -71,92 +71,17 @@ static unsigned char room_center_cache_valid = 0;
 // HARDWARE AND RNG FUNCTIONS
 // =============================================================================
 
-// Hardware entropy source for C64 using CIA and VIC-II registers
-unsigned int get_hardware_entropy(void) {
-    return cia1.ta ^ vic.raster;
-}
-
-// Initialize random number generator with hardware entropy
+// Initialize random number generator
 void init_rng(void) {
-    unsigned int entropy1, entropy2, entropy3, entropy4;
-    unsigned char i;
-    
-    // Collect multiple entropy samples with delays
-    entropy1 = get_hardware_entropy();
-    entropy2 = get_hardware_entropy();
-    entropy3 = get_hardware_entropy();
-    entropy4 = get_hardware_entropy();
-    
-    // Increment generation counter for unique seeds
-    generation_counter++;
-    
-    // Combine multiple entropy sources with generation counter
-    rng_seed = entropy1 ^ (entropy2 << 3) ^ (entropy3 >> 2) ^ (entropy4 << 5);
-    rng_seed ^= (generation_counter << 7) ^ (generation_counter >> 1);
-    rng_seed = (rng_seed << 5) ^ (rng_seed >> 11) ^ 0xAC1DU;
-    
-    // Additional mixing with counter and time-based variations
-    rng_seed ^= generation_counter * 0x9E37U;
-    rng_seed ^= (entropy1 + entropy2) * 0x5A2FU;
-    
-    // Multiple rounds of mixing for better distribution
-    for (i = 0; i < 4; i++) {
-        rng_seed = (rng_seed << 3) ^ (rng_seed >> 13) ^ (i * 0x1F2E);
-    }
-    
-    // Ensure non-zero seed
-    if (rng_seed == 0) rng_seed = 0x1D21U + generation_counter;
-    
-    // Warm up the RNG by discarding first few values
-    for (i = 0; i < 8; i++) {
-        rnd(255);
-    }
+    rng_state = (unsigned char)(cia1.ta ^ vic.raster);
+    if (rng_state == 0) rng_state = 1;
 }
 
-// Generate random number using 16-bit Linear Feedback Shift Register
+// Generate random number
 unsigned char rnd(unsigned char max) {
     if (max <= 1) return 0;
-    
-    // LFSR implementation with polynomial feedback
-    unsigned char old_high = (unsigned char)(rng_seed >> 8);
-    unsigned char old_low = (unsigned char)(rng_seed & 0xFF);
-    unsigned char carry_flag = (old_high & 0x80) ? 1 : 0;  // Check bit 15
-    
-    // 16-bit left shift 
-    rng_seed <<= 1;
-    
-    // XOR with polynomial if bit 15 was set
-    if (carry_flag) {
-        rng_seed ^= 0xB400;
-    }
-    
-    // Additional mixing with previous values for better randomness
-    rng_seed ^= (old_low >> 3) | (old_high << 5);
-    
-    // Get result with better distribution
-    unsigned char result = (unsigned char)((rng_seed ^ (rng_seed >> 8)) & 0xFF);
-    
-    // Power-of-2 masking for efficient modulo operation
-    switch (max) {
-        case 2: 
-            return result & 1;    
-        case 4:
-            return result & 3;    
-        case 8:
-            return result & 7;    
-        case 16:
-            return result & 15;    
-        default: 
-            // For non-power-of-2, use modulo with bias reduction
-            // Use rejection sampling for better distribution
-            unsigned char threshold = (256 / max) * max;
-            while (result >= threshold) {
-                // Re-roll to avoid modulo bias
-                rng_seed = (rng_seed << 1) ^ (rng_seed >> 15) ^ 0x9E37;
-                result = (unsigned char)((rng_seed ^ (rng_seed >> 8)) & 0xFF);
-            }
-            return result % max;
-    }
+    rng_state = rng_state * 97 + 71;
+    return rng_state % max;
 }
 
 /**
@@ -1046,7 +971,8 @@ void reset_all_generation_data(void) {
 
 // Initialize the map generation system
 void mapgen_init(unsigned int seed) {
-    rng_seed = seed;
+    rng_state = (unsigned char)seed;
+    if (rng_state == 0) rng_state = 1;
     room_count = 0;
     clear_map();
     clear_room_center_cache();
