@@ -85,10 +85,10 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 - **Position-Based MST**: Uses Minimum Spanning Tree algorithm with position-based corridor selection
 - **Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
-- **Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships with door reuse
+- **Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships with geometry-aware door reuse
 - **Wall Generation**: Single-pass algorithm with complete visual enclosure
 - **Stair Placement**: Stairs placed in highest-priority rooms
-- **Connection Rules**: Distance-based validation (30-80 tiles depending on room density), door reuse for all corridor types
+- **Connection Rules**: Distance-based validation (30-80 tiles depending on room density), geometry-aware door reuse maintains corridor directional consistency
 
 ### Memory and Performance
 

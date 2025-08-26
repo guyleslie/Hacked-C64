@@ -94,7 +94,10 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 - **Duplicate Prevention**: Reachability check using DFS to avoid redundant connections
 - **Path Validation**: Bounding box pre-filtering with detailed intersection checking
 - **Dynamic Distance Limits**: Adaptive max distance based on room count (≤8 rooms: 80 tiles, >8 rooms: 30 tiles)
-- **Door Reuse**: Existing doors are detected and reused when possible
+- **Geometry-Aware Door Reuse**: Existing doors are detected and reused only on geometrically compatible wall sides to maintain corridor directional consistency
+  - L-shaped corridors: Only checks perpendicular wall pairs (e.g., right↔top walls)
+  - Straight/Z corridors: Only checks facing wall pairs (e.g., right↔left walls)  
+  - Prevents adjacent door placement while preserving corridor geometry rules
 - **Fallback Recovery**: Systematic evaluation of unconnected rooms with override capability
 
 **Corridor Types**:

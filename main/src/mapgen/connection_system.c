@@ -263,6 +263,21 @@ static CorridorPath corridor_path_static;
 // STATIC HELPER FUNCTIONS (defined before use to avoid forward declarations)
 // =============================================================================
 
+
+/**
+ * @brief Determine which wall side a door position is on relative to a room
+ * @param door_x Door X coordinate
+ * @param door_y Door Y coordinate  
+ * @param room Pointer to the room
+ * @return Wall side: 0=left, 1=right, 2=top, 3=bottom
+ */
+static unsigned char get_wall_side_from_position(unsigned char door_x, unsigned char door_y, Room *room) {
+    if (door_x < room->x) return 0; // Left
+    else if (door_x >= room->x + room->w) return 1; // Right
+    else if (door_y < room->y) return 2; // Top
+    else return 3; // Bottom
+}
+
 // Helper function to adjust exit coordinates to align with existing doors
 static void adjust_exit_to_existing_door(unsigned char room_idx, unsigned char side, 
                                          unsigned char *exit_x, unsigned char *exit_y) {
@@ -470,17 +485,21 @@ static void find_z_corridor_exits(unsigned char room1, unsigned char room2,
 /**
  * @brief Find optimal door positions for L-shaped corridor between diagonal rooms
  * Returns door coordinates (1 tile from room perimeter) on diagonally opposite sides
- * Door reuse - checks for existing doors on both perpendicular room sides
+ * Geometry-aware door reuse - checks for existing doors only on geometrically correct sides
+ * This ensures corridor geometry rules are maintained (L-corridors use perpendicular walls)
  * @param room1 First room index
  * @param room2 Second room index
  * @param exit1_x Pointer to store room1 door X coordinate
  * @param exit1_y Pointer to store room1 door Y coordinate
  * @param exit2_x Pointer to store room2 door X coordinate
  * @param exit2_y Pointer to store room2 door Y coordinate
+ * @param room1_wall_side Pointer to store room1 wall side information
+ * @param room2_wall_side Pointer to store room2 wall side information
  */
 static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
                                  unsigned char *exit1_x, unsigned char *exit1_y,
-                                 unsigned char *exit2_x, unsigned char *exit2_y) {
+                                 unsigned char *exit2_x, unsigned char *exit2_y,
+                                 unsigned char *room1_wall_side, unsigned char *room2_wall_side) {
     Room *r1 = &rooms[room1];
     Room *r2 = &rooms[room2];
     
@@ -532,10 +551,11 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
             break;
     }
     
-    // Check for existing door on room1's chosen side and align to it
+    // Geometry-aware door reuse: check for existing door on room1's geometrically correct side only
+    // This prevents creating duplicate doors while maintaining proper L-corridor geometry
     unsigned char existing_door_x, existing_door_y;
     if (find_existing_door_on_room_side(room1, room1_exit_side, *exit1_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-        // Use existing door coordinates directly (for L-shaped corridors we want door positions)
+        // Use existing door coordinates directly (maintains geometric consistency)
         *exit1_x = existing_door_x;
         *exit1_y = existing_door_y;
     }
@@ -559,12 +579,16 @@ static void find_l_corridor_exits(unsigned char room1, unsigned char room2,
             break;
     }
     
-    // Check for existing door on room2's chosen side and align to it
+    // Geometry-aware door reuse: check for existing door on room2's geometrically correct side only
     if (find_existing_door_on_room_side(room2, room2_exit_side, *exit2_x, *exit2_y, &existing_door_x, &existing_door_y)) {
-        // Use existing door coordinates directly (for L-shaped corridors we want door positions)
+        // Use existing door coordinates directly (maintains geometric consistency)
         *exit2_x = existing_door_x;
         *exit2_y = existing_door_y;
     }
+    
+    // Return wall_side information to caller
+    *room1_wall_side = room1_exit_side;
+    *room2_wall_side = room2_exit_side;
 }
 
 /**
@@ -634,19 +658,6 @@ static void draw_l_corridor(unsigned char exit1_x, unsigned char exit1_y,
                           (exit2_side == 0 || exit2_side == 1) ? 1 : 0);
 }
 
-/**
- * @brief Determine which wall side a door position is on relative to a room
- * @param door_x Door X coordinate
- * @param door_y Door Y coordinate  
- * @param room Pointer to the room
- * @return Wall side: 0=left, 1=right, 2=top, 3=bottom
- */
-static unsigned char get_wall_side_from_position(unsigned char door_x, unsigned char door_y, Room *room) {
-    if (door_x < room->x) return 0; // Left
-    else if (door_x >= room->x + room->w) return 1; // Right
-    else if (door_y < room->y) return 2; // Top
-    else return 3; // Bottom
-}
 
 /**
  * @brief Check if two rooms have overlapping projections on X or Y axis for straight corridors
@@ -699,7 +710,7 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             *exit2_x = r2->x - 1;          // Door at room2 left edge  
             *exit2_y = center_y;
             
-            // Check for existing doors and align to them
+            // Geometry-aware door reuse: check both rooms on their geometrically correct facing sides
             unsigned char existing_door_x, existing_door_y;
             if (find_existing_door_on_room_side(room1, 1, *exit1_x, center_y, &existing_door_x, &existing_door_y)) {
                 *exit1_x = existing_door_x; *exit1_y = existing_door_y;
@@ -714,7 +725,7 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             *exit2_x = r2->x + r2->w;      // Door at room2 right edge
             *exit2_y = center_y;
             
-            // Check for existing doors and align to them
+            // Geometry-aware door reuse: check both rooms on their geometrically correct facing sides
             unsigned char existing_door_x, existing_door_y;
             if (find_existing_door_on_room_side(room1, 0, *exit1_x, center_y, &existing_door_x, &existing_door_y)) {
                 *exit1_x = existing_door_x; *exit1_y = existing_door_y;
@@ -737,7 +748,7 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             *exit2_x = center_x;
             *exit2_y = r2->y - 1;          // Door at room2 top edge
             
-            // Check for existing doors and align to them
+            // Geometry-aware door reuse: check both rooms on their geometrically correct facing sides
             unsigned char existing_door_x, existing_door_y;
             if (find_existing_door_on_room_side(room1, 3, center_x, *exit1_y, &existing_door_x, &existing_door_y)) {
                 *exit1_x = existing_door_x; *exit1_y = existing_door_y;
@@ -752,7 +763,7 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
             *exit2_x = center_x;
             *exit2_y = r2->y + r2->h;      // Door at room2 bottom edge
             
-            // Check for existing doors and align to them
+            // Geometry-aware door reuse: check both rooms on their geometrically correct facing sides
             unsigned char existing_door_x, existing_door_y;
             if (find_existing_door_on_room_side(room1, 2, center_x, *exit1_y, &existing_door_x, &existing_door_y)) {
                 *exit1_x = existing_door_x; *exit1_y = existing_door_y;
@@ -1376,7 +1387,8 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         if (use_l_shaped) {
             // Try L-shaped corridor using diagonal exit points
             unsigned char l_exit1_x, l_exit1_y, l_exit2_x, l_exit2_y;
-            find_l_corridor_exits(room1, room2, &l_exit1_x, &l_exit1_y, &l_exit2_x, &l_exit2_y);
+            unsigned char wall_side1, wall_side2;
+            find_l_corridor_exits(room1, room2, &l_exit1_x, &l_exit1_y, &l_exit2_x, &l_exit2_y, &wall_side1, &wall_side2);
             
             // Check if L-shaped path avoids room intersections
             unsigned char l_path_clear = l_path_avoids_rooms(l_exit1_x, l_exit1_y, 
@@ -1387,11 +1399,7 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
                                                             room1, room2, 0);
             
             if (l_path_clear) {
-                // Determine wall sides using utility function
-                unsigned char wall_side1 = get_wall_side_from_position(l_exit1_x, l_exit1_y, &rooms[room1]);
-                unsigned char wall_side2 = get_wall_side_from_position(l_exit2_x, l_exit2_y, &rooms[room2]);
-                
-                // Draw L-corridor using door coordinates with correct wall sides
+                // Draw L-corridor using door coordinates with correct wall sides (updated after door reuse)
                 draw_l_corridor(l_exit1_x, l_exit1_y, l_exit2_x, l_exit2_y, wall_side1, wall_side2);
                 
                 // Place doors at the positions returned by find_l_corridor_exits
