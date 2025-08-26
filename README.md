@@ -17,7 +17,8 @@ Debug generation with progress indicators:
 
 Final generated dungeon map display:
 
-<img width="1202" height="907" alt="image" src="https://github.com/user-attachments/assets/5cb118e8-648a-4723-bf12-303e6804795c" />
+<img width="1203" height="908" alt="image" src="https://github.com/user-attachments/assets/2fb6eab8-335f-4c00-909c-a2f2e453c627" />
+
 
 
 ---
