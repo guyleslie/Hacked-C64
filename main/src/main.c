@@ -10,9 +10,7 @@
 #include <c64/cia.h>
 #include <c64/vic.h>
 // Project headers
-#include "mapgen/mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
-#include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon, etc.
-#include "mapgen/mapgen_utils.h"      // For mapgen utility functions
+#include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon
 #include "mapgen/mapgen_display.h"    // For move_camera_direction
 #include "mapgen/map_export.h"        // For save_compact_map
 
@@ -27,28 +25,6 @@ void set_mixed_charset(void) {
     VIC_MEM |= 0x02;
 }
 
-// Global variables - Map data
-
-// Global variables - Camera and viewport
-
-// Camera position in map space
-unsigned char camera_center_x = 32;
-unsigned char camera_center_y = 32;
-
-// Current viewport position (top-left corner)
-Viewport view = {0, 0};
-
-// Global variables - Display
-
-// Cache of previous screen contents for delta updates
-unsigned char screen_buffer[VIEW_H][VIEW_W];
-
-// Flag indicating screen needs refresh
-unsigned char screen_dirty = 1;
-
-// Tracks last scroll direction for optimization
-// Values: 0=none, 1=up, 2=down, 3=left, 4=right
-unsigned char last_scroll_direction = 0;
 
 // Main function with complete dungeon generation and interactive navigation
 int main(void) {
@@ -58,9 +34,6 @@ int main(void) {
     
     // Switch to mixed (lowercase/uppercase) character set for C64
     set_mixed_charset();
-    
-    // Initialize map generation system with seed
-    mapgen_init(1);
     
     // Generate complete level (includes all necessary resets)
     mapgen_generate_dungeon();

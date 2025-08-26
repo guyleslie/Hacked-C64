@@ -23,6 +23,31 @@
 volatile unsigned char * const screen_memory = (volatile unsigned char *)SCREEN_MEMORY_BASE;
 
 // =============================================================================
+// GLOBAL VARIABLES - CAMERA AND VIEWPORT
+// =============================================================================
+
+// Camera position in map space
+unsigned char camera_center_x = 32;
+unsigned char camera_center_y = 32;
+
+// Current viewport position (top-left corner)
+Viewport view = {0, 0};
+
+// =============================================================================
+// GLOBAL VARIABLES - DISPLAY
+// =============================================================================
+
+// Cache of previous screen contents for delta updates
+unsigned char screen_buffer[VIEW_H][VIEW_W];
+
+// Flag indicating screen needs refresh
+unsigned char screen_dirty = 1;
+
+// Tracks last scroll direction for optimization
+// Values: 0=none, 1=up, 2=down, 3=left, 4=right
+unsigned char last_scroll_direction = 0;
+
+// =============================================================================
 // CAMERA SYSTEM
 // =============================================================================
 
