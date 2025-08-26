@@ -6,6 +6,7 @@
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
 #include "mapgen_internal.h"   // For add_stairs, add_walls, etc. and global variable declarations
 #include "mapgen_utils.h"      // For get_room_center, coords_in_bounds, calculate_room_distance
+#include "mapgen_display.h"    // For initialize_camera
 
 // =============================================================================
 // HELPER FUNCTIONS & UTILITIES
@@ -225,6 +226,9 @@ unsigned char generate_level(void) {
     
     // Phase 4: Add walls around all floor areas
     add_walls();
+    
+    // Phase 5: Initialize camera for new map
+    initialize_camera();
     
     return 1; // Generation successful
 }

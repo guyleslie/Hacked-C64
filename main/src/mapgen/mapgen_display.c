@@ -26,6 +26,18 @@ volatile unsigned char * const screen_memory = (volatile unsigned char *)SCREEN_
 // CAMERA SYSTEM
 // =============================================================================
 
+// Initialize camera system for new map
+void initialize_camera(void) {
+    // Initialize room center cache
+    init_room_center_cache();
+    
+    // Position camera in first room if available
+    if (room_count > 0) {
+        get_room_center(0, &camera_center_x, &camera_center_y);
+        update_camera();
+    }
+}
+
 // Update viewport based on camera center position with boundary checking
 void update_camera(void) {
     unsigned char old_x = view.x;
@@ -137,11 +149,11 @@ void render_map_viewport(unsigned char force_refresh) {
 }
     
 // ============================================================================
-// INPUT HANDLING SYSTEM
+// CAMERA MOVEMENT SYSTEM
 // ============================================================================
 
-// Input handling with direct camera movement
-void process_navigation_input(unsigned char key) {
+// Move camera in specified direction
+void move_camera_direction(unsigned char direction) {
     unsigned char old_view_x = view.x;
     unsigned char old_view_y = view.y;
     unsigned char new_camera_x = camera_center_x;
@@ -149,33 +161,29 @@ void process_navigation_input(unsigned char key) {
     unsigned char moved = 0;
     
     // Direct camera movement with bounds checking
-    switch (key) {
-        case 'w':
-        case 'W':
+    switch (direction) {
+        case MOVE_UP:
             if (camera_center_y > 0) {
                 new_camera_y--;
                 moved = 1;
             }
             break;
             
-        case 's':
-        case 'S':
+        case MOVE_DOWN:
             if (camera_center_y < MAP_H - 1) {
                 new_camera_y++;
                 moved = 1;
             }
             break;
             
-        case 'a':
-        case 'A':
+        case MOVE_LEFT:
             if (camera_center_x > 0) {
                 new_camera_x--;
                 moved = 1;
             }
             break;
             
-        case 'd':
-        case 'D':
+        case MOVE_RIGHT:
             if (camera_center_x < MAP_W - 1) {
                 new_camera_x++;
                 moved = 1;
@@ -223,6 +231,9 @@ void process_navigation_input(unsigned char key) {
                 last_scroll_direction = 0; // No movement
             }
         }
+        
+        // Mark screen as dirty for redraw
+        screen_dirty = 1;
     }
 }
 

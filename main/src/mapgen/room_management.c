@@ -254,13 +254,4 @@ void create_rooms(void) {
     // Finalize room generation
     room_count = placed_rooms;
     assign_room_priorities();
-    
-    // Initialize room center cache
-    init_room_center_cache();
-    
-    // Position camera in first room
-    if (room_count > 0) {
-        get_room_center(0, &camera_center_x, &camera_center_y);
-        update_camera();
-    }
 }

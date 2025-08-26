@@ -13,7 +13,7 @@
 #include "mapgen/mapgen_types.h"      // For Room, MAP_W, MAP_H, MAX_ROOMS
 #include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon, etc.
 #include "mapgen/mapgen_utils.h"      // For init_rng
-#include "mapgen/mapgen_display.h"    // For render_map_viewport, process_navigation_input
+#include "mapgen/mapgen_display.h"    // For render_map_viewport, move_camera_direction
 #include "mapgen/map_export.h"        // For save_compact_map
 
 // VIC-II base address and memory control register definitions
@@ -91,8 +91,18 @@ int main(void) {
             save_compact_map("MAPDATA.BIN");
         } else {
             // Handle movement input (WASD)
-            process_navigation_input(key);
-            render_map_viewport(0); // Normal update
+            if (key == 'w' || key == 'W') {
+                move_camera_direction(MOVE_UP);
+            } else if (key == 's' || key == 'S') {
+                move_camera_direction(MOVE_DOWN);
+            } else if (key == 'a' || key == 'A') {
+                move_camera_direction(MOVE_LEFT);
+            } else if (key == 'd' || key == 'D') {
+                move_camera_direction(MOVE_RIGHT);
+            }
+            
+            // Update display after any movement
+            render_map_viewport(0);
         }
     }
     
