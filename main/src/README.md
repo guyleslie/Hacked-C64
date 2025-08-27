@@ -198,6 +198,6 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 **C64 Hardware Integration**:
 
 - Direct VIC-II register access
-- CIA timer entropy collection  
+- CIA timer for RNG seeding  
 - Screen memory manipulation
 - KERNAL I/O integration

@@ -37,7 +37,7 @@ void assign_room_priorities(void);
 extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 extern Room rooms[MAX_ROOMS];
 extern unsigned char room_count;
-extern unsigned int rng_seed;
+extern unsigned char rnd_state;
 
 // OSCAR64 zero page optimized variables for MST performance
 extern __zeropage unsigned char mst_best_room1;

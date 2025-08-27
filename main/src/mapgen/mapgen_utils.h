@@ -4,9 +4,8 @@
 #include "mapgen_types.h"
 #include "mapgen_internal.h"  // For ExitPoint structure
 
-// Hardware and RNG functions
-unsigned int get_hardware_entropy(void);
-void init_rng(void);
+// RNG functions
+void init_rnd(void);
 unsigned char rnd(unsigned char max);
 
 // Console functions for Oscar64

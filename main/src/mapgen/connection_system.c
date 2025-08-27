@@ -1344,7 +1344,7 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         // 70% chance of straight corridor, 30% chance of Z-shaped
         // NEVER use L-shaped for aligned rooms
         
-        unsigned char use_straight = (rng_seed % 100) < 70; // 70% chance
+        unsigned char use_straight = rnd(100) < 70;
         
         if (use_straight) {
             // Try straight corridor first
@@ -1382,7 +1382,7 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         // 50-50% chance between L-shaped and Z-shaped
         // NEVER use straight corridors for diagonal rooms
         
-        unsigned char use_l_shaped = (rng_seed % 100) < 50; // 50% chance
+        unsigned char use_l_shaped = rnd(100) < 50;
         
         if (use_l_shaped) {
             // Try L-shaped corridor using diagonal exit points

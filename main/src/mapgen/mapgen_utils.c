@@ -42,7 +42,7 @@ __zeropage unsigned char adjacent_tile_temp;
 unsigned char room_count = 0;
 
 // Random number generator state
-unsigned char rng_state = 1;
+unsigned char rnd_state = 1;
 
 // =============================================================================
 // EXTERNAL GLOBAL REFERENCES
@@ -60,28 +60,26 @@ extern unsigned char last_scroll_direction;
 // STATIC VARIABLES
 // =============================================================================
 
-// Static counter for additional randomness
-static unsigned int generation_counter = 0;
 
 // Room center cache for coordinate calculations
 static unsigned char room_center_cache[MAX_ROOMS][2]; // [room_id][0=x, 1=y]
 static unsigned char room_center_cache_valid = 0;
 
 // =============================================================================
-// HARDWARE AND RNG FUNCTIONS
+// RNG FUNCTIONS
 // =============================================================================
 
 // Initialize random number generator
-void init_rng(void) {
-    rng_state = (unsigned char)(cia1.ta ^ vic.raster);
-    if (rng_state == 0) rng_state = 1;
+void init_rnd(void) {
+    rnd_state = (unsigned char)(cia1.ta ^ vic.raster);
+    if (rnd_state == 0) rnd_state = 1;
 }
 
 // Generate random number
 unsigned char rnd(unsigned char max) {
     if (max <= 1) return 0;
-    rng_state = rng_state * 97 + 71;
-    return rng_state % max;
+    rnd_state = rnd_state * 97 + 71;
+    return rnd_state % max;
 }
 
 /**
@@ -949,8 +947,8 @@ void reset_display_state(void) {
 
 // Master reset function - clears all generation data before each new map
 void reset_all_generation_data(void) {
-    // 1. RNG initialization with hardware entropy
-    init_rng();
+    // 1. RNG initialization
+    init_rnd();
     
     // 2. Complete map clearing
     clear_map();
@@ -971,8 +969,8 @@ void reset_all_generation_data(void) {
 
 // Initialize the map generation system
 void mapgen_init(unsigned int seed) {
-    rng_state = (unsigned char)seed;
-    if (rng_state == 0) rng_state = 1;
+    rnd_state = (unsigned char)seed;
+    if (rnd_state == 0) rnd_state = 1;
     room_count = 0;
     clear_map();
     clear_room_center_cache();
