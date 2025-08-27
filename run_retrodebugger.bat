@@ -1,61 +1,55 @@
 @echo off
-REM RetroDebugger launcher script for Hacked C64 project
-REM This script launches RetroDebugger with the built PRG file
+  setlocal enabledelayedexpansion
 
-setlocal
+  REM Get the script directory
+  set "SCRIPT_DIR=%~dp0"
 
-REM Define paths
-set PROJECT_DIR=%~dp0
-set RETRO_DEBUGGER_DIR=%PROJECT_DIR%RetroDebugger
-set RETRO_DEBUGGER_EXE=%RETRO_DEBUGGER_DIR%\retrodebugger-notsigned.exe
-set BUILD_DIR=%PROJECT_DIR%build
-set PRG_FILE=%BUILD_DIR%\Hacked C64.prg
-set SYMBOLS_FILE=%BUILD_DIR%\Hacked C64.lbl
+  REM Path to RetroDebugger executable (relative to script directory)
+  set "RETRODEBUGGER_PATH=%SCRIPT_DIR%RetroDebugger\retrodebugger-notsigned.exe"
 
-REM Check if RetroDebugger exists
-if not exist "%RETRO_DEBUGGER_EXE%" (
-    echo Error: retrodebugger-notsigned.exe not found at: %RETRO_DEBUGGER_EXE%
-    echo Please run the CI/CD build first to download and extract RetroDebugger.
-    pause
-    exit /b 1
-)
+  REM Get the current directory name (project name)
+  for %%I in ("%cd%") do set "PROJECT_NAME=%%~nxI"
 
-REM Check if PRG file exists
-if not exist "%PRG_FILE%" (
-    echo Error: PRG file not found at: %PRG_FILE%
-    echo Please build the project first using: cmake --build build --target oscar64_build
-    pause
-    exit /b 1
-)
+  REM Build the project first
+  echo Building project before running...
+  call "%cd%\build.bat"
+  if errorlevel 1 (
+      echo Build failed! Cannot run debugger.
+      pause
+      exit /b 1
+  )
 
-REM Display launch information
-echo ========================================
-echo Launching RetroDebugger
-echo ========================================
-echo PRG File: %PRG_FILE%
-echo Symbols: %SYMBOLS_FILE%
-echo RetroDebugger: %RETRO_DEBUGGER_EXE%
-echo ========================================
-echo.
+  REM Set the PRG file path
+  set "PRG_PATH=%cd%\build\%PROJECT_NAME%.prg"
 
-REM Change to RetroDebugger directory and launch with relative paths
-cd /d "%RETRO_DEBUGGER_DIR%"
-if exist "%SYMBOLS_FILE%" (
-    echo Loading with symbols file...
-    retrodebugger-notsigned.exe -prg "..\build\Hacked C64.prg" -symbols "..\build\Hacked C64.lbl" -autojmp -unpause
-) else (
-    echo Loading without symbols file...
-    retrodebugger-notsigned.exe -prg "..\build\Hacked C64.prg" -autojmp -unpause
-)
+  REM Check if the PRG file exists
+  if not exist "%PRG_PATH%" (
+      echo Error: PRG file not found at "%PRG_PATH%"
+      echo Build may have failed.
+      pause
+      exit /b 1
+  )
 
-REM Check if RetroDebugger launched successfully
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo Error: RetroDebugger failed to launch ^(Error Code: %ERRORLEVEL%^)
-    pause
-    exit /b %ERRORLEVEL%
-)
+  REM Check if RetroDebugger exists
+  if not exist "%RETRODEBUGGER_PATH%" (
+      echo Error: RetroDebugger not found at "%RETRODEBUGGER_PATH%"
+      echo Make sure RetroDebugger is extracted to the RetroDebugger directory.
+      pause
+      exit /b 1
+  )
 
-echo.
-echo RetroDebugger session ended.
-pause
+  REM Launch RetroDebugger with the PRG file in C64 mode
+  echo Starting RetroDebugger with "%PROJECT_NAME%.prg"...
+  "%RETRODEBUGGER_PATH%" ^
+    -kernal "%SCRIPT_DIR%RetroDebugger\roms\kernal" ^
+    -basic "%SCRIPT_DIR%RetroDebugger\roms\basic" ^
+    -chargen "%SCRIPT_DIR%RetroDebugger\roms\chargen" ^
+    -dos1541 "%SCRIPT_DIR%RetroDebugger\roms\dos1541" ^
+    -c64 "%PRG_PATH%" ^
+    -autojmp ^
+    -unpause
+
+  if errorlevel 1 (
+      echo Error: Failed to start RetroDebugger
+      pause
+  )
