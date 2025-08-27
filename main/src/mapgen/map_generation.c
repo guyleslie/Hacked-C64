@@ -12,15 +12,7 @@
 // HELPER FUNCTIONS & UTILITIES
 // =============================================================================
 
-// Oscar64 zero page variables for data
-__zeropage unsigned char wall_loop_counter;
-__zeropage unsigned char wall_tile_cache;
 
-// Helper function: Check if position is valid and what type of tile it is
-unsigned char get_tile_safe(unsigned char x, unsigned char y) {
-    if (x >= MAP_W || y >= MAP_H) return TILE_EMPTY;
-    return get_tile_raw(x, y);
-}
 
 // Helper function: Check if tile is walkable (floor or door)
 unsigned char is_walkable_tile(unsigned char tile) {
@@ -105,31 +97,31 @@ void add_walls(void) {
             
             // Only place walls around walkable tiles
             if (is_walkable_tile(tile)) {
-                // Cardinal directions
-                if (y > 0 && get_tile_raw(x, y-1) == TILE_EMPTY) {
+                // Cardinal directions - use mapgen_utils helper functions
+                if (tile_is_empty(x, y-1)) {
                     set_tile_raw(x, y-1, TILE_WALL);
                 }
-                if (y < MAP_H-1 && get_tile_raw(x, y+1) == TILE_EMPTY) {
+                if (tile_is_empty(x, y+1)) {
                     set_tile_raw(x, y+1, TILE_WALL);
                 }
-                if (x > 0 && get_tile_raw(x-1, y) == TILE_EMPTY) {
+                if (tile_is_empty(x-1, y)) {
                     set_tile_raw(x-1, y, TILE_WALL);
                 }
-                if (x < MAP_W-1 && get_tile_raw(x+1, y) == TILE_EMPTY) {
+                if (tile_is_empty(x+1, y)) {
                     set_tile_raw(x+1, y, TILE_WALL);
                 }
                 
-                // Diagonal walls
-                if (x > 0 && y > 0 && get_tile_raw(x-1, y-1) == TILE_EMPTY) {
+                // Diagonal walls - use mapgen_utils helper functions
+                if (tile_is_empty(x-1, y-1)) {
                     set_tile_raw(x-1, y-1, TILE_WALL);
                 }
-                if (x < MAP_W-1 && y > 0 && get_tile_raw(x+1, y-1) == TILE_EMPTY) {
+                if (tile_is_empty(x+1, y-1)) {
                     set_tile_raw(x+1, y-1, TILE_WALL);
                 }
-                if (x > 0 && y < MAP_H-1 && get_tile_raw(x-1, y+1) == TILE_EMPTY) {
+                if (tile_is_empty(x-1, y+1)) {
                     set_tile_raw(x-1, y+1, TILE_WALL);
                 }
-                if (x < MAP_W-1 && y < MAP_H-1 && get_tile_raw(x+1, y+1) == TILE_EMPTY) {
+                if (tile_is_empty(x+1, y+1)) {
                     set_tile_raw(x+1, y+1, TILE_WALL);
                 }
             }

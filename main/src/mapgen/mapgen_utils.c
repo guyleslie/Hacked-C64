@@ -33,10 +33,8 @@ __zeropage unsigned char mst_best_room1;
 __zeropage unsigned char mst_best_room2; 
 __zeropage unsigned char mst_best_distance;
 
-// Oscar64 zero page variables for critical tile checking data (-Oz flag manages automatically)
-__zeropage unsigned char tile_check_cache;
+// Oscar64 zero page variable for adjacent tile checking
 __zeropage unsigned char adjacent_tile_temp;
-
 
 // Tracks the current number of rooms generated in the dungeon
 unsigned char room_count = 0;
@@ -59,7 +57,6 @@ extern unsigned char last_scroll_direction;
 // =============================================================================
 // STATIC VARIABLES
 // =============================================================================
-
 
 // Room center cache for coordinate calculations
 static unsigned char room_center_cache[MAX_ROOMS][2]; // [room_id][0=x, 1=y]
@@ -1123,12 +1120,6 @@ unsigned char mapgen_find_tiles(unsigned char tile_type, unsigned char *x_positi
 // Cache for room distance calculations
 static unsigned char room_distance_cache[MAX_ROOMS][MAX_ROOMS];
 static unsigned char distance_cache_valid = 0;
-
-// Absolute difference between two unsigned char values
-unsigned char abs_diff(unsigned char a, unsigned char b) {
-    return (a > b) ? (a - b) : (b - a);
-}
-
 
 // Cache-aware room distance calculation
 unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2) {

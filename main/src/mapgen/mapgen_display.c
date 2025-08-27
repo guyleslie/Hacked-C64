@@ -110,7 +110,7 @@ void update_camera(void) {
 
 // Move camera to new position with bounds checking
 void move_camera(unsigned char new_x, unsigned char new_y) {
-    if ((new_x < MAP_W) && (new_y < MAP_H)) {
+    if (is_within_map_bounds(new_x, new_y)) {
         camera_center_x = new_x;
         camera_center_y = new_y;
         update_camera();
