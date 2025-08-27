@@ -84,7 +84,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 ### Generation System
 
-- **Position-Based MST**: Uses Minimum Spanning Tree algorithm with position-based corridor selection
+- **MST Algorithm**: Minimum Spanning Tree connects rooms with optimal corridors
 - **Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
 - **Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships with geometry-aware door reuse
 - **Wall Generation**: Single-pass algorithm with complete visual enclosure
@@ -113,7 +113,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
 - `map_generation.c`: Main generation pipeline (rooms, corridors, stairs, walls)
-- `connection_system.c`: Position-based corridor selection, bounding box collision detection, path validation, MST algorithm
+- `connection_system.c`: MST room connections, corridor drawing, door placement
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions
 - `mapgen_display.c`: Screen handling, viewport management, input processing, delta refresh

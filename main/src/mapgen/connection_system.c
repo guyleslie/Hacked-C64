@@ -1,13 +1,13 @@
 // =============================================================================
 // ROOM CONNECTION SYSTEM
-// Implements MST-based room connectivity with multiple corridor types
+// MST-based room connectivity with corridor generation
 // =============================================================================
 
 #include "mapgen_types.h"      // For Room, MAX_ROOMS 
 #include "mapgen_internal.h"   // For connection helpers, door placement functions, and global variable declarations
 #include "mapgen_utils.h"      // For utility functions
 
-// Oscar64/C64: Move large arrays to static file scope to avoid stack overflow
+// Static arrays for C64 compatibility
 static unsigned char visited_global[MAX_ROOMS];
 static unsigned char stack_global[MAX_ROOMS];
 
@@ -17,30 +17,11 @@ static unsigned char connection_matrix[MAX_ROOMS][MAX_ROOMS];
 // Track attempted connections to prevent duplicates
 static unsigned char attempted_connections[MAX_ROOMS][MAX_ROOMS];
 
-// =============================================================================
-// MST EDGE CANDIDATES CACHE
-// Prim's algorithm hot path
-// =============================================================================
-
-#define MAX_MST_EDGES 32    // Cache size for MST edge candidates
-
-// Traditional MST edge candidate structure
-struct {
-    unsigned char room1;      // Source room
-    unsigned char room2;      // Target room  
-    unsigned char distance;   // Edge weight
-    unsigned char explored;   // Exploration flag
-} mst_edge_candidates[MAX_MST_EDGES];
-
-static unsigned char edge_candidate_count = 0;
 
 // =============================================================================
-// STATIC MEMORY ALLOCATION
+// STATIC MEMORY FOR CORRIDORS
 // =============================================================================
 
-// Static memory pools to avoid dynamic allocation overhead
-static CorridorPool corridor_pool = {0};
-static ConnectionCache connection_cache = {0};
 
 // =============================================================================
 // DUPLICATE CONNECTION PREVENTION - REACHABILITY CHECK
@@ -256,7 +237,7 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y) {
 // CORRIDOR DRAWING
 // =============================================================================
 
-// Oscar64/C64: Use static struct to avoid stack usage
+// Static corridor path for C64 compatibility
 static CorridorPath corridor_path_static;
 
 // =============================================================================
@@ -384,103 +365,6 @@ static unsigned char get_exit_side(Room *room, unsigned char exit_x, unsigned ch
     return 0;
 }
 
-/**
- * @brief Find optimal exit points for Z-shaped corridor between diagonal rooms
- * Exit points are placed on opposite (facing) sides for natural Z-corridor connection
- * @param room1 First room index
- * @param room2 Second room index
- * @param exit1_x Pointer to store room1 exit X coordinate
- * @param exit1_y Pointer to store room1 exit Y coordinate
- * @param exit2_x Pointer to store room2 exit X coordinate
- * @param exit2_y Pointer to store room2 exit Y coordinate
- */
-static void find_z_corridor_exits(unsigned char room1, unsigned char room2,
-                                 unsigned char *exit1_x, unsigned char *exit1_y,
-                                 unsigned char *exit2_x, unsigned char *exit2_y) {
-    Room *r1 = &rooms[room1];
-    Room *r2 = &rooms[room2];
-    
-    // Calculate room centers to determine relative position
-    unsigned char r1_center_x = r1->x + r1->w / 2;
-    unsigned char r1_center_y = r1->y + r1->h / 2;
-    unsigned char r2_center_x = r2->x + r2->w / 2;
-    unsigned char r2_center_y = r2->y + r2->h / 2;
-    
-    // For Z-corridors: Choose facing (opposite) sides
-    // Vertical sides connect to vertical sides, horizontal to horizontal
-    unsigned char room1_exit_side, room2_exit_side;
-    
-    // Determine which sides are facing each other
-    if (r2_center_x > r1_center_x) {
-        // Room2 is to the right of Room1
-        // Use facing vertical sides: Room1 right side, Room2 left side
-        room1_exit_side = 1; // Room1 exits from right side
-        room2_exit_side = 0; // Room2 exits from left side (facing Room1's right)
-    } else {
-        // Room2 is to the left of Room1
-        // Use facing vertical sides: Room1 left side, Room2 right side
-        room1_exit_side = 0; // Room1 exits from left side
-        room2_exit_side = 1; // Room2 exits from right side (facing Room1's left)
-    }
-    
-    // If rooms are more vertically separated, use horizontal facing sides instead
-    unsigned char dx = (r2_center_x > r1_center_x) ? (r2_center_x - r1_center_x) : (r1_center_x - r2_center_x);
-    unsigned char dy = (r2_center_y > r1_center_y) ? (r2_center_y - r1_center_y) : (r1_center_y - r2_center_y);
-    
-    if (dy > dx) {
-        // More vertical separation - use facing horizontal sides
-        if (r2_center_y > r1_center_y) {
-            // Room2 is below Room1
-            // Use facing horizontal sides: Room1 bottom side, Room2 top side
-            room1_exit_side = 3; // Room1 exits from bottom side
-            room2_exit_side = 2; // Room2 exits from top side (facing Room1's bottom)
-        } else {
-            // Room2 is above Room1
-            // Use facing horizontal sides: Room1 top side, Room2 bottom side
-            room1_exit_side = 2; // Room1 exits from top side
-            room2_exit_side = 3; // Room2 exits from bottom side (facing Room1's top)
-        }
-    }
-    
-    // Calculate door coordinates based on chosen facing sides
-    switch (room1_exit_side) {
-        case 0: // Left side
-            *exit1_x = r1->x - 1;
-            *exit1_y = r1->y + r1->h / 2; // Center of left wall
-            break;
-        case 1: // Right side
-            *exit1_x = r1->x + r1->w;
-            *exit1_y = r1->y + r1->h / 2; // Center of right wall
-            break;
-        case 2: // Top side
-            *exit1_x = r1->x + r1->w / 2; // Center of top wall
-            *exit1_y = r1->y - 1;
-            break;
-        case 3: // Bottom side
-            *exit1_x = r1->x + r1->w / 2; // Center of bottom wall
-            *exit1_y = r1->y + r1->h;
-            break;
-    }
-    
-    switch (room2_exit_side) {
-        case 0: // Left side
-            *exit2_x = r2->x - 1;
-            *exit2_y = r2->y + r2->h / 2; // Center of left wall
-            break;
-        case 1: // Right side
-            *exit2_x = r2->x + r2->w;
-            *exit2_y = r2->y + r2->h / 2; // Center of right wall
-            break;
-        case 2: // Top side
-            *exit2_x = r2->x + r2->w / 2; // Center of top wall
-            *exit2_y = r2->y - 1;
-            break;
-        case 3: // Bottom side
-            *exit2_x = r2->x + r2->w / 2; // Center of bottom wall
-            *exit2_y = r2->y + r2->h;
-            break;
-    }
-}
 
 /**
  * @brief Find optimal door positions for L-shaped corridor between diagonal rooms
@@ -681,13 +565,7 @@ static void check_room_axis_alignment(unsigned char room1, unsigned char room2,
 
 /**
  * @brief Find optimal exit points for straight corridor between aligned rooms
- * @param room1 First room index
- * @param room2 Second room index
- * @param horizontal_aligned 1 if horizontally aligned, 0 if vertically aligned
- * @param exit1_x Pointer to store room1 exit X coordinate
- * @param exit1_y Pointer to store room1 exit Y coordinate
- * @param exit2_x Pointer to store room2 exit X coordinate
- * @param exit2_y Pointer to store room2 exit Y coordinate
+ * Places doors on facing walls for direct connection
  */
 static void find_straight_corridor_exits(unsigned char room1, unsigned char room2, 
                                        unsigned char horizontal_aligned,
@@ -697,119 +575,48 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
     Room *r2 = &rooms[room2];
     
     if (horizontal_aligned) {
-        // Horizontally aligned - find overlapping Y range and place exits facing each other
+        // Horizontally aligned - place doors on facing vertical walls
         unsigned char overlap_start = (r1->y > r2->y) ? r1->y : r2->y;
         unsigned char overlap_end = ((r1->y + r1->h) < (r2->y + r2->h)) ? (r1->y + r1->h) : (r2->y + r2->h);
         unsigned char center_y = overlap_start + (overlap_end - overlap_start) / 2;
         
-        // Determine which room is left/right and place doors at optimal positions
         if (r1->x + r1->w < r2->x) {
-            // Room1 is left, Room2 is right - place doors on facing sides
-            *exit1_x = r1->x + r1->w;      // Door at room1 right edge
+            // Room1 is left, Room2 is right
+            *exit1_x = r1->x + r1->w;  // Door at room1 right edge
             *exit1_y = center_y;
-            *exit2_x = r2->x - 1;          // Door at room2 left edge  
+            *exit2_x = r2->x - 1;      // Door at room2 left edge  
             *exit2_y = center_y;
-            
-            // Geometry-aware door reuse: check both rooms on their geometrically correct facing sides
-            unsigned char existing_door_x, existing_door_y;
-            if (find_existing_door_on_room_side(room1, 1, *exit1_x, center_y, &existing_door_x, &existing_door_y)) {
-                *exit1_x = existing_door_x; *exit1_y = existing_door_y;
-            }
-            if (find_existing_door_on_room_side(room2, 0, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
-                *exit2_x = existing_door_x; *exit2_y = existing_door_y;
-            }
         } else {
-            // Room2 is left, Room1 is right - place doors on facing sides
-            *exit1_x = r1->x - 1;          // Door at room1 left edge
+            // Room2 is left, Room1 is right
+            *exit1_x = r1->x - 1;      // Door at room1 left edge
             *exit1_y = center_y;
-            *exit2_x = r2->x + r2->w;      // Door at room2 right edge
+            *exit2_x = r2->x + r2->w;  // Door at room2 right edge
             *exit2_y = center_y;
-            
-            // Geometry-aware door reuse: check both rooms on their geometrically correct facing sides
-            unsigned char existing_door_x, existing_door_y;
-            if (find_existing_door_on_room_side(room1, 0, *exit1_x, center_y, &existing_door_x, &existing_door_y)) {
-                *exit1_x = existing_door_x; *exit1_y = existing_door_y;
-            }
-            if (find_existing_door_on_room_side(room2, 1, *exit2_x, center_y, &existing_door_x, &existing_door_y)) {
-                *exit2_x = existing_door_x; *exit2_y = existing_door_y;
-            }
         }
     } else {
-        // Vertically aligned - find overlapping X range and place exits facing each other
+        // Vertically aligned - place doors on facing horizontal walls
         unsigned char overlap_start = (r1->x > r2->x) ? r1->x : r2->x;
         unsigned char overlap_end = ((r1->x + r1->w) < (r2->x + r2->w)) ? (r1->x + r1->w) : (r2->x + r2->w);
         unsigned char center_x = overlap_start + (overlap_end - overlap_start) / 2;
         
-        // Determine which room is top/bottom and place doors on facing sides
         if (r1->y + r1->h < r2->y) {
-            // Room1 is top, Room2 is bottom - place doors on facing sides
+            // Room1 is top, Room2 is bottom
             *exit1_x = center_x;
-            *exit1_y = r1->y + r1->h;      // Door at room1 bottom edge
+            *exit1_y = r1->y + r1->h;  // Door at room1 bottom edge
             *exit2_x = center_x;
-            *exit2_y = r2->y - 1;          // Door at room2 top edge
-            
-            // Geometry-aware door reuse: check both rooms on their geometrically correct facing sides
-            unsigned char existing_door_x, existing_door_y;
-            if (find_existing_door_on_room_side(room1, 3, center_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                *exit1_x = existing_door_x; *exit1_y = existing_door_y;
-            }
-            if (find_existing_door_on_room_side(room2, 2, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
-                *exit2_x = existing_door_x; *exit2_y = existing_door_y;
-            }
+            *exit2_y = r2->y - 1;      // Door at room2 top edge
         } else {
-            // Room2 is top, Room1 is bottom - place doors on facing sides
+            // Room2 is top, Room1 is bottom
             *exit1_x = center_x;
-            *exit1_y = r1->y - 1;          // Door at room1 top edge
+            *exit1_y = r1->y - 1;      // Door at room1 top edge
             *exit2_x = center_x;
-            *exit2_y = r2->y + r2->h;      // Door at room2 bottom edge
-            
-            // Geometry-aware door reuse: check both rooms on their geometrically correct facing sides
-            unsigned char existing_door_x, existing_door_y;
-            if (find_existing_door_on_room_side(room1, 2, center_x, *exit1_y, &existing_door_x, &existing_door_y)) {
-                *exit1_x = existing_door_x; *exit1_y = existing_door_y;
-            }
-            if (find_existing_door_on_room_side(room2, 3, center_x, *exit2_y, &existing_door_x, &existing_door_y)) {
-                *exit2_x = existing_door_x; *exit2_y = existing_door_y;
-            }
+            *exit2_y = r2->y + r2->h;  // Door at room2 bottom edge
         }
     }
 }
 
-/**
- * @brief Determines optimal first direction for Z-corridor based on exit sides
- * @param exit1_side Side of room1 where exit1 is located (0=left, 1=right, 2=top, 3=bottom)
- * @param exit2_side Side of room2 where exit2 is located (0=left, 1=right, 2=top, 3=bottom)
- * @return 1 if should start with X-axis movement, 0 if should start with Y-axis movement
- */
-static unsigned char get_z_corridor_direction(unsigned char exit1_side, unsigned char exit2_side) {
-    // Rule: If starting from horizontal wall (top/bottom), start with vertical movement (Y-axis)
-    //       If starting from vertical wall (left/right), start with horizontal movement (X-axis)
-    
-    if (exit1_side == 2 || exit1_side == 3) {
-        // Starting from top or bottom wall (horizontal wall) - start with Y movement
-        return 0; // Y-axis first
-    } else {
-        // Starting from left or right wall (vertical wall) - start with X movement  
-        return 1; // X-axis first
-    }
-}
 
-// Place doors for straight corridor connections
-static void place_doors_for_straight_corridor(unsigned char room1, unsigned char room2,
-                                            unsigned char exit1_x, unsigned char exit1_y,
-                                            unsigned char exit2_x, unsigned char exit2_y) {
-    // Exit points are already at door positions - no conversion needed
-    place_door(exit1_x, exit1_y);
-    place_door(exit2_x, exit2_y);
-}
 
-// Place doors for diagonal corridor connections
-static void place_doors_for_diagonal_corridor(unsigned char room1, unsigned char room2,
-                                            unsigned char exit1_x, unsigned char exit1_y,
-                                            unsigned char exit2_x, unsigned char exit2_y) {
-    // Same logic as straight corridors - doors are always 1 tile from room perimeter
-    place_doors_for_straight_corridor(room1, room2, exit1_x, exit1_y, exit2_x, exit2_y);
-}
 
 /**
  * @brief Draw a straight corridor between two exit points (horizontal or vertical only)
@@ -852,70 +659,6 @@ static unsigned char draw_straight_corridor(unsigned char exit1_x, unsigned char
     return 1; // Success
 }
 
-/**
- * @brief Check if Z-shaped path would intersect any rooms other than source/destination
- * @param exit1_x First exit X coordinate
- * @param exit1_y First exit Y coordinate
- * @param exit2_x Second exit X coordinate
- * @param exit2_y Second exit Y coordinate
- * @param start_with_x 1 to start with X movement, 0 to start with Y movement
- * @param source_room Source room index to exclude from intersection check
- * @param dest_room Destination room index to exclude from intersection check
- * @return 1 if path avoids room intersections, 0 if it intersects rooms
- */
-static unsigned char z_path_avoids_rooms(unsigned char exit1_x, unsigned char exit1_y,
-                                        unsigned char exit2_x, unsigned char exit2_y,
-                                        unsigned char start_with_x,
-                                        unsigned char source_room, unsigned char dest_room) {
-    signed char leg1_end_x, leg1_end_y;
-    signed char leg2_end_x, leg2_end_y;
-    
-    // Calculate Z-corridor segments (same logic as draw_z_corridor)
-    unsigned char dx = (exit1_x > exit2_x) ? (exit1_x - exit2_x) : (exit2_x - exit1_x);
-    unsigned char dy = (exit1_y > exit2_y) ? (exit1_y - exit2_y) : (exit2_y - exit1_y);
-    
-    if (start_with_x) {
-        // Z-CORRIDOR X-FIRST: horizontal → vertical → horizontal
-        unsigned char leg_length = dx / 3 + 1;
-        
-        if (exit2_x > exit1_x) {
-            leg1_end_x = exit1_x + leg_length;
-        } else {
-            leg1_end_x = exit1_x - leg_length;
-        }
-        leg1_end_y = exit1_y;
-        leg2_end_x = leg1_end_x;
-        leg2_end_y = exit2_y;
-        
-    } else {
-        // Z-CORRIDOR Y-FIRST: vertical → horizontal → vertical
-        unsigned char leg_length = dy / 3 + 1;
-        
-        if (exit2_y > exit1_y) {
-            leg1_end_y = exit1_y + leg_length;
-        } else {
-            leg1_end_y = exit1_y - leg_length;
-        }
-        leg1_end_x = exit1_x;
-        leg2_end_x = exit2_x;
-        leg2_end_y = leg1_end_y;
-    }
-    
-    // Check all three Z-corridor segments for room intersections
-    if (path_intersects_other_rooms(exit1_x, exit1_y, leg1_end_x, leg1_end_y, source_room, dest_room)) {
-        return 0; // First segment intersects rooms
-    }
-    
-    if (path_intersects_other_rooms(leg1_end_x, leg1_end_y, leg2_end_x, leg2_end_y, source_room, dest_room)) {
-        return 0; // Second segment intersects rooms
-    }
-    
-    if (path_intersects_other_rooms(leg2_end_x, leg2_end_y, exit2_x, exit2_y, source_room, dest_room)) {
-        return 0; // Third segment intersects rooms
-    }
-    
-    return 1; // All segments are clear
-}
 
 /**
  * @brief Create a Z-shaped corridor with three segments
@@ -1042,122 +785,31 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
     return 0; // Connection failed
 }
 
-// =============================================================================
-// MST EDGE CANDIDATES IMPLEMENTATION
-// =============================================================================
-
-#pragma optimize(push)
-#pragma optimize(3, speed, inline, maxinline) // Critical MST performance optimization
-
-// Add edge candidate to MST cache
-unsigned char add_mst_edge(unsigned char room1, unsigned char room2, unsigned char distance) {
-    // Simple overflow protection - OSCAR64 will optimize bounds check
-    if (edge_candidate_count >= MAX_MST_EDGES) {
-        return 0; // Cache full - fallback will handle remaining connections
-    }
-    
-    // OSCAR64 Range Analysis optimization hints
-    __assume(room1 < MAX_ROOMS);
-    __assume(room2 < MAX_ROOMS);
-    __assume(distance > 0 && distance < 255);
-    
-    // OSCAR64 auto-optimizes this to efficient 6502 code
-    unsigned char idx = edge_candidate_count++;
-    mst_edge_candidates[idx].room1 = room1;
-    mst_edge_candidates[idx].room2 = room2;
-    mst_edge_candidates[idx].distance = distance;
-    mst_edge_candidates[idx].explored = 0;
-    
-    return 1;
-}
-
-// Find minimum unexplored edge
-unsigned char find_minimum_edge(void) {
-    unsigned char i, min_idx = 255;
-    unsigned char min_distance = 255;
-    
-    // Single index register for all array access - Oscar64 optimization
-    for (i = 0; i < edge_candidate_count; i++) {
-        if (!mst_edge_candidates[i].explored && 
-            mst_edge_candidates[i].distance < min_distance) {
-            min_distance = mst_edge_candidates[i].distance;
-            min_idx = i;
-        }
-    }
-    
-    return min_idx; // Return index or 255 if no edge found
-}
-
-// Mark edge as explored and return room pair
-unsigned char get_and_mark_edge(unsigned char edge_idx, unsigned char *room1, unsigned char *room2) {
-    if (edge_idx >= edge_candidate_count || edge_idx == 255) {
-        return 0; // Invalid edge index
-    }
-    
-    // Array access
-    *room1 = mst_edge_candidates[edge_idx].room1;
-    *room2 = mst_edge_candidates[edge_idx].room2;
-    mst_edge_candidates[edge_idx].explored = 1; // Mark as explored
-    
-    return 1; // Success
-}
-
-// Simplified MST edge candidate list builder
-void build_mst_candidates(unsigned char *connected) {
-    // OSCAR64 auto-optimizes loop variables to registers
+// MST algorithm - find closest unconnected room pair
+unsigned char find_best_connection(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2) {
     unsigned char i, j;
+    unsigned char min_distance = 255;
+    unsigned char found = 0;
     
-    // Reset cache - OSCAR64 will optimize this
-    edge_candidate_count = 0;
-    
-    // OSCAR64 will unroll inner loop if room_count is small
+    // Simple O(n²) search for minimum distance edge
     for (i = 0; i < room_count; i++) {
         if (!connected[i]) continue; // Only connected rooms as sources
         
         for (j = 0; j < room_count; j++) {
             if (connected[j] || i == j) continue; // Skip connected/self
             
-            // OSCAR64 optimizes function call if frequently used
             unsigned char distance = get_cached_room_distance(i, j);
-            
-            // Early termination on cache full - fallback will complete MST
-            if (distance < 255) {
-                if (!add_mst_edge(i, j, distance)) {
-                    return; // Cache full - let fallback handle rest
-                }
+            if (distance < min_distance) {
+                min_distance = distance;
+                *best_room1 = i;
+                *best_room2 = j;
+                found = 1;
             }
         }
     }
-}
-
-// MST algorithm using edge candidates
-unsigned char find_best_connection(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2) {
-    // Build candidate list
-    build_mst_candidates(connected);
     
-    if (edge_candidate_count == 0) {
-        return 0; // No candidates available
-    }
-    
-    // Find minimum edge efficiently
-    unsigned char min_edge_idx = find_minimum_edge();
-    if (min_edge_idx == 255) {
-        return 0; // No valid edge found
-    }
-    
-    // Get the best edge and mark as explored
-    return get_and_mark_edge(min_edge_idx, best_room1, best_room2);
+    return found;
 }
-
-// MST edge candidate cache clear
-void clear_mst_candidates(void) {
-    // OSCAR64 will optimize this simple reset - no need for complex clearing
-    edge_candidate_count = 0;
-    // Note: No need to clear array contents - they'll be overwritten when used
-    // This saves CPU cycles on 6502 - OSCAR64 range analysis ensures safety
-}
-
-#pragma optimize(pop)
 
 // Initialize connection system and memory pools
 void init_connection_system(void) {
@@ -1169,16 +821,8 @@ void init_connection_system(void) {
         }
     }
     
-    // Initialize memory pools
-    corridor_pool.active_count = 0;
-    corridor_pool.next_free_index = 0;
-    connection_cache.count = 0;
-    
     // Initialize room distance cache (defined in mapgen_utils.c)
     init_room_distance_cache();
-    
-    // Initialize MST edge candidate cache
-    clear_mst_candidates();
 }
 
 // Checks if two rooms are connected
@@ -1309,7 +953,7 @@ void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path) {
 // =============================================================================
 
 /**
- * @brief Corridor drawing with exit points
+ * @brief Corridor drawing with proper exit point calculation
  * 
  * @param room1 First room index
  * @param room2 Second room index
@@ -1347,34 +991,35 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         unsigned char use_straight = rnd(100) < 70;
         
         if (use_straight) {
-            // Try straight corridor first
-            if (!path_intersects_other_rooms(exit1.x, exit1.y, 
-                                            exit2.x, exit2.y, room1, room2)) {
+            // Try straight corridor with proper exit points
+            unsigned char straight_exit1_x, straight_exit1_y, straight_exit2_x, straight_exit2_y;
+            find_straight_corridor_exits(room1, room2, has_horizontal_overlap, 
+                                        &straight_exit1_x, &straight_exit1_y, 
+                                        &straight_exit2_x, &straight_exit2_y);
+            
+            if (!path_intersects_other_rooms(straight_exit1_x, straight_exit1_y, 
+                                            straight_exit2_x, straight_exit2_y, room1, room2)) {
                 
-                if (draw_straight_corridor(exit1.x, exit1.y, 
-                                         exit2.x, exit2.y)) {
+                if (draw_straight_corridor(straight_exit1_x, straight_exit1_y, 
+                                         straight_exit2_x, straight_exit2_y)) {
                     
-                    place_door(exit1.x, exit1.y);
-                    place_door(exit2.x, exit2.y);
+                    place_door(straight_exit1_x, straight_exit1_y);
+                    place_door(straight_exit2_x, straight_exit2_y);
                     return 1;
                 }
             }
         }
         
         // Try Z-shaped corridor (30% chance initially, or fallback if straight failed)
-        unsigned char start_with_x = get_z_corridor_direction(exit1.wall_side, exit2.wall_side);
+        unsigned char start_with_x = (exit1.wall_side == 0 || exit1.wall_side == 1) ? 1 : 0;
         
-        // Check if Z-shaped path avoids room intersections
-        if (z_path_avoids_rooms(exit1.x, exit1.y, 
-                               exit2.x, exit2.y, start_with_x, room1, room2)) {
+        // Try Z-shaped corridor directly
+        if (draw_z_corridor(exit1.x, exit1.y, 
+                          exit2.x, exit2.y, start_with_x)) {
             
-            if (draw_z_corridor(exit1.x, exit1.y, 
-                              exit2.x, exit2.y, start_with_x)) {
-                
-                place_door(exit1.x, exit1.y);
-                place_door(exit2.x, exit2.y);
-                return 1;
-            }
+            place_door(exit1.x, exit1.y);
+            place_door(exit2.x, exit2.y);
+            return 1;
         }
         
     } else {
@@ -1410,19 +1055,15 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         }
         
         // Try Z-shaped corridor (50% chance initially, or fallback if L-shaped failed)
-        unsigned char start_with_x = get_z_corridor_direction(exit1.wall_side, exit2.wall_side);
+        unsigned char start_with_x = (exit1.wall_side == 0 || exit1.wall_side == 1) ? 1 : 0;
         
-        // Check if Z-shaped path avoids room intersections
-        if (z_path_avoids_rooms(exit1.x, exit1.y, 
-                               exit2.x, exit2.y, start_with_x, room1, room2)) {
+        // Try Z-shaped corridor directly
+        if (draw_z_corridor(exit1.x, exit1.y, 
+                          exit2.x, exit2.y, start_with_x)) {
             
-            if (draw_z_corridor(exit1.x, exit1.y, 
-                              exit2.x, exit2.y, start_with_x)) {
-                
-                place_door(exit1.x, exit1.y);
-                place_door(exit2.x, exit2.y);
-                return 1;
-            }
+            place_door(exit1.x, exit1.y);
+            place_door(exit2.x, exit2.y);
+            return 1;
         }
     }
     
