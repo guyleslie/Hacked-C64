@@ -17,12 +17,6 @@ static unsigned char connection_matrix[MAX_ROOMS][MAX_ROOMS];
 // Track attempted connections to prevent duplicates
 static unsigned char attempted_connections[MAX_ROOMS][MAX_ROOMS];
 
-
-// =============================================================================
-// STATIC MEMORY FOR CORRIDORS
-// =============================================================================
-
-
 // =============================================================================
 // DUPLICATE CONNECTION PREVENTION - REACHABILITY CHECK
 // =============================================================================
@@ -89,11 +83,8 @@ unsigned char is_room_reachable(unsigned char room1, unsigned char room2) {
 // BASE RULE CHECKS
 // =============================================================================
 
-// =============================================================================
 // BOUNDING BOX PRE-FILTERING
 // Eliminates expensive detailed path checking for non-overlapping bounds
-// =============================================================================
-
 #pragma optimize(push)
 #pragma optimize(3, speed, inline, constparams) // Maximum optimization for critical function
 
@@ -244,7 +235,6 @@ static CorridorPath corridor_path_static;
 // STATIC HELPER FUNCTIONS (defined before use to avoid forward declarations)
 // =============================================================================
 
-
 /**
  * @brief Determine which wall side a door position is on relative to a room
  * @param door_x Door X coordinate
@@ -335,7 +325,6 @@ static void straight_corridor_path(signed char sx, signed char sy, signed char e
     }
 }
 
-
 /**
  * @brief Determines which side of a room an exit point is on
  * @param room Pointer to the room
@@ -364,7 +353,6 @@ static unsigned char get_exit_side(Room *room, unsigned char exit_x, unsigned ch
     // Fallback - should not happen with proper exit placement
     return 0;
 }
-
 
 /**
  * @brief Find optimal door positions for L-shaped corridor between diagonal rooms
@@ -542,7 +530,6 @@ static void draw_l_corridor(unsigned char exit1_x, unsigned char exit1_y,
                           (exit2_side == 0 || exit2_side == 1) ? 1 : 0);
 }
 
-
 /**
  * @brief Check if two rooms have overlapping projections on X or Y axis for straight corridors
  * @param room1 First room index
@@ -615,9 +602,6 @@ static void find_straight_corridor_exits(unsigned char room1, unsigned char room
     }
 }
 
-
-
-
 /**
  * @brief Draw a straight corridor between two exit points (horizontal or vertical only)
  * @param exit1_x First exit X coordinate
@@ -658,7 +642,6 @@ static unsigned char draw_straight_corridor(unsigned char exit1_x, unsigned char
     
     return 1; // Success
 }
-
 
 /**
  * @brief Create a Z-shaped corridor with three segments
