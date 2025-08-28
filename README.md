@@ -49,8 +49,7 @@ Hacked-C64/
 ├─ build.bat                                  // Oscar64 build script (Windows)
 ├─ CMakeLists.txt                             // CMake project file (optional, for CMake users)
 ├─ README.md                                  // This documentation
-├─ run_c64debugger.bat                        // C64 Debugger launcher, with automatic build
-├─ run_vice.bat                               // VICE emulator launcher, with automatic build
+├─ run_vice.bat                               // VICE emulator launcher
 ├─ SECURITY.md                                // GITHUB Security policy and notes
 └─ main/
     └─ src/
@@ -142,31 +141,26 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Wall Generation:** O(map_size) single-pass algorithm
 - **Rendering:** O(viewport_size) with delta optimization
 
-### OSCAR64 Implementation Details
-
-- **Zero Page Variables:** Critical functions use `__zeropage` variables (`mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`) for 6502 memory access
-- **Striped Array Layout:** Uses Oscar64's `__striped` feature for 6502 indexing with connection distance cache, path validation cache, and MST edge candidates
-- **Pragma Directives:** `#pragma optimize(3, speed, inline, maxinline)` applied to functions including MST loops, tile checking, and room detection
-- **Early Exit:** Immediate return on first match in adjacency checking and path validation
-- **Register Caching:** Room coordinates cached in local variables
-- **Bitwise Operations:** Uses `y & 7` instead of `y % 8` for modulo operations
-- **Implementation:** Striped implementation with 64-entry cache size
-- **Build Configuration:** Compiled with `-O0` debug flags
-
 ## Usage (Build & Run)
 
 ### Quick Start with Windows Batch Files
 
-- **`build.bat`**: Oscar64 compilation with cleanup
-- **`run_vice.bat`**: Build project and launch in VICE emulator automatically
-- **`run_c64debugger.bat`**: Build project and launch in C64 Debugger for development
+For manual development (download source code from GitHub):
+
+1. **Download Source Code**: Download the ZIP file from the GitHub repository's "Code" button
+2. **Install Dependencies**: Place Oscar64 and VICE in their respective folders (`oscar64/` and `vice/`) within the project directory
+3. **Build and Run**:
+   - **`build.bat`**: Oscar64 compilation with cleanup (requires `oscar64/` folder in project directory)
+   - **`run_vice.bat`**: Launch compiled PRG in VICE emulator (requires `vice/` folder in project directory)
+
+**Note:** These batch files expect Oscar64 and VICE to be located in their respective folders within the project directory. If you have them installed elsewhere, you'll need to modify the paths in the batch files to match your system configuration.
 
 ## CI/CD Workflow: Automated Build & Artifact Distribution
 
 This project includes a GitHub Actions workflow (`cmake-single-platform.yml`) that automates the build and packaging process for developers:
 
-- **Oscar64 Compiler & Retro Debugger Download:**  
-  The workflow automatically downloads the latest Oscar64 cross-assembler and the Retro Debugger (C64 emulator and debugger) for each build.
+- **Oscar64 Compiler & VICE Emulator Download:**  
+  The workflow automatically downloads the latest Oscar64 cross-assembler and the VICE emulator for each build.
 
 - **CMake Configuration & Build:**  
   The workflow runs CMake to configure the project and builds all targets using the latest toolchain.
@@ -180,10 +174,13 @@ The downloadable artifact includes:
 
 - `build/*.prg` – Compiled C64 program files
 - `build/*.map`, `build/*.lbl`, `build/*.asm` – Additional Oscar64 build files (map, label, assembly)
-- `RetroDebugger/**` – Downloaded Retro Debugger tool (C64 emulator and debugger) with ROM files
-- `run_retrodebugger.bat` – **Launch script for easy debugging** (see [Running the Debugger](#running-the-debugger) section)
+- `main/**/*.c`, `main/**/*.h` – Complete source code for manual compilation
+- `oscar64/**` – Complete Oscar64 toolchain for building
+- `vice/**` – VICE emulator for running programs
+- `build.bat` – Build script for manual compilation
+- `run_vice.bat` – Launch script for running in VICE emulator
 
-## Running the Debugger
+## Running with VICE Emulator
 
 ### Using the CI/CD Artifact
 
@@ -192,7 +189,14 @@ The downloadable artifact includes:
    - Click on the latest successful build
    - Download the `build-output` artifact zip file
 
-2. **Extract and Run:**
+2. **Manual Build (if needed):**
+
+   ```bash
+   # Build the project manually
+   build.bat
+   ```
+
+3. **Extract and Run:**
 
    ```bash
    # Extract the zip file to any directory
@@ -200,14 +204,7 @@ The downloadable artifact includes:
    cd my_project_folder
    
    # Double-click or run from command line:
-   run_retrodebugger.bat
+   run_vice.bat
    ```
-
-3. **What the Script Does:**
-   - Automatically changes to the RetroDebugger directory
-   - Launches `retrodebugger-notsigned.exe` with the compiled PRG file
-   - Loads symbol files (`.lbl`) automatically if available for debugging
-   - Uses `-autojmp` and `-unpause` flags for immediate program execution
-   - Provides detailed error messages if files are missing
 
 **For developer documentation, pipeline, API, and detailed module responsibilities see: [main/src/README.md](https://github.com/guyleslie/Hacked-C64/blob/main/main%2Fsrc%2FREADME.md)**
