@@ -92,7 +92,17 @@ jobs:
           # Clean up temporary directory
           Remove-Item -Recurse -Force $tempDir
 
-      - name: Cleanup Oscar64
+      - name: Copy Oscar64 for artifact
+        if: success()
+        shell: pwsh
+        run: |
+          $oscarTempDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
+          $oscarArtifactDir = "$env:GITHUB_WORKSPACE/oscar64"
+          Write-Host "Copying Oscar64 to artifact directory..."
+          Copy-Item -Path $oscarTempDir -Destination $oscarArtifactDir -Recurse -Force
+          Write-Host "Oscar64 copied to oscar64 directory for artifact."
+
+      - name: Cleanup Oscar64 temp
         if: always()
         shell: pwsh
         run: |
@@ -107,8 +117,12 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
+            main/**/*.c
+            main/**/*.h
+            oscar64/**
             vice/**
             run_vice.bat
+            build.bat
       - name: List build output
         run: |
           dir build

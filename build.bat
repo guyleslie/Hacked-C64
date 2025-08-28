@@ -8,18 +8,17 @@ REM -O0  : No compiler optimization
 REM -v2  : Verbose output for diagnostics
 REM -g   : Debug symbols (optional, can be removed for final build)
 
+REM Get the script directory
+set "SCRIPT_DIR=%~dp0"
 REM Path to oscar64 compiler
-set "OSCAR64_PATH=E:\Apps\oscar64\bin\oscar64.exe"
+set "OSCAR64_PATH=%SCRIPT_DIR%oscar64\bin\oscar64.exe"
 REM Set the source directories
-set "SRC_DIR=%cd%\main\src"
-set "MAPGEN_DIR=%cd%\main\src\mapgen"
+set "SRC_DIR=%SCRIPT_DIR%main\src"
+set "MAPGEN_DIR=%SCRIPT_DIR%main\src\mapgen"
 REM Set the build directory
-set "BUILD_DIR=%cd%\build"
-REM Get the current directory name
-set "PROJECT_NAME=%CD%"
-for %%A in ("%PROJECT_NAME%") do set "PROJECT_NAME=%%~nxA"
+set "BUILD_DIR=%SCRIPT_DIR%build"
 REM Set the output PRG file name
-set "OUTPUT_PATH=%BUILD_DIR%\%PROJECT_NAME%.prg"
+set "OUTPUT_PATH=%BUILD_DIR%\Hacked C64.prg"
 
 REM Create build directory if it doesn't exist, or clean it if it does
 if not exist "%BUILD_DIR%" (
@@ -32,8 +31,8 @@ if not exist "%BUILD_DIR%" (
 )
 
 REM Build the project with oscar64 (all required .c files, unified utilities)
-echo Building "%PROJECT_NAME%" with oscar64...
-"%OSCAR64_PATH%" -o="%OUTPUT_PATH%" -n -g -tf=prg -O0 -tm=c64 -v2 -dDEBUG -d__oscar64__ -i="E:\Apps\oscar64\include" -i="E:\Apps\oscar64\include\c64" -i="E:\Apps\oscar64\include\c128" -i="E:\Apps\oscar64\include\audio" -i="E:\Apps\oscar64\include\gfx" -i="%cd%" -i="%cd%\src" -i="%cd%\main\src\mapgen" -i="%cd%\build" "main\src\main.c" "main\src\mapgen\map_export.c" "main\src\mapgen\map_generation.c" "main\src\mapgen\mapgen_utils.c" "main\src\mapgen\room_management.c" "main\src\mapgen\connection_system.c" "main\src\mapgen\mapgen_display.c"
+echo Building "Hacked C64.prg" with oscar64...
+"%OSCAR64_PATH%" -o="%OUTPUT_PATH%" -n -g -tf=prg -O0 -tm=c64 -v2 -dDEBUG -d__oscar64__ -i="%SCRIPT_DIR%oscar64\include" -i="%SCRIPT_DIR%oscar64\include\c64" -i="%SCRIPT_DIR%oscar64\include\c128" -i="%SCRIPT_DIR%oscar64\include\audio" -i="%SCRIPT_DIR%oscar64\include\gfx" -i="%SCRIPT_DIR%" -i="%SCRIPT_DIR%src" -i="%SCRIPT_DIR%main\src\mapgen" -i="%SCRIPT_DIR%build" "%SCRIPT_DIR%main\src\main.c" "%SCRIPT_DIR%main\src\mapgen\map_export.c" "%SCRIPT_DIR%main\src\mapgen\map_generation.c" "%SCRIPT_DIR%main\src\mapgen\mapgen_utils.c" "%SCRIPT_DIR%main\src\mapgen\room_management.c" "%SCRIPT_DIR%main\src\mapgen\connection_system.c" "%SCRIPT_DIR%main\src\mapgen\mapgen_display.c"
 
 REM Check if build was successful
 if exist "%OUTPUT_PATH%" (
@@ -48,17 +47,17 @@ if exist "%OUTPUT_PATH%" (
         echo - PRG file: "%OUTPUT_PATH%" ^(executable program^)
         for %%A in ("%OUTPUT_PATH%") do echo   File size: %%~zA bytes
     )
-    if exist "%BUILD_DIR%\%PROJECT_NAME%.map" (
-        echo - Map file: %BUILD_DIR%\%PROJECT_NAME%.map ^(memory usage details^)
+    if exist "%BUILD_DIR%\Hacked C64.map" (
+        echo - Map file: %BUILD_DIR%\Hacked C64.map ^(memory usage details^)
     )
-    if exist "%BUILD_DIR%\%PROJECT_NAME%.asm" (
-        echo - ASM listing: %BUILD_DIR%\%PROJECT_NAME%.asm ^(6502 assembly code^)
+    if exist "%BUILD_DIR%\Hacked C64.asm" (
+        echo - ASM listing: %BUILD_DIR%\Hacked C64.asm ^(6502 assembly code^)
     )
-    if exist "%BUILD_DIR%\%PROJECT_NAME%.lbl" (
-        echo - Label file: %BUILD_DIR%\%PROJECT_NAME%.lbl ^(VICE debugger labels^)
+    if exist "%BUILD_DIR%\Hacked C64.lbl" (
+        echo - Label file: %BUILD_DIR%\Hacked C64.lbl ^(VICE debugger labels^)
     )
-    if exist "%BUILD_DIR%\%PROJECT_NAME%.dbj" (
-        echo - Debug info: %BUILD_DIR%\%PROJECT_NAME%.dbj ^(JSON debug data^)
+    if exist "%BUILD_DIR%\Hacked C64.dbj" (
+        echo - Debug info: %BUILD_DIR%\Hacked C64.dbj ^(JSON debug data^)
     )
 ) else (
     echo Build failed!
