@@ -30,9 +30,12 @@ if not exist "%BUILD_DIR%" (
     for /d %%D in ("%BUILD_DIR%\*") do rmdir /S /Q "%%D" 2>nul
 )
 
+REM Change to script directory to use relative paths
+cd /d "%SCRIPT_DIR%"
+
 REM Build the project with oscar64 (all required .c files, unified utilities)
 echo Building "Hacked C64.prg" with oscar64...
-"%OSCAR64_PATH%" -o="%OUTPUT_PATH%" -n -g -tf=prg -O0 -tm=c64 -v2 -dDEBUG -d__oscar64__ -i="%SCRIPT_DIR%oscar64\include" -i="%SCRIPT_DIR%oscar64\include\c64" -i="%SCRIPT_DIR%oscar64\include\c128" -i="%SCRIPT_DIR%oscar64\include\audio" -i="%SCRIPT_DIR%oscar64\include\gfx" -i="%SCRIPT_DIR%" -i="%SCRIPT_DIR%src" -i="%SCRIPT_DIR%main\src\mapgen" -i="%SCRIPT_DIR%build" "%SCRIPT_DIR%main\src\main.c" "%SCRIPT_DIR%main\src\mapgen\map_export.c" "%SCRIPT_DIR%main\src\mapgen\map_generation.c" "%SCRIPT_DIR%main\src\mapgen\mapgen_utils.c" "%SCRIPT_DIR%main\src\mapgen\room_management.c" "%SCRIPT_DIR%main\src\mapgen\connection_system.c" "%SCRIPT_DIR%main\src\mapgen\mapgen_display.c"
+oscar64\bin\oscar64.exe -o="build\Hacked C64.prg" -n -g -tf=prg -O0 -tm=c64 -v2 -dDEBUG -d__oscar64__ -i=oscar64\include -i=oscar64\include\c64 -i=oscar64\include\c128 -i=oscar64\include\audio -i=oscar64\include\gfx -i=. -i=src -i=main\src\mapgen -i=build main\src\main.c main\src\mapgen\map_export.c main\src\mapgen\map_generation.c main\src\mapgen\mapgen_utils.c main\src\mapgen\room_management.c main\src\mapgen\connection_system.c main\src\mapgen\mapgen_display.c
 
 REM Check if build was successful
 if exist "%OUTPUT_PATH%" (
