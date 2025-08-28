@@ -99,9 +99,17 @@ jobs:
           $oscarTempDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
           $oscarArtifactDir = "$env:GITHUB_WORKSPACE/oscar64"
           Write-Host "Copying Oscar64 to artifact directory..."
-          # Create target directory and copy contents
-          New-Item -ItemType Directory -Force -Path $oscarArtifactDir | Out-Null
-          Copy-Item -Path "$oscarTempDir\*" -Destination $oscarArtifactDir -Recurse -Force
+          # Find the extracted oscar64 folder and copy its contents
+          $extractedOscarFolder = Get-ChildItem -Path $oscarTempDir -Directory | Where-Object { $_.Name -eq "oscar64" } | Select-Object -First 1
+          if ($extractedOscarFolder) {
+            Write-Host "Found oscar64 folder in temp, copying contents..."
+            New-Item -ItemType Directory -Force -Path $oscarArtifactDir | Out-Null
+            Copy-Item -Path "$($extractedOscarFolder.FullName)\*" -Destination $oscarArtifactDir -Recurse -Force
+          } else {
+            Write-Host "No oscar64 subfolder found, copying all contents..."
+            New-Item -ItemType Directory -Force -Path $oscarArtifactDir | Out-Null
+            Copy-Item -Path "$oscarTempDir\*" -Destination $oscarArtifactDir -Recurse -Force
+          }
           Write-Host "Oscar64 copied to oscar64 directory for artifact."
 
       - name: Cleanup Oscar64 temp
