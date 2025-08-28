@@ -12,16 +12,63 @@ Debug generation with progress indicators:
 
 <img width="1205" height="909" alt="image" src="https://github.com/user-attachments/assets/32b037af-7c1c-40b3-a288-7dc1ab5a5194" />
 
-
 ---
 
 Final generated dungeon map display:
 
 <img width="1203" height="908" alt="image" src="https://github.com/user-attachments/assets/2fb6eab8-335f-4c00-909c-a2f2e453c627" />
 
-
-
 ---
+
+## How to Run the Program
+
+### Method 1: CI/CD Artifact (Recommended)
+
+**Complete ready-to-run package with all dependencies included:**
+
+1. **Download the Build Artifact:**
+   - Go to the [GitHub Actions](../../actions) page
+   - Click on the latest successful build
+   - Download the `build-output` artifact zip file
+
+2. **Extract and Run:**
+
+   ```bash
+   # Extract the zip file to any directory
+   unzip build-output.zip -d my_project_folder
+   cd my_project_folder
+   
+   # Double-click or run from command line:
+   run_vice.bat
+   ```
+
+3. **Manual Build (if needed):**
+
+   ```bash
+   # Build the project manually
+   build.bat
+   ```
+
+### Method 2: Manual Development
+
+**For developers who want to modify the source code:**
+
+1. **Download Source Code**: Download the ZIP file from the GitHub repository's "Code" button
+2. **Install Dependencies**: Download and place Oscar64 and VICE in their respective folders (`oscar64/` and `vice/`) within the project directory
+3. **Build and Run**:
+   - **`build.bat`**: Oscar64 compilation with cleanup
+   - **`run_vice.bat`**: Launch compiled PRG in VICE emulator
+
+**Note:** Manual method requires you to download Oscar64 and VICE separately and configure paths correctly.
+
+## Game Controls
+
+Once the program is running in the VICE emulator:
+
+- **WASD Keys**: Navigate around the generated dungeon map
+- **SPACE**: Generate a new random dungeon layout
+- **M**: Export current map as a C64 PRG file to disk
+- **Progress Dots**: Watch for dots (`.`) appearing during generation to see real-time progress
 
 ## Map Data Structure
 
@@ -101,13 +148,6 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Include Structure**: System/project headers separated
 - **Shared Constants**: Common hardware addresses and values in `mapgen_types.h`
 
-### Interactive Features
-
-- **Real-Time Navigation**: WASD movement with smooth viewport scrolling
-- **Live Map Generation**: Press SPACE for new dungeon layouts  
-- **Map Export**: Press 'M' to save maps as C64 PRG files to disk
-- **Progress Indicator**: Each major generation step prints a dot (`"."`) to the screen, showing real-time progress as rooms, corridors, stairs, and walls are created.
-
 ## Developer Pipeline and Module Responsibilities
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
@@ -141,20 +181,6 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **Wall Generation:** O(map_size) single-pass algorithm
 - **Rendering:** O(viewport_size) with delta optimization
 
-## Usage (Build & Run)
-
-### Quick Start with Windows Batch Files
-
-For manual development (download source code from GitHub):
-
-1. **Download Source Code**: Download the ZIP file from the GitHub repository's "Code" button
-2. **Install Dependencies**: Place Oscar64 and VICE in their respective folders (`oscar64/` and `vice/`) within the project directory
-3. **Build and Run**:
-   - **`build.bat`**: Oscar64 compilation with cleanup (requires `oscar64/` folder in project directory)
-   - **`run_vice.bat`**: Launch compiled PRG in VICE emulator (requires `vice/` folder in project directory)
-
-**Note:** These batch files expect Oscar64 and VICE to be located in their respective folders within the project directory. If you have them installed elsewhere, you'll need to modify the paths in the batch files to match your system configuration.
-
 ## CI/CD Workflow: Automated Build & Artifact Distribution
 
 This project includes a GitHub Actions workflow (`cmake-single-platform.yml`) that automates the build and packaging process for developers:
@@ -179,32 +205,5 @@ The downloadable artifact includes:
 - `vice/**` – VICE emulator for running programs
 - `build.bat` – Build script for manual compilation
 - `run_vice.bat` – Launch script for running in VICE emulator
-
-## Running with VICE Emulator
-
-### Using the CI/CD Artifact
-
-1. **Download the Build Artifact:**
-   - Go to the [GitHub Actions](../../actions) page
-   - Click on the latest successful build
-   - Download the `build-output` artifact zip file
-
-2. **Manual Build (if needed):**
-
-   ```bash
-   # Build the project manually
-   build.bat
-   ```
-
-3. **Extract and Run:**
-
-   ```bash
-   # Extract the zip file to any directory
-   unzip build-output.zip -d my_project_folder
-   cd my_project_folder
-   
-   # Double-click or run from command line:
-   run_vice.bat
-   ```
 
 **For developer documentation, pipeline, API, and detailed module responsibilities see: [main/src/README.md](https://github.com/guyleslie/Hacked-C64/blob/main/main%2Fsrc%2FREADME.md)**
