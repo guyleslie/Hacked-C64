@@ -99,7 +99,9 @@ jobs:
           $oscarTempDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
           $oscarArtifactDir = "$env:GITHUB_WORKSPACE/oscar64"
           Write-Host "Copying Oscar64 to artifact directory..."
-          Copy-Item -Path $oscarTempDir -Destination $oscarArtifactDir -Recurse -Force
+          # Create target directory and copy contents
+          New-Item -ItemType Directory -Force -Path $oscarArtifactDir | Out-Null
+          Copy-Item -Path "$oscarTempDir\*" -Destination $oscarArtifactDir -Recurse -Force
           Write-Host "Oscar64 copied to oscar64 directory for artifact."
 
       - name: Cleanup Oscar64 temp
