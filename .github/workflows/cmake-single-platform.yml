@@ -53,38 +53,42 @@ jobs:
           cmake --build build --target oscar64_build
         shell: cmd
 
-      - name: Download and extract Retro Debugger
+      - name: Download and extract VICE emulator
         if: success()
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $debuggerDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger'
-          $tempDir = Join-Path $env:GITHUB_WORKSPACE 'RetroDebugger_temp'
-          New-Item -ItemType Directory -Force -Path $debuggerDir | Out-Null
+          $viceDir = Join-Path $env:GITHUB_WORKSPACE 'vice'
+          $tempDir = Join-Path $env:GITHUB_WORKSPACE 'vice_temp'
+          New-Item -ItemType Directory -Force -Path $viceDir | Out-Null
           New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
-          $zipPath = Join-Path $tempDir 'RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
-          $url = 'https://github.com/slajerek/RetroDebugger/releases/download/v0.64.72/RetroDebugger.v0.64.72-windows-x64-notsigned.zip'
-          Write-Host "Downloading Retro Debugger..."
-          Invoke-WebRequest -Uri $url -OutFile $zipPath
-          Write-Host "Extracting Retro Debugger..."
+          
+          # Get latest VICE release
+          $headers = @{ Authorization = "token $env:GH_TOKEN" }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/VICE-Team/svn-mirror/releases/latest" -Headers $headers
+          $asset = $release.assets | Where-Object { $_.name -like "*win64*" -and $_.name -like "*.zip" } | Select-Object -First 1
+          
+          if (-not $asset) {
+            Write-Error "No Windows 64-bit VICE release found."
+            exit 1
+          }
+          
+          $zipPath = Join-Path $tempDir $asset.name
+          Write-Host "Downloading VICE emulator: $($asset.name)..."
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipPath
+          
+          Write-Host "Extracting VICE emulator..."
           Expand-Archive -Path $zipPath -DestinationPath $tempDir
+          
           # Find the extracted folder and move its contents to the target directory
-          $extractedFolder = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -like "RetroDebugger*" } | Select-Object -First 1
+          $extractedFolder = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -like "*vice*" } | Select-Object -First 1
           if ($extractedFolder) {
-            Write-Host "Moving contents from $($extractedFolder.FullName) to $debuggerDir"
-            Get-ChildItem -Path $extractedFolder.FullName -Recurse | Move-Item -Destination $debuggerDir -Force
+            Write-Host "Moving contents from $($extractedFolder.FullName) to $viceDir"
+            Get-ChildItem -Path $extractedFolder.FullName -Recurse | Move-Item -Destination $viceDir -Force
           }
-          # Copy ROM files from helpers/RetroDebugger/roms to RetroDebugger/roms
-          $helperRomsDir = Join-Path $env:GITHUB_WORKSPACE 'helpers/RetroDebugger/roms'
-          $targetRomsDir = Join-Path $debuggerDir 'roms'
-          if (Test-Path $helperRomsDir) {
-            Write-Host "Copying ROM files from helpers/RetroDebugger/roms to RetroDebugger/roms..."
-            New-Item -ItemType Directory -Force -Path $targetRomsDir | Out-Null
-            Copy-Item -Path "$helperRomsDir/*" -Destination $targetRomsDir -Recurse -Force
-            Write-Host "ROM files copied successfully."
-          } else {
-            Write-Host "Warning: helpers/RetroDebugger/roms directory not found."
-          }
-          Write-Host "Retro Debugger ready."
+          
+          Write-Host "VICE emulator ready."
           # Clean up temporary directory
           Remove-Item -Recurse -Force $tempDir
 
@@ -103,8 +107,8 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
-            RetroDebugger/**
-            run_retrodebugger.bat
+            vice/**
+            run_vice.bat
       - name: List build output
         run: |
           dir build
@@ -126,7 +130,7 @@ jobs:
             Write-Host "Latest build files:"
             Write-Host ("https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}")
             Write-Host ("${red}ARTIFACT DOWNLOAD URL IS ABOVE IN UPLOAD BUILD OUTPUT AS ARTIFACT SECTION${reset}")
-            Write-Host ("Retro Debugger downloaded to RetroDebugger directory")
+            Write-Host ("VICE emulator downloaded to vice directory")
             Write-Host ("${orange}=======================================================================================${reset}")
           } else {
             Write-Host ("${orange}=======================================================================================${reset}")
