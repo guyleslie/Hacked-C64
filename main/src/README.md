@@ -21,23 +21,25 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 ### Internal Representation (3-bit)
 
 ```c
-#define TILE_EMPTY   0  // Background
-#define TILE_WALL    1  // Solid wall
-#define TILE_FLOOR   2  // Walkable floor
-#define TILE_DOOR    3  // Door/passage
-#define TILE_UP      4  // Up stairs
-#define TILE_DOWN    5  // Down stairs
+#define TILE_EMPTY       0  // Background
+#define TILE_WALL        1  // Solid wall
+#define TILE_FLOOR       2  // Walkable floor
+#define TILE_DOOR        3  // Door/passage
+#define TILE_UP          4  // Up stairs
+#define TILE_DOWN        5  // Down stairs
+#define TILE_SECRET_PATH 6  // Secret door (requires special discovery)
 ```
 
 ### PETSCII Display Constants
 
 ```c
-#define EMPTY   32   // Space character
-#define WALL    160  // Solid block
-#define FLOOR   46   // Period (.)
-#define DOOR    171  // Inverse plus (+)
-#define UP      60   // Less-than (<)
-#define DOWN    62   // Greater-than (>)
+#define EMPTY       32   // Space character
+#define WALL        160  // Solid block
+#define FLOOR       46   // Period (.)
+#define DOOR        219  // Door character
+#define SECRET_PATH 94   // Checkerboard pattern - secret passage
+#define UP          60   // Less-than (<)
+#define DOWN        62   // Greater-than (>)
 ```
 
 **Memory Efficiency**: 64x64 map stored in 1536 bytes (3 bits per tile)
@@ -143,15 +145,36 @@ Oscar64 C compiler implementation for Commodore 64 hardware.
 - DOWN stairs: second highest priority room
 - Positioned at room centers
 
-### 5. Wall Generation
+### 5. Secret Room System
+
+**Algorithm**: Branch endpoint detection with physical connection validation
+
+**Secret Room Selection**:
+- Identifies rooms with exactly 1 physical connection (true endpoints)
+- Filters for rooms connected to hub nodes (2+ connections) to avoid isolated pairs
+- Configurable percentage via `SECRET_ROOM_PERCENTAGE` constant (default: 15% of eligible rooms)
+- Physical connection validation ensures accurate endpoint detection
+
+**Connection Counting**:
+- `rooms[].connections` tracks **physical doors only**
+- Logical connections (reachable through other paths) don't increment counters
+- Ensures accurate endpoint detection for MST tree structure
+
+**Secret Path Placement**:
+- Places secret door on the secret room's single door
+- Uses PETSCII character 94 (checkerboard pattern) for visual distinction
+- Maintains game balance by marking true dead-end branches as hidden content
+- Percentage controlled by `SECRET_ROOM_PERCENTAGE` constant in `mapgen_types.h`
+
+### 6. Wall Generation
 
 **Single-pass algorithm**:
 
-- Scan all walkable tiles (floor, door, stairs)
+- Scan all walkable tiles (floor, door, stairs, secret doors)
 - Place walls in 8 directions around each walkable tile
 - Only place walls on empty tiles
 
-### 6. Display System
+### 7. Display System
 
 **Viewport Management**:
 

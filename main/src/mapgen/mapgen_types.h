@@ -31,6 +31,7 @@
 #define WALL   160
 #define FLOOR  46
 #define DOOR   219
+#define SECRET_PATH 94    // Secret paths and doors use checkerboard pattern
 #define UP     60
 #define DOWN   62
 
@@ -43,6 +44,7 @@
 #define TILE_WALL   1
 #define TILE_FLOOR  2
 #define TILE_DOOR   3
+#define TILE_SECRET_PATH 6
 #define TILE_UP     4
 #define TILE_DOWN   5
 #define TILE_MASK   7
@@ -52,6 +54,7 @@
                                (tile) == TILE_WALL ? WALL : \
                                (tile) == TILE_FLOOR ? FLOOR : \
                                (tile) == TILE_DOOR ? DOOR : \
+                               (tile) == TILE_SECRET_PATH ? SECRET_PATH : \
                                (tile) == TILE_UP ? UP : \
                                (tile) == TILE_DOWN ? DOWN : EMPTY)
 
@@ -63,6 +66,12 @@
 #define CHECK_DOORS_ONLY    1
 #define CHECK_FLOORS_ONLY   2
 #define CHECK_FLOORS_AND_DOORS 3
+
+// Room state flags
+#define ROOM_SECRET 0x01
+
+// Secret room system constants
+#define SECRET_ROOM_PERCENTAGE 15  // Percentage of single-connection rooms to mark as secret
 
 // Corridor and connection parameters
 #define MAX_PATH_LENGTH 20

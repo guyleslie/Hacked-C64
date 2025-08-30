@@ -16,7 +16,7 @@
 
 // Helper function: Check if tile is walkable (floor or door)
 unsigned char is_walkable_tile(unsigned char tile) {
-    return (tile == TILE_FLOOR || tile == TILE_DOOR);
+    return (tile == TILE_FLOOR || tile == TILE_DOOR || tile == TILE_SECRET_PATH);
 }
 
 // =============================================================================
@@ -212,6 +212,9 @@ unsigned char generate_level(void) {
             break;
         }
     }
+    
+    // Phase 2.5: Mark secret rooms and convert doors
+    mark_secret_rooms(SECRET_ROOM_PERCENTAGE);
     
     // Phase 3: Place stairs for level navigation
     add_stairs();

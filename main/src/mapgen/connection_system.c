@@ -749,6 +749,7 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
         connection_matrix[room2][room1] = 1;
         attempted_connections[room1][room2] = 1;
         attempted_connections[room2][room1] = 1;
+        // DON'T increment connection counters - no physical connection made
         return 1; // Rooms are already connected indirectly
     }
     // 3. Reserve connection slots in matrices before corridor creation
@@ -756,13 +757,20 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
     connection_matrix[room2][room1] = 1;
     attempted_connections[room1][room2] = 1;
     attempted_connections[room2][room1] = 1;
+    
+    // Update connection counters
+    rooms[room1].connections++;
+    rooms[room2].connections++;
+    
     // 4. Create physical corridor between the rooms
     if (draw_corridor(room1, room2)) {
         return 1; // Corridor successfully created
     }
-    // 5. Corridor creation failed - clear connection matrix reservation
+    // 5. Corridor creation failed - rollback connection matrix and counters
     connection_matrix[room1][room2] = 0;
     connection_matrix[room2][room1] = 0;
+    rooms[room1].connections--;
+    rooms[room2].connections--;
     // Keep attempted_connections marked to prevent future retry attempts
     
     return 0; // Connection failed
@@ -780,6 +788,9 @@ unsigned char find_best_connection(unsigned char *connected, unsigned char *best
         
         for (j = 0; j < room_count; j++) {
             if (connected[j] || i == j) continue; // Skip connected/self
+            
+            // Skip connections already reachable through indirect paths
+            if (is_room_reachable(i, j)) continue;
             
             unsigned char distance = get_cached_room_distance(i, j);
             if (distance < min_distance) {
@@ -843,7 +854,7 @@ unsigned char find_existing_door_on_room_side(unsigned char room_idx, unsigned c
         case 0: // Left side - check tiles 1 position left of room
             x = room->x - 1;
             for (y = room->y; y < room->y + room->h; y++) {
-                if (tile_is_door(x, y)) {
+                if (tile_is_any_door(x, y)) {
                     unsigned char distance = abs_diff(y, target_y);
                     if (!found_door || distance < best_distance) {
                         best_door_x = x;
@@ -858,7 +869,7 @@ unsigned char find_existing_door_on_room_side(unsigned char room_idx, unsigned c
         case 1: // Right side - check tiles 1 position right of room
             x = room->x + room->w;
             for (y = room->y; y < room->y + room->h; y++) {
-                if (tile_is_door(x, y)) {
+                if (tile_is_any_door(x, y)) {
                     unsigned char distance = abs_diff(y, target_y);
                     if (!found_door || distance < best_distance) {
                         best_door_x = x;
@@ -873,7 +884,7 @@ unsigned char find_existing_door_on_room_side(unsigned char room_idx, unsigned c
         case 2: // Top side - check tiles 1 position above room
             y = room->y - 1;
             for (x = room->x; x < room->x + room->w; x++) {
-                if (tile_is_door(x, y)) {
+                if (tile_is_any_door(x, y)) {
                     unsigned char distance = abs_diff(x, target_x);
                     if (!found_door || distance < best_distance) {
                         best_door_x = x;
@@ -888,7 +899,7 @@ unsigned char find_existing_door_on_room_side(unsigned char room_idx, unsigned c
         case 3: // Bottom side - check tiles 1 position below room
             y = room->y + room->h;
             for (x = room->x; x < room->x + room->w; x++) {
-                if (tile_is_door(x, y)) {
+                if (tile_is_any_door(x, y)) {
                     unsigned char distance = abs_diff(x, target_x);
                     if (!found_door || distance < best_distance) {
                         best_door_x = x;
@@ -913,7 +924,7 @@ unsigned char find_existing_door_on_room_side(unsigned char room_idx, unsigned c
 // Place a door at (x, y) if there isn't already one there (assumes caller ensures correct edge/perimeter placement)
 void place_door(unsigned char x, unsigned char y) {
     // Only place door if position doesn't already have one
-    if (!tile_is_door(x, y)) {
+    if (!tile_is_any_door(x, y)) {
         set_tile_raw(x, y, TILE_DOOR);
     }
 }
@@ -986,8 +997,12 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
                 if (draw_straight_corridor(straight_exit1_x, straight_exit1_y, 
                                          straight_exit2_x, straight_exit2_y)) {
                     
-                    place_door(straight_exit1_x, straight_exit1_y);
-                    place_door(straight_exit2_x, straight_exit2_y);
+                    // Determine which room each door belongs to
+                    unsigned char exit1_room = get_room_containing_adjacent_position(straight_exit1_x, straight_exit1_y);
+                    unsigned char exit2_room = get_room_containing_adjacent_position(straight_exit2_x, straight_exit2_y);
+                    
+                    place_door_for_room(straight_exit1_x, straight_exit1_y, room1, room2, exit1_room);
+                    place_door_for_room(straight_exit2_x, straight_exit2_y, room1, room2, exit2_room);
                     return 1;
                 }
             }
@@ -1000,8 +1015,12 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         if (draw_z_corridor(exit1.x, exit1.y, 
                           exit2.x, exit2.y, start_with_x)) {
             
-            place_door(exit1.x, exit1.y);
-            place_door(exit2.x, exit2.y);
+            // Determine which room each door belongs to
+            unsigned char exit1_room = get_room_containing_adjacent_position(exit1.x, exit1.y);
+            unsigned char exit2_room = get_room_containing_adjacent_position(exit2.x, exit2.y);
+            
+            place_door_for_room(exit1.x, exit1.y, room1, room2, exit1_room);
+            place_door_for_room(exit2.x, exit2.y, room1, room2, exit2_room);
             return 1;
         }
         
@@ -1030,9 +1049,12 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
                 // Draw L-corridor using door coordinates with correct wall sides (updated after door reuse)
                 draw_l_corridor(l_exit1_x, l_exit1_y, l_exit2_x, l_exit2_y, wall_side1, wall_side2);
                 
-                // Place doors at the positions returned by find_l_corridor_exits
-                place_door(l_exit1_x, l_exit1_y);
-                place_door(l_exit2_x, l_exit2_y);
+                // Determine which room each door belongs to and place doors
+                unsigned char l_exit1_room = get_room_containing_adjacent_position(l_exit1_x, l_exit1_y);
+                unsigned char l_exit2_room = get_room_containing_adjacent_position(l_exit2_x, l_exit2_y);
+                
+                place_door_for_room(l_exit1_x, l_exit1_y, room1, room2, l_exit1_room);
+                place_door_for_room(l_exit2_x, l_exit2_y, room1, room2, l_exit2_room);
                 return 1;
             }
         }
@@ -1044,11 +1066,280 @@ unsigned char draw_corridor(unsigned char room1, unsigned char room2) {
         if (draw_z_corridor(exit1.x, exit1.y, 
                           exit2.x, exit2.y, start_with_x)) {
             
-            place_door(exit1.x, exit1.y);
-            place_door(exit2.x, exit2.y);
+            // Determine which room each door belongs to
+            unsigned char exit1_room_z = get_room_containing_adjacent_position(exit1.x, exit1.y);
+            unsigned char exit2_room_z = get_room_containing_adjacent_position(exit2.x, exit2.y);
+            
+            place_door_for_room(exit1.x, exit1.y, room1, room2, exit1_room_z);
+            place_door_for_room(exit2.x, exit2.y, room1, room2, exit2_room_z);
             return 1;
         }
     }
     
     return 0; // All corridor types failed
+}
+
+// =============================================================================
+// SECRET ROOM MANAGEMENT
+// =============================================================================
+
+
+/**
+ * @brief Convert corridor path leading to secret room into secret path tiles
+ * @param secret_room_index Index of the secret room
+ * @param door_x X coordinate of the secret door
+ * @param door_y Y coordinate of the secret door
+ * 
+ * Traces the corridor from the secret door to the connecting room's door,
+ * converting all TILE_FLOOR tiles along the path to TILE_SECRET_PATH.
+ * Avoids going inside the secret room by checking room boundaries.
+ */
+static void convert_corridor_to_secret_path(unsigned char secret_room_index, unsigned char door_x, unsigned char door_y) {
+    // Direction vectors for 4-directional movement
+    signed char dx[] = {0, 0, -1, 1};  // up, down, left, right
+    signed char dy[] = {-1, 1, 0, 0};
+    
+    // Static arrays for path tracing (C64 compatibility)
+    static unsigned char visited[64][64];  // Track visited positions
+    static unsigned char path_x[128];      // Path coordinates X
+    static unsigned char path_y[128];      // Path coordinates Y
+    static unsigned char path_length;      // Current path length
+    
+    // Clear visited array
+    for (unsigned char i = 0; i < MAP_H; i++) {
+        for (unsigned char j = 0; j < MAP_W; j++) {
+            visited[i][j] = 0;
+        }
+    }
+    
+    // Start path from the secret door, but find the first corridor tile OUTSIDE the room
+    visited[door_y][door_x] = 1;
+    path_length = 0;
+    
+    // Find the corridor direction (away from the secret room)
+    signed char start_x = -1, start_y = -1;
+    for (unsigned char dir = 0; dir < 4; dir++) {
+        signed char next_x = door_x + dx[dir];
+        signed char next_y = door_y + dy[dir];
+        
+        // Bounds check
+        if (next_x < 0 || next_x >= MAP_W || next_y < 0 || next_y >= MAP_H) continue;
+        
+        unsigned char tile = get_compact_tile(next_x, next_y);
+        
+        // Look for corridor floor that's NOT inside the secret room
+        if (tile == TILE_FLOOR && !is_inside_room(next_x, next_y, secret_room_index)) {
+            start_x = next_x;
+            start_y = next_y;
+            break;
+        }
+    }
+    
+    // If no corridor found outside the room, return
+    if (start_x == -1 || start_y == -1) {
+        return;
+    }
+    
+    // Start path from the first corridor tile outside the room
+    path_x[0] = start_x;
+    path_y[0] = start_y;
+    path_length = 1;
+    visited[start_y][start_x] = 1;
+    
+    unsigned char current_x = start_x;
+    unsigned char current_y = start_y;
+    
+    // Follow the corridor path until we reach another door
+    while (path_length < 128) {
+        unsigned char found_next = 0;
+        
+        // Check all 4 directions
+        for (unsigned char dir = 0; dir < 4; dir++) {
+            signed char next_x = current_x + dx[dir];
+            signed char next_y = current_y + dy[dir];
+            
+            // Bounds check
+            if (next_x < 0 || next_x >= MAP_W || next_y < 0 || next_y >= MAP_H) continue;
+            if (visited[next_y][next_x]) continue;
+            
+            unsigned char tile = get_compact_tile(next_x, next_y);
+            
+            // Found a regular door - this is the end point, include it in the path
+            if (tile == TILE_DOOR) {
+                path_x[path_length] = next_x;
+                path_y[path_length] = next_y;
+                path_length++;
+                found_next = 0;  // Stop after including the door
+                break;
+            }
+            
+            // Follow floor tiles, but avoid going inside ANY room
+            if (tile == TILE_FLOOR) {
+                // Use existing helper function to check if we're entering any room's interior
+                if (!is_inside_any_room(next_x, next_y)) {
+                    path_x[path_length] = next_x;
+                    path_y[path_length] = next_y;
+                    path_length++;
+                    visited[next_y][next_x] = 1;
+                    current_x = next_x;
+                    current_y = next_y;
+                    found_next = 1;
+                    break;
+                }
+            }
+        }
+        
+        if (!found_next) break;  // No more path to follow
+    }
+    
+    // Convert all floor and door tiles in the corridor path to secret path
+    for (unsigned char i = 0; i < path_length; i++) {
+        unsigned char tile = get_compact_tile(path_x[i], path_y[i]);
+        if (tile == TILE_FLOOR || tile == TILE_DOOR) {
+            set_tile_raw(path_x[i], path_y[i], TILE_SECRET_PATH);
+        }
+    }
+}
+
+/**
+ * @brief Mark branch endpoint rooms as secret and convert their doors
+ * @param secret_percentage Percentage of eligible rooms to mark as secret (0-100)
+ * 
+ * Algorithm: Physical connection validation with hub filtering
+ * - Find rooms with exactly 1 physical connection (true endpoints)  
+ * - Filter for rooms connected to hub nodes (2+ connections) to avoid isolated pairs
+ * - Mark selected rooms as secret and convert their doors to secret doors (PETSCII 94)
+ * - Ensures game balance by hiding only true dead-end branches
+ */
+void mark_secret_rooms(unsigned char secret_percentage) {
+    unsigned char single_connection_rooms[MAX_ROOMS];
+    unsigned char single_count = 0;
+    
+    // Find rooms with only one connection that connect to other endpoints 
+    for (unsigned char i = 0; i < room_count; i++) {
+        if (rooms[i].connections == 1) {
+            // Find what this room connects to
+            unsigned char connected_room = 255;
+            for (unsigned char j = 0; j < room_count; j++) {
+                if (j != i && connection_matrix[i][j]) {
+                    connected_room = j;
+                    break;
+                }
+            }
+            
+            // Only add to candidates if it connects to a room with 2+ connections
+            // This ensures we have true "branch endpoints" not "isolated pairs"
+            if (connected_room != 255 && rooms[connected_room].connections >= 2) {
+                single_connection_rooms[single_count++] = i;
+            }
+        }
+    }
+    
+    // Calculate number of secret rooms based on percentage
+    unsigned char secret_count = (single_count * secret_percentage) / 100;
+    if (secret_count == 0 && single_count > 0) secret_count = 1; // At least 1 secret room if any exist
+    
+    // Debug output: Show secret room creation progress
+    print_text("\n\nCreating secret rooms");
+    if (single_count > 0) {
+        for (unsigned char i = 0; i < single_count; i++) print_text(".");
+        print_text(" -> ");
+        for (unsigned char i = 0; i < secret_count; i++) print_text("S");
+    } else {
+        print_text(" (no single-connection rooms)");
+    }
+    
+    // Randomly select rooms to mark as secret AND convert connected room's doors
+    for (unsigned char i = 0; i < secret_count && i < single_count; i++) {
+        unsigned char random_index = rnd(single_count - i);
+        unsigned char secret_room_index = single_connection_rooms[random_index];
+        
+        // Mark room as secret
+        rooms[secret_room_index].state |= ROOM_SECRET;
+        
+        // Mark the secret room's door and corridor path as secret
+        unsigned char door_x, door_y;
+        if (find_room_single_door(secret_room_index, &door_x, &door_y)) {
+            set_tile_raw(door_x, door_y, TILE_SECRET_PATH);
+            
+            // Convert the corridor path leading to this secret room to secret path
+            convert_corridor_to_secret_path(secret_room_index, door_x, door_y);
+            
+            print_text("*"); // Debug: Secret door created
+        }
+        
+        // Swap to avoid selecting again
+        single_connection_rooms[random_index] = single_connection_rooms[single_count - i - 1];
+    }
+}
+
+
+/**
+ * @brief Find the single door of a room with only one connection
+ * @param room_idx Room index
+ * @param door_x Pointer to store door X coordinate
+ * @param door_y Pointer to store door Y coordinate
+ * @return 1 if door found, 0 otherwise
+ * 
+ * Optimized version using existing door-finding logic.
+ */
+unsigned char find_room_single_door(unsigned char room_idx, unsigned char* door_x, unsigned char* door_y) {
+    // Check all 4 sides of the room using the existing helper function
+    // Use room center as dummy target since we just want any door
+    unsigned char room_center_x, room_center_y;
+    get_room_center(room_idx, &room_center_x, &room_center_y);
+    
+    // Check each side in order: top, bottom, left, right
+    for (unsigned char side = 0; side < 4; side++) {
+        if (find_existing_door_on_room_side(room_idx, side, room_center_x, room_center_y, door_x, door_y)) {
+            return 1; // Found door on this side
+        }
+    }
+    
+    return 0; // No door found on any side
+}
+
+/**
+ * @brief Get room index that contains a position adjacent to given coordinates
+ * @param x X coordinate of the door position
+ * @param y Y coordinate of the door position
+ * @return Room index, or 255 if not found
+ */
+unsigned char get_room_containing_adjacent_position(unsigned char x, unsigned char y) {
+    for (unsigned char i = 0; i < room_count; i++) {
+        // Check if door is adjacent to this room (1 tile away from room boundary)
+        if ((x == rooms[i].x - 1 && y >= rooms[i].y && y < rooms[i].y + rooms[i].h) ||  // Left side
+            (x == rooms[i].x + rooms[i].w && y >= rooms[i].y && y < rooms[i].y + rooms[i].h) ||  // Right side
+            (y == rooms[i].y - 1 && x >= rooms[i].x && x < rooms[i].x + rooms[i].w) ||  // Top side
+            (y == rooms[i].y + rooms[i].h && x >= rooms[i].x && x < rooms[i].x + rooms[i].w)) {  // Bottom side
+            return i;
+        }
+    }
+    return 255; // Not found
+}
+
+/**
+ * @brief Place door with smart secret door logic
+ * @param door_x Door X coordinate
+ * @param door_y Door Y coordinate  
+ * @param room1 First room index
+ * @param room2 Second room index
+ * @param door_belongs_to_room Which room the door is adjacent to
+ */
+void place_door_for_room(unsigned char door_x, unsigned char door_y, 
+                        unsigned char room1, unsigned char room2, 
+                        unsigned char door_belongs_to_room) {
+    if (!tile_is_any_door(door_x, door_y)) {
+        // Check if either room is secret
+        unsigned char room1_is_secret = (rooms[room1].state & ROOM_SECRET) != 0;
+        unsigned char room2_is_secret = (rooms[room2].state & ROOM_SECRET) != 0;
+        
+        // Simplified logic: Place secret path if either room is secret
+        // The secret path conversion will handle the full corridor anyway
+        if (room1_is_secret || room2_is_secret) {
+            set_tile_raw(door_x, door_y, TILE_SECRET_PATH);
+        } else {
+            set_tile_raw(door_x, door_y, TILE_DOOR);
+        }
+    }
 }

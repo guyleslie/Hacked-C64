@@ -1,10 +1,47 @@
-# Hacked-C64
+# Hacked-C64-SecretRooms
 
-Dungeon Map Generator for Commodore 64 – Implemented with Oscar64
+Advanced Dungeon Map Generator for Commodore 64 – Enhanced with Secret Room System
 
 ## Overview
 
-This project is a dungeon map generator written in C for the Oscar64 cross-assembler. The program generates interconnected dungeon layouts with rooms, corridors, walls, stairs, and doors. Features include real-time navigation, interactive map exploration, compact 3-bit tile encoding, and C64 PRG map export functionality. Code uses static memory allocation and direct screen memory access.
+This project is an advanced dungeon map generator written in C for the Oscar64 cross-assembler. The program generates interconnected dungeon layouts with rooms, corridors, walls, stairs, doors, and an intelligent **secret room detection system**. Features include real-time navigation, interactive map exploration, advanced secret room algorithms, hidden corridor pathfinding, compact 3-bit tile encoding, and C64 PRG map export functionality. Code uses static memory allocation and direct screen memory access.
+
+## 🔗 Repository Versions
+
+- **[Hacked-C64](https://github.com/guyleslie/Hacked-C64)** - Original base version without secret room functionality
+- **[Hacked-C64-SecretRooms](https://github.com/guyleslie/Hacked-C64-SecretRooms)** - ⭐ **This repository** - Enhanced version with secret room system
+
+---
+
+## 🏛️ Secret Room System Features
+
+This enhanced version includes an advanced **Secret Room Detection and Hidden Corridor System**:
+
+### 🔍 **Intelligent Secret Room Detection**
+- **Physical Connection Analysis**: Identifies rooms with exactly one connection (true dead-ends)
+- **Hub Filtering**: Only marks rooms connected to hub nodes (2+ connections) to avoid isolated pairs
+- **Configurable Percentage**: 15% of eligible single-connection rooms become secret (adjustable)
+- **Game Balance**: Ensures only meaningful branch endpoints are hidden, maintaining exploration value
+
+### 🗝️ **Secret Corridor Pathfinding**
+- **Full Path Conversion**: Automatically converts entire corridor paths leading to secret rooms
+- **Visual Distinction**: Secret paths use checkerboard pattern (PETSCII 94: `^` character)
+- **Smart Boundary Detection**: Avoids converting tiles inside room interiors
+- **Bidirectional Tracing**: Traces from secret doors to connecting room doors
+
+### 🎮 **Enhanced Gameplay**
+- **Hidden Exploration**: Secret rooms appear as normal walls until discovered
+- **Progressive Discovery**: Players must find hidden passages to access secret areas
+- **Strategic Placement**: Secret rooms contain the same features as normal rooms (potential stairs, etc.)
+- **Visual Feedback**: Clear distinction between normal doors (PETSCII 219) and secret paths (PETSCII 94)
+
+### 🔧 **Technical Implementation**
+- **Memory Efficient**: Uses existing tile encoding system with new `TILE_SECRET_PATH` type
+- **Algorithm Optimized**: O(n) secret room detection with MST-based validation
+- **C64 Compatible**: Static memory allocation, no dynamic data structures
+- **Debugging Support**: Real-time progress indicators during secret room creation
+
+---
 
 ## Screenshots
 
@@ -72,7 +109,7 @@ Once the program is running in the VICE emulator:
 
 ## Map Data Structure
 
-The map is represented as a 2D grid of tiles, with each tile encoded using 3 bits for compact storage. The map dimensions are defined as 64x64 tiles (MAP_W x MAP_H). Each tile can represent different features such as empty space, wall, floor, door, or stairs.
+The map is represented as a 2D grid of tiles, with each tile encoded using 3 bits for compact storage. The map dimensions are defined as 64x64 tiles (MAP_W x MAP_H). Each tile can represent different features such as empty space, wall, floor, door, secret door, or stairs.
 
 ### Tile Types and Encoding
 
@@ -81,11 +118,16 @@ The map is represented as a 2D grid of tiles, with each tile encoded using 3 bit
 | Empty space    | EMPTY       | 32           | (space)            | Blank/empty tile    |
 | Wall           | WALL        | 160          |' █ '               | Solid block         |
 | Floor (path)   | FLOOR       | 46           |' . '               | Walkable path       |
-| Door           | DOOR        | 219          |' + ' (invers char) | Door                |
+| Door           | DOOR        | 219          |' + ' (invers char) | Regular door        |
+| **Secret Path**| **SECRET_PATH** | **94**   |**' ^ ' (caret)**   | **🔑 Hidden passage/secret door** |
 | Stairs up      | UP          | 60           |' < '               | Up stairs           |
 | Stairs down    | DOWN        | 62           |' > '               | Down stairs         |
 
-*Note: The door is displayed as a solid block character, PETSCII code 219.*
+**🏛️ Secret Room System:**
+- **Secret paths** (PETSCII 94) mark hidden corridors and doors leading to secret rooms
+- **Detection algorithm** identifies single-connection rooms attached to hub nodes
+- **15% of eligible rooms** become secret with full corridor path conversion
+- **Visual distinction** helps players identify discoverable hidden areas
 
 ## Main Directories and Files
 
@@ -133,6 +175,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 - **MST Algorithm**: Minimum Spanning Tree connects rooms with optimal corridors
 - **Room Placement**: Grid-based distribution with Fisher-Yates shuffle and collision avoidance
 - **Corridor System**: Straight, L-shaped, and Z-shaped corridors based on room spatial relationships with geometry-aware door reuse
+- **Secret Room System**: Physical connection validation identifies rooms with exactly one connection, filtering for hub-connected endpoints. Configurable percentage (default: 15%) of eligible single-connection rooms marked as secret with checkerboard door markers (PETSCII 94)
 - **Wall Generation**: Single-pass algorithm with complete visual enclosure
 - **Stair Placement**: Stairs placed in highest-priority rooms
 - **Connection Rules**: Distance-based validation (30-80 tiles depending on room density), geometry-aware door reuse maintains corridor directional consistency
@@ -151,7 +194,7 @@ All core map/tree/dungeon logic is modularized within `main/src/mapgen/` for mai
 ## Developer Pipeline and Module Responsibilities
 
 - `main.c`: Entry point, VIC-II configuration, initialization, main control loop, user input handling
-- `map_generation.c`: Main generation pipeline (rooms, corridors, stairs, walls)
+- `map_generation.c`: Main generation pipeline (rooms, corridors, secret rooms, stairs, walls)
 - `connection_system.c`: MST room connections, corridor drawing, door placement
 - `room_management.c`: Room placement, validation, priority systems
 - `map_export.c`: Map export to C64 PRG format, using Oscar64's kernal I/O functions

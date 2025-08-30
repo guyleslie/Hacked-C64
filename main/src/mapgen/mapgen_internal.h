@@ -29,6 +29,14 @@ unsigned char generate_level(void);
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
 void assign_room_priorities(void);
 
+// Secret room management
+void mark_secret_rooms(unsigned char secret_percentage);
+unsigned char find_room_single_door(unsigned char room_idx, unsigned char* door_x, unsigned char* door_y);
+unsigned char get_room_containing_adjacent_position(unsigned char x, unsigned char y);
+void place_door_for_room(unsigned char door_x, unsigned char door_y, 
+                        unsigned char room1, unsigned char room2, 
+                        unsigned char door_belongs_to_room);
+
 // =============================================================================
 // CONSOLIDATED GLOBAL VARIABLE DECLARATIONS
 // =============================================================================

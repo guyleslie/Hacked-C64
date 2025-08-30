@@ -19,6 +19,8 @@ void set_tile_raw(unsigned char x, unsigned char y, unsigned char tile);
 unsigned char tile_is_floor(unsigned char x, unsigned char y);
 unsigned char tile_is_wall(unsigned char x, unsigned char y);
 unsigned char tile_is_door(unsigned char x, unsigned char y);
+unsigned char tile_is_secret_path(unsigned char x, unsigned char y);
+unsigned char tile_is_any_door(unsigned char x, unsigned char y);
 unsigned char tile_is_empty(unsigned char x, unsigned char y);
 void clear_map(void);
 

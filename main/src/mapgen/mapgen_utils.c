@@ -191,14 +191,15 @@ unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
     
     // Convert compact tile type to PETSCII character
     switch(raw_tile) {
-        case TILE_EMPTY:  return EMPTY;   // 32 - space character
-        case TILE_WALL:   return WALL;    // 160 - solid block
-        case TILE_FLOOR:  return FLOOR;   // 46 - period
-        case TILE_DOOR:   return DOOR;    // 219 - door character
-        case TILE_UP:     return UP;      // 60 - less than
-        case TILE_DOWN:   return DOWN;    // 62 - greater than
+        case TILE_EMPTY:      return EMPTY;       // 32 - space character
+        case TILE_WALL:       return WALL;        // 160 - solid block
+        case TILE_FLOOR:      return FLOOR;       // 46 - period
+        case TILE_DOOR:       return DOOR;        // 219 - door character
+        case TILE_SECRET_PATH: return SECRET_PATH; // 94 - ^ caret character
+        case TILE_UP:         return UP;          // 60 - less than
+        case TILE_DOWN:       return DOWN;        // 62 - greater than
         // TILE_CORNER removed - corners now use regular walls
-        default:          return EMPTY;   // Safety fallback
+        default:              return EMPTY;       // Safety fallback
     }
 }
 
@@ -249,6 +250,23 @@ inline unsigned char tile_is_wall(unsigned char x, unsigned char y) {
 inline unsigned char tile_is_door(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return 0;
     return get_tile_core(x, y) == TILE_DOOR;
+}
+
+/**
+ * Check if tile is secret path (includes secret doors and corridors)
+ */
+inline unsigned char tile_is_secret_path(unsigned char x, unsigned char y) {
+    if (x >= MAP_W || y >= MAP_H) return 0;
+    return get_tile_core(x, y) == TILE_SECRET_PATH;
+}
+
+/**
+ * Check if tile is any kind of door (normal or secret)
+ */
+inline unsigned char tile_is_any_door(unsigned char x, unsigned char y) {
+    if (x >= MAP_W || y >= MAP_H) return 0;
+    unsigned char tile = get_tile_core(x, y);
+    return (tile == TILE_DOOR || tile == TILE_SECRET_PATH);
 }
 
 /**
@@ -950,13 +968,19 @@ void reset_all_generation_data(void) {
     // 2. Complete map clearing
     clear_map();
     
-    // 3. Room counter reset
+    // 3. Reset room connections before room counter reset
+    for (unsigned char i = 0; i < MAX_ROOMS; i++) {
+        rooms[i].connections = 0;
+        rooms[i].state = 0; // Clear all room states including ROOM_SECRET
+    }
+    
+    // 4. Room counter reset
     room_count = 0;
     
-    // 4. Room center cache invalidation
+    // 5. Room center cache invalidation
     clear_room_center_cache();
     
-    // 5. Connection system reset
+    // 6. Connection system reset
     init_connection_system();
 }
 
