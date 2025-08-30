@@ -1,47 +1,10 @@
-# Hacked-C64-SecretRooms
+# Hacked-C64
 
-Advanced Dungeon Map Generator for Commodore 64 – Enhanced with Secret Room System
+Dungeon Map Generator for Commodore 64 – Implemented with Oscar64
 
 ## Overview
 
-This project is an advanced dungeon map generator written in C for the Oscar64 cross-assembler. The program generates interconnected dungeon layouts with rooms, corridors, walls, stairs, doors, and an intelligent **secret room detection system**. Features include real-time navigation, interactive map exploration, advanced secret room algorithms, hidden corridor pathfinding, compact 3-bit tile encoding, and C64 PRG map export functionality. Code uses static memory allocation and direct screen memory access.
-
-## 🔗 Repository Versions
-
-- **[Hacked-C64](https://github.com/guyleslie/Hacked-C64)** - Original base version without secret room functionality
-- **[Hacked-C64-SecretRooms](https://github.com/guyleslie/Hacked-C64-SecretRooms)** - ⭐ **This repository** - Enhanced version with secret room system
-
----
-
-## 🏛️ Secret Room System Features
-
-This enhanced version includes an advanced **Secret Room Detection and Hidden Corridor System**:
-
-### 🔍 **Intelligent Secret Room Detection**
-- **Physical Connection Analysis**: Identifies rooms with exactly one connection (true dead-ends)
-- **Hub Filtering**: Only marks rooms connected to hub nodes (2+ connections) to avoid isolated pairs
-- **Configurable Percentage**: 15% of eligible single-connection rooms become secret (adjustable)
-- **Game Balance**: Ensures only meaningful branch endpoints are hidden, maintaining exploration value
-
-### 🗝️ **Secret Corridor Pathfinding**
-- **Full Path Conversion**: Automatically converts entire corridor paths leading to secret rooms
-- **Visual Distinction**: Secret paths use checkerboard pattern (PETSCII 94: `^` character)
-- **Smart Boundary Detection**: Avoids converting tiles inside room interiors
-- **Bidirectional Tracing**: Traces from secret doors to connecting room doors
-
-### 🎮 **Enhanced Gameplay**
-- **Hidden Exploration**: Secret rooms appear as normal walls until discovered
-- **Progressive Discovery**: Players must find hidden passages to access secret areas
-- **Strategic Placement**: Secret rooms contain the same features as normal rooms (potential stairs, etc.)
-- **Visual Feedback**: Clear distinction between normal doors (PETSCII 219) and secret paths (PETSCII 94)
-
-### 🔧 **Technical Implementation**
-- **Memory Efficient**: Uses existing tile encoding system with new `TILE_SECRET_PATH` type
-- **Algorithm Optimized**: O(n) secret room detection with MST-based validation
-- **C64 Compatible**: Static memory allocation, no dynamic data structures
-- **Debugging Support**: Real-time progress indicators during secret room creation
-
----
+This project is a dungeon map generator written in C for the Oscar64 cross-assembler. The program generates interconnected dungeon layouts with rooms, corridors, walls, stairs, doors, and secret passages. Features include real-time navigation, interactive map exploration, secret room detection system, compact 3-bit tile encoding, and C64 PRG map export functionality. Code uses static memory allocation and direct screen memory access.
 
 ## Screenshots
 
@@ -118,16 +81,10 @@ The map is represented as a 2D grid of tiles, with each tile encoded using 3 bit
 | Empty space    | EMPTY       | 32           | (space)            | Blank/empty tile    |
 | Wall           | WALL        | 160          |' █ '               | Solid block         |
 | Floor (path)   | FLOOR       | 46           |' . '               | Walkable path       |
-| Door           | DOOR        | 219          |' + ' (invers char) | Regular door        |
-| **Secret Path**| **SECRET_PATH** | **94**   |**' ^ ' (caret)**   | **🔑 Hidden passage/secret door** |
+| Door           | DOOR        | 219          |' + ' (invers char) | Door                |
+| Secret Path    | SECRET_PATH | 94           |' ░ ' (checkerboard)| Hidden passage      |
 | Stairs up      | UP          | 60           |' < '               | Up stairs           |
 | Stairs down    | DOWN        | 62           |' > '               | Down stairs         |
-
-**🏛️ Secret Room System:**
-- **Secret paths** (PETSCII 94) mark hidden corridors and doors leading to secret rooms
-- **Detection algorithm** identifies single-connection rooms attached to hub nodes
-- **15% of eligible rooms** become secret with full corridor path conversion
-- **Visual distinction** helps players identify discoverable hidden areas
 
 ## Main Directories and Files
 
