@@ -73,8 +73,8 @@ void update_camera(void) {
     unsigned char old_camera_x = camera_center_x;
     unsigned char old_camera_y = camera_center_y;
     
-    unsigned char half_w = get_viewport_half_width();
-    unsigned char half_h = get_viewport_half_height();
+    unsigned char half_w = VIEW_W / 2;
+    unsigned char half_h = VIEW_H / 2;
     
     // Calculate viewport position to center camera
     if (camera_center_x >= half_w) {
@@ -108,14 +108,6 @@ void update_camera(void) {
     }
 }
 
-// Move camera to new position with bounds checking
-void move_camera(unsigned char new_x, unsigned char new_y) {
-    if (is_within_map_bounds(new_x, new_y)) {
-        camera_center_x = new_x;
-        camera_center_y = new_y;
-        update_camera();
-    }
-}
 
 // =============================================================================
 // MAP DISPLAY SYSTEM
@@ -221,7 +213,7 @@ void move_camera_direction(unsigned char direction) {
 
     // Update camera position and viewport if moved
     if (moved) {
-        // Store old camera positions for proper scroll detection
+        // Store previous camera positions for scroll detection
         unsigned char prev_camera_x = camera_center_x;
         unsigned char prev_camera_y = camera_center_y;
         
@@ -293,8 +285,8 @@ void update_partial_screen(unsigned char scroll_dir) {
     }
     
     // Always use single line/column scroll for precise movement
-    unsigned char max_y = get_viewport_max_y();
-    unsigned char max_x = get_viewport_max_x();
+    unsigned char max_y = VIEW_H - 1;
+    unsigned char max_x = VIEW_W - 1;
     
     switch(scroll_dir) {          
         

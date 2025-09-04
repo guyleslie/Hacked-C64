@@ -1,226 +1,193 @@
-# C64 Dungeon Map Generator - Source Code Documentation
+# Source Code Documentation
 
-Oscar64 C compiler implementation for Commodore 64 hardware.
+Technical documentation for C64 Dungeon Map Generator implementation.
 
-## Architecture Overview
+## Architecture
 
-### Module Structure
+### Core Modules
 
-| Module | Function | Algorithms |
-|--------|----------|------------|
-| **main.c** | System initialization, main loop | VIC-II setup, input handling |
-| **map_generation.c** | Generation pipeline | Room placement, MST connectivity, wall generation |
-| **connection_system.c** | Room connectivity | MST algorithm, corridor pathfinding, bounding box collision detection, path validation |
-| **room_management.c** | Room placement | Grid-based placement, collision detection |
-| **mapgen_display.c** | Display system | Viewport management, screen rendering |
-| **mapgen_utils.c** | Utility functions | Math, random generation, tile conversion, adjacency checking, room detection |
-| **map_export.c** | File I/O | Binary serialization, KERNAL routines |
+| Module | Lines | Function | Key Algorithms |
+|--------|-------|----------|----------------|
+| **main.c** | ~150 | Entry point | VIC-II initialization, main loop, input processing |
+| **map_generation.c** | ~180 | Generation pipeline | Stair placement, wall generation, master control |
+| **connection_system.c** | ~600 | Room connectivity | Prim MST, corridor pathfinding, secret room marking |
+| **room_management.c** | ~300 | Room placement | Grid distribution, collision detection, validation |
+| **mapgen_display.c** | ~400 | Display system | Viewport management, delta refresh, camera tracking |
+| **mapgen_utils.c** | ~490 | Utilities | Tile access, math functions, bounds checking |
+| **map_export.c** | ~120 | File I/O | PRG export, KERNAL routines |
 
-## Tile Encoding System
+### Header Files
 
-### Internal Representation (3-bit)
+| Header | Purpose | Exports |
+|--------|---------|---------|
+| **mapgen_api.h** | Public API | Generator functions, initialization |
+| **mapgen_types.h** | Type definitions | Room struct, tile constants, hardware addresses |
+| **mapgen_internal.h** | Internal helpers | Global variables, private functions |
+| **mapgen_display.h** | Display functions | Viewport, rendering, input handling |
+| **mapgen_utils.h** | Utility functions | Math, random, tile operations |
 
+## Data Structures
+
+### Room Structure
 ```c
-#define TILE_EMPTY       0  // Background
-#define TILE_WALL        1  // Solid wall
-#define TILE_FLOOR       2  // Walkable floor
-#define TILE_DOOR        3  // Door/passage
-#define TILE_UP          4  // Up stairs
-#define TILE_DOWN        5  // Down stairs
-#define TILE_SECRET_PATH 6  // Secret door (requires special discovery)
+typedef struct {
+    unsigned char x, y;          // Position
+    unsigned char w, h;          // Dimensions  
+    unsigned char priority;      // Stair placement priority
+    unsigned char connections;   // Connection count
+    unsigned char state;         // Secret room flag
+} Room;
 ```
 
-### PETSCII Display Constants
-
+### Map Storage
 ```c
-#define EMPTY       32   // Space character
-#define WALL        160  // Solid block
-#define FLOOR       46   // Period (.)
-#define DOOR        219  // Door character
-#define SECRET_PATH 94   // Checkerboard pattern - secret passage
-#define UP          60   // Less-than (<)
-#define DOWN        62   // Greater-than (>)
+// 3-bit per tile encoding
+unsigned char compact_map[MAP_H * MAP_W * 3 / 8];  // 1536 bytes
+
+// 64x64 map = 4096 tiles × 3 bits = 12288 bits = 1536 bytes
 ```
 
-**Memory Efficiency**: 64x64 map stored in 1536 bytes (3 bits per tile)
+### Global Arrays
+```c
+Room rooms[MAX_ROOMS];                    // 20 rooms maximum
+unsigned char screen_buffer[VIEW_H][VIEW_W];  // 40×25 display buffer
+```
 
-## Map Generation Pipeline
+## Algorithms
 
-### 1. System Initialization
+### 1. Room Placement Algorithm
+```
+1. Initialize 4×4 grid positions (16 cells)
+2. Shuffle grid positions randomly
+3. For each position:
+   - Calculate room size (4×4 to 8×8)
+   - Check collision with buffer zones
+   - Place room if safe
+   - Update room metadata
+```
 
-- Random seed generation using CIA timers
-- Connection matrix initialization
-- Memory pool setup
+### 2. MST Connection Algorithm
+```
+1. Mark room 0 as connected
+2. While unconnected rooms exist:
+   - Find closest unconnected room to connected set
+   - Calculate corridor path (straight/L/Z-shaped)
+   - Draw corridor and place doors
+   - Mark room as connected
+   - Store connection metadata
+```
 
-### 2. Room Placement
+### 3. Tile Access System
+```
+1. Each tile uses 3 bits (8 tile types possible)
+2. Map stored in packed format: 1536 bytes for 64×64 tiles
+3. Tiles can span across byte boundaries
+4. Direct bit manipulation for fast access
+```
 
-**Algorithm**: Grid-based placement with collision detection
+### 4. Secret Room System
+```
+1. Identify rooms with exactly 1 connection
+2. Apply 15% probability filter
+3. Mark selected rooms as secret
+4. Convert corridor tiles to secret paths
+5. Preserve exact corridor geometry
+```
 
-- 4x4 grid cell distribution
-- Room sizes: 4x4 to 8x8 tiles
-- Buffer zones prevent room overlap
-- Validation ensures map boundary compliance
+## Memory Management
 
-**Placement Process** (`can_place_room()`):
+### Static Allocation
+- **No malloc/free**: All memory pre-allocated
+- **Fixed arrays**: Room, connection, display buffers
+- **Stack usage**: Minimal local variables
 
-- Calculate buffer zone boundaries
-- Check for tile collisions in buffer area
-- Enforce minimum distance between rooms
-- Update room metadata upon successful placement
+### Memory Map
+```
+$0400-$07E7  Screen memory (1000 bytes)
+$0800-$0BFF  Map data (1536 bytes)  
+$0C00-$0FFF  Room arrays (~400 bytes)
+$1000-$13FF  Display buffer (1000 bytes)
+$1400-$17FF  Program code (~7400 bytes)
+```
 
-### 3. Room Connection System
+### Zero Page Optimization
+```c
+__zeropage unsigned char mst_best_room1;
+__zeropage unsigned char mst_best_room2; 
+__zeropage unsigned char mst_best_distance;
+__zeropage unsigned char adjacent_tile_temp;
+```
 
-**Algorithm**: Prim MST (Minimum Spanning Tree)
+## Optimization Techniques
 
-**OSCAR64 Optimizations**:
+### Compiler Flags
+- **-Os**: Size optimization
+- **-dNOLONG**: Remove long integer support
+- **-dNOFLOAT**: Remove floating point support
+- **-n**: No runtime checks
 
-- Zero page variables: `mst_best_room1`, `mst_best_room2`, `mst_best_distance`, `tile_check_cache`, `adjacent_tile_temp`
-- Traditional array layout for room distance cache using 2D matrix
-- Speed pragma: `#pragma optimize(speed)` on nested loops
-- Bitwise operations for modulo: `y & 7` instead of `y % 8`
-- Early exit with immediate return on first match
-- Register caching for room coordinates
-- MST edge candidate cache with 32-entry traditional structure
+### Code Optimizations
+- **Inline functions**: Critical path functions
+- **Bit operations**: Fast tile encoding/decoding
+- **Loop unrolling**: Adjacency checking
+- **Delta updates**: Only refresh changed screen areas
 
-**MST Process**:
+## File Structure
 
-- Start with room 0 as connected
-- Uses MST edge candidates cache
-- Find shortest valid connection using cached edge candidates first, traditional MST as fallback
-- Skip already attempted connections (infinite loop prevention)
-- Use traditional room distance cache for Manhattan distance calculations
-- Build exactly (room_count - 1) connections
+```
+main/src/
+├─ main.c                    // Entry point (150 lines)
+├─ mapgen/                   
+│  ├─ map_generation.c       // Pipeline control (180 lines)
+│  ├─ connection_system.c    // MST & corridors (600 lines)
+│  ├─ room_management.c      // Room placement (300 lines)
+│  ├─ mapgen_display.c       // Display & input (400 lines)
+│  ├─ mapgen_utils.c         // Utilities (490 lines)
+│  ├─ map_export.c           // File export (120 lines)
+│  ├─ mapgen_api.h           // Public API
+│  ├─ mapgen_types.h         // Data structures
+│  ├─ mapgen_internal.h      // Internal helpers
+│  ├─ mapgen_display.h       // Display functions
+│  ├─ mapgen_utils.h         // Utility functions
+│  └─ map_export.h           // Export functions
+```
 
-**Connection Features**:
+## Build Process
 
-- **Duplicate Prevention**: Reachability check using DFS to avoid redundant connections
-- **Path Validation**: Bounding box pre-filtering with detailed intersection checking
-- **Dynamic Distance Limits**: Adaptive max distance based on room count (≤8 rooms: 80 tiles, >8 rooms: 30 tiles)
-- **Geometry-Aware Door Reuse**: Existing doors are detected and reused only on geometrically compatible wall sides to maintain corridor directional consistency
-  - L-shaped corridors: Only checks perpendicular wall pairs (e.g., right↔top walls)
-  - Straight/Z corridors: Only checks facing wall pairs (e.g., right↔left walls)  
-  - Prevents adjacent door placement while preserving corridor geometry rules
-- **Fallback Recovery**: Systematic evaluation of unconnected rooms with override capability
+### Compilation
+```bash
+oscar64.exe -o="build\Hacked C64.prg" -n -tf=prg -Os -dNOLONG -dNOFLOAT -tm=c64 main\src\main.c
+```
 
-**Corridor Types**:
+### Output Files
+- **Hacked C64.prg**: Main executable (7434 bytes)
+- **Hacked C64.map**: Memory usage map
+- **Hacked C64.asm**: Assembly listing
+- **Hacked C64.lbl**: Debug symbols
 
-- **Straight Corridors**: Direct single-segment connection
-  - Used for rooms with axis alignment (horizontal/vertical overlap)
-  - Exit points placed at center of overlapping region
-  - Simple pathfinding with single validation check
+## Performance Characteristics
 
-- **L-Shaped Corridors**: Two perpendicular segments meeting at intersection
-  - Used for diagonal room positioning (no axis overlap)
-  - Exit points on complementary sides for natural L-formation
-  - Both segments validated independently for room avoidance
-  - Supports both X-first and Y-first path routing
+### Algorithm Complexity
+- **Room Placement**: O(n) with grid constraints
+- **MST Generation**: O(n²) for room connections  
+- **Wall Placement**: O(map_size) single pass
+- **Screen Rendering**: O(viewport_size) with delta optimization
 
-- **Z-Shaped Corridors**: Three-segment complex routing
-  - Used for both aligned and diagonal rooms as alternative
-  - Exit points on facing (opposite) sides of rooms
-  - First leg extends perpendicular from exit wall direction
-  - Three-segment validation ensures complete path clearance
+### Hardware Integration
+- **VIC-II**: Direct register access for display control
+- **CIA**: Timer-based random seed generation
+- **KERNAL**: File I/O operations for map export
+- **Memory**: Direct screen buffer manipulation at $0400
 
-**Corridor Selection Logic**:
+## Implementation Notes
 
-- **Aligned Rooms** (horizontal/vertical overlap detected):
-  - 70% chance: Straight corridor (direct connection)
-  - 30% chance: Z-shaped corridor (alternative routing)
+### Key Optimizations
+- **Custom print_text**: KERNAL $FFD2 calls instead of printf for size reduction
+- **Unified tile access**: Single get_compact_tile() function
+- **Direct calculations**: calculate_room_distance() without caching
+- **Compiler flags**: -Os -dNOLONG -dNOFLOAT for minimal binary size
 
-- **Diagonal Rooms** (no axis overlap):
-  - 50% chance: L-shaped corridor (perpendicular wall connections)
-  - 50% chance: Z-shaped corridor (complex routing)
-
-**Door Placement System**:
-
-- Doors placed directly at optimal positions (1 tile from room perimeter)
-- Exit points and door positions are unified - corridors connect door to door
-- Automatic alignment with existing doors to prevent redundant placements
-- Eliminates redundant offset calculations for improved performance
-
-### 4. Stair Placement
-
-- Priority calculation based on room connectivity
-- UP stairs: highest priority room
-- DOWN stairs: second highest priority room
-- Positioned at room centers
-
-### 5. Secret Room System
-
-**Algorithm**: Branch endpoint detection with physical connection validation
-
-**Secret Room Selection**:
-- Identifies rooms with exactly 1 physical connection (true endpoints)
-- Filters for rooms connected to hub nodes (2+ connections) to avoid isolated pairs
-- Configurable percentage via `SECRET_ROOM_PERCENTAGE` constant (default: 15% of eligible rooms)
-- Physical connection validation ensures accurate endpoint detection
-
-**Connection Counting**:
-- `rooms[].connections` tracks **physical doors only**
-- Logical connections (reachable through other paths) don't increment counters
-- Ensures accurate endpoint detection for MST tree structure
-
-**Secret Path Placement**:
-- Places secret door on the secret room's single door
-- Uses PETSCII character 94 (checkerboard pattern) for visual distinction
-- Maintains game balance by marking true dead-end branches as hidden content
-- Percentage controlled by `SECRET_ROOM_PERCENTAGE` constant in `mapgen_types.h`
-
-### 6. Wall Generation
-
-**Single-pass algorithm**:
-
-- Scan all walkable tiles (floor, door, stairs, secret doors)
-- Place walls in 8 directions around each walkable tile
-- Only place walls on empty tiles
-
-### 7. Display System
-
-**Viewport Management**:
-
-- 40x25 character display window
-- Camera tracking with boundary protection
-- Delta refresh (update only changed tiles)
-- Direct screen memory access ($0400-$07E7)
-
-**Input System**:
-
-- WASD movement
-- SPACE: generate new map  
-- M: export map to PRG file
-
-## Memory Layout
-
-**Data Structures**:
-
-- Map data: 1536 bytes (3-bit packed)
-- Room array: 20 rooms maximum
-- Connection matrices: room connectivity tracking
-- Screen buffer: 40x25 characters
-
-**Total Memory Usage**: ~3.6 KB including all data structures
-
-## File Export System
-
-**Format**: C64 PRG file
-
-- Binary encoded map data
-- KERNAL I/O routines for disk access
-- Device 8 (disk drive) output
-- Loadable program format
-
-## Technical Specifications
-
-**Algorithms Complexity**:
-
-- Room placement: O(n)
-- MST generation: O(n²)
-- Wall generation: O(map_size)
-- Rendering: O(viewport_size)
-
-**C64 Hardware Integration**:
-
-- Direct VIC-II register access
-- CIA timer for RNG seeding  
-- Screen memory manipulation
-- KERNAL I/O integration
+### Secret Room System
+- Targets rooms with exactly 1 connection
+- 15% probability for secret room conversion
+- Secret passages use "." character in debug output

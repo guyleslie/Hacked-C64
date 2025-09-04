@@ -12,7 +12,6 @@
 // Display, camera, and input functions
 void initialize_camera(void);
 void update_camera(void);
-void move_camera(unsigned char new_x, unsigned char new_y);
 void move_camera_direction(unsigned char direction);
 void render_map_viewport(unsigned char force_refresh);
 void update_partial_screen(unsigned char scroll_dir);

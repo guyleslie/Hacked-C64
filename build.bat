@@ -2,6 +2,7 @@
 echo =============================================================================
 echo OSCAR64 Build Script for Hacked C64 Map Generator
 echo =============================================================================
+echo.
 
 REM OSCAR64 compilation flags:
 REM -O0  : No compiler optimization
@@ -24,43 +25,50 @@ REM Create build directory if it doesn't exist, or clean it if it does
 if not exist "%BUILD_DIR%" (
     echo Creating build directory...
     mkdir "%BUILD_DIR%"
+    echo.
 ) else (
     echo Cleaning build directory...
     del /Q "%BUILD_DIR%\*" 2>nul
     for /d %%D in ("%BUILD_DIR%\*") do rmdir /S /Q "%%D" 2>nul
+    echo.
 )
 
 REM Change to script directory to use relative paths
 cd /d "%SCRIPT_DIR%"
 
-REM Build the project with oscar64 (all required .c files, unified utilities)
+REM Build the project with oscar64 (simplified - main.c includes all modules)
 echo Building "Hacked C64.prg" with oscar64...
-oscar64\bin\oscar64.exe -o="build\Hacked C64.prg" -n -g -tf=prg -O0 -tm=c64 -v2 -dDEBUG -d__oscar64__ -i=oscar64\include -i=oscar64\include\c64 -i=oscar64\include\c128 -i=oscar64\include\audio -i=oscar64\include\gfx -i=. -i=src -i=main\src\mapgen -i=build main\src\main.c main\src\mapgen\map_export.c main\src\mapgen\map_generation.c main\src\mapgen\mapgen_utils.c main\src\mapgen\room_management.c main\src\mapgen\connection_system.c main\src\mapgen\mapgen_display.c
+oscar64\bin\oscar64.exe -o="build\Hacked C64.prg" -n -tf=prg -Os -dNOLONG -dNOFLOAT -psci -tm=c64 -dDEBUG -d__oscar64__ -i=oscar64\include -i=oscar64\include\c64 -i=main\src\mapgen main\src\main.c
+echo.
 
 REM Check if build was successful
 if exist "%OUTPUT_PATH%" (
-    echo Build successful! Output: "%OUTPUT_PATH%"
-    echo.
     echo =============================================================================
     echo Build completed successfully!
     echo =============================================================================
     echo.
-    echo Generated files:
+    echo Generated files folder:
+    echo %BUILD_DIR%
+    echo.
     if exist "%OUTPUT_PATH%" (
-        echo - PRG file: "%OUTPUT_PATH%" ^(executable program^)
-        for %%A in ("%OUTPUT_PATH%") do echo   File size: %%~zA bytes
+        echo - PRG: Hacked C64.prg
+        for %%A in ("%OUTPUT_PATH%") do echo   Size: %%~zA bytes
+        echo.
     )
     if exist "%BUILD_DIR%\Hacked C64.map" (
-        echo - Map file: %BUILD_DIR%\Hacked C64.map ^(memory usage details^)
+        echo - MAP: Memory usage details
+	echo.
     )
     if exist "%BUILD_DIR%\Hacked C64.asm" (
-        echo - ASM listing: %BUILD_DIR%\Hacked C64.asm ^(6502 assembly code^)
+        echo - ASM: 6502 assembly listing
+        echo.
     )
     if exist "%BUILD_DIR%\Hacked C64.lbl" (
-        echo - Label file: %BUILD_DIR%\Hacked C64.lbl ^(VICE debugger labels^)
+        echo - LBL: VICE debugger labels
+        echo.
     )
     if exist "%BUILD_DIR%\Hacked C64.dbj" (
-        echo - Debug info: %BUILD_DIR%\Hacked C64.dbj ^(JSON debug data^)
+        echo - DBJ: JSON debug data
     )
 ) else (
     echo Build failed!
@@ -68,6 +76,6 @@ if exist "%OUTPUT_PATH%" (
     exit /b 1
 )
 
-echo.
 echo Build completed.
+echo.
 pause

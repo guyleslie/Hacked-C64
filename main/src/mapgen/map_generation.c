@@ -147,71 +147,9 @@ unsigned char generate_level(void) {
         return 0; // Generation failed
     }
     
-    // Phase 2: Room Connection System (see connection_system.c)
-    // Connect rooms using MST algorithm with corridor creation
-    print_text("\n\nCreating corridors...");
-    unsigned char connected[MAX_ROOMS];
-    unsigned char connections_made = 0;
-    unsigned char i;
-    // Initialize connection system
+    // Phase 2: Room Connection System
     init_connection_system();
-    
-    // Initialize connection tracking
-    for (i = 0; i < MAX_ROOMS; i++) {
-        connected[i] = 0;
-    }
-    // Start with room 0 as connected
-    connected[0] = 1;
-    // Connect exactly (room_count - 1) rooms for spanning tree
-    // MST main loop
-    #pragma optimize(speed)
-    while (connections_made < room_count - 1) {
-        mst_best_distance = 255;
-        unsigned char connection_found = 0;
-        
-        // MST: Try optimized connection finding first  
-        connection_found = find_best_connection(connected, &mst_best_room1, &mst_best_room2);
-        
-        if (!connection_found) {
-            // Fallback to traditional MST algorithm if cache missed
-            // Connection filtering to prevent infinite loops
-            for (i = 0; i < room_count; i++) {
-                if (!connected[i]) continue; // Only connected rooms as source
-                
-                for (unsigned char j = 0; j < room_count; j++) {
-                    // Only unconnected rooms as target
-                    if (connected[j]) continue; 
-                    
-                    // Only allow connections that comply with safety rules
-                    // Dynamic distance limits: 30-80 tiles based on room count
-                    if (!can_connect_rooms_safely(i, j)) continue;
-                    
-                    // Skip connections already attempted
-                    if (is_room_reachable(i, j)) continue;
-                    
-                    // Use traditional distance cache
-                    unsigned char distance = get_cached_room_distance(i, j);
-                    if (distance < mst_best_distance) {
-                        mst_best_distance = distance;
-                        mst_best_room1 = i;
-                        mst_best_room2 = j;
-                        connection_found = 1;
-                    }
-                }
-            }
-        }
-        
-        // Make the best connection found using zero page variables
-        if (connection_found && connect_rooms_directly(mst_best_room1, mst_best_room2)) {
-            // Connection succeeded - connect_rooms_directly handles matrix management
-            connected[mst_best_room2] = 1; // Mark new room as connected
-            connections_made++;
-            print_text("."); // Progress every connection
-        } else {
-            // No valid connections found - MST complete
-            break;
-        }
-    }
+    connect_rooms();
     
     // Phase 2.5: Mark secret rooms and convert doors
     mark_secret_rooms(SECRET_ROOM_PERCENTAGE);

@@ -1,0 +1,309 @@
+sections
+0880 - 35e0 : DATA, code
+35e0 - 3638 : DATA, data
+3638 - 441c : BSS, bss
+4420 - 9000 : HEAP, heap
+9000 - 9fd8 : STACK, stack
+00f7 - 00f7 : ZEROPAGE, zeropage
+0801 - 0853 : DATA, startup
+9ff7 - a000 : SSTACK, sstack
+9ff7 - 9ff7 : SSTACK, clrscr@stack
+9ff7 - 9ff7 : SSTACK, set_mixed_charset@stack
+9ff7 - 9ff7 : SSTACK, reset_viewport_state@stack
+9ff7 - 9ff7 : SSTACK, reset_display_state@stack
+9ff7 - 9ff7 : SSTACK, init_rnd@stack
+9ff7 - 9ff7 : SSTACK, clear_map@stack
+9ff7 - 9ff7 : SSTACK, clear_room_center_cache@stack
+9ff7 - 9ff7 : SSTACK, init_connection_system@stack
+9ff7 - 9ff7 : SSTACK, reset_all_generation_data@stack
+9ff7 - 9ff7 : SSTACK, to_mixed_charset@stack
+9ff7 - 9ff7 : SSTACK, print_text@stack
+9ff7 - 9ff7 : SSTACK, init_rooms@stack
+9ff7 - 9ff7 : SSTACK, rnd@stack
+9ff7 - 9ff7 : SSTACK, get_grid_position@stack
+9ff7 - 9ff7 : SSTACK, get_compact_tile@stack
+9ff7 - 9ff7 : SSTACK, can_place_room@stack
+9ff5 - 9ff7 : SSTACK, try_place_room_at_grid@stack
+9ff7 - 9ff7 : SSTACK, set_compact_tile@stack
+9ff7 - 9ff7 : SSTACK, place_room@stack
+9ff7 - 9ff7 : SSTACK, assign_room_priorities@stack
+9fd8 - 9ff5 : SSTACK, create_rooms@stack
+9ff7 - 9ff7 : SSTACK, calculate_room_distance@stack
+9ff7 - 9ff7 : SSTACK, get_cached_room_distance@stack
+9ff7 - 9ff7 : SSTACK, rooms_are_connected@stack
+9ff7 - 9ff7 : SSTACK, can_connect_rooms_safely@stack
+9ff7 - 9ff7 : SSTACK, calculate_exit_from_target@stack
+9ff7 - 9ff7 : SSTACK, check_room_alignment@stack
+9ff7 - 9ff7 : SSTACK, calculate_straight_exits@stack
+9ff7 - 9ff7 : SSTACK, calculate_l_exits@stack
+9ff7 - 9ff7 : SSTACK, path_is_safe@stack
+9ff7 - 9ff7 : SSTACK, get_wall_side_from_exit@stack
+9ff7 - 9ff7 : SSTACK, is_within_map_bounds@stack
+9ff7 - 9ff7 : SSTACK, can_place_corridor@stack
+9ff7 - 9ff7 : SSTACK, draw_straight_path@stack
+9ff7 - 9ff7 : SSTACK, draw_l_path@stack
+9ff7 - 9ff7 : SSTACK, draw_z_path@stack
+9ff7 - 9ff7 : SSTACK, draw_corridor_from_door@stack
+9ff7 - 9ff7 : SSTACK, place_door@stack
+9ff7 - 9ff7 : SSTACK, add_room_connection@stack
+9ff7 - 9ff7 : SSTACK, add_door_to_room@stack
+9fe9 - 9ff7 : SSTACK, connect_rooms_directly@stack
+9fe1 - 9fe9 : SSTACK, connect_rooms@stack
+9ff7 - 9ff7 : SSTACK, convert_path_to_secret@stack
+9ff7 - 9ff7 : SSTACK, mark_secret_rooms@stack
+9ff7 - 9ff7 : SSTACK, add_stairs@stack
+9ff7 - 9ff7 : SSTACK, is_walkable_tile@stack
+9fe8 - 9ff7 : SSTACK, add_walls@stack
+9ff7 - 9ff7 : SSTACK, init_room_center_cache@stack
+9ff7 - 9ff7 : SSTACK, update_camera@stack
+9ff7 - 9ff7 : SSTACK, get_map_tile@stack
+9ff7 - 9ff7 : SSTACK, update_full_screen@stack
+9ff7 - 9ff7 : SSTACK, memmove@stack
+9ff5 - 9ff7 : SSTACK, update_partial_screen@stack
+9ff5 - 9ff5 : SSTACK, render_map_viewport@stack
+9ff5 - 9ff5 : SSTACK, initialize_camera@stack
+9fd8 - 9fd8 : SSTACK, generate_level@stack
+9fd8 - 9fd8 : SSTACK, mapgen_generate_dungeon@stack
+9ff7 - 9ff7 : SSTACK, convch@stack
+9ff7 - 9ff7 : SSTACK, getch@stack
+9ff7 - 9ff7 : SSTACK, krnio_setnam@stack
+9ff7 - 9ff7 : SSTACK, krnio_save@stack
+9ff7 - 9ff7 : SSTACK, save_compact_map@stack
+9ff1 - 9ff5 : SSTACK, move_camera_direction@stack
+9fd8 - 9fd8 : SSTACK, main@stack
+
+regions
+00f7 - 00ff : 0000, 0000, zeropage
+0801 - 0880 : 0853, 0052, startup
+0880 - 9000 : 3638, 3b9c, main
+
+objects
+00f7 - 00f7 : ZeroStart, START:zeropage
+00f7 - 00f7 : ZeroEnd, END:zeropage
+0801 - 0853 : startup, NATIVE_CODE:startup
+0880 - 08f4 : main, NATIVE_CODE:code
+08f4 - 08fe : clrscr, NATIVE_CODE:code
+08fe - 0907 : set_mixed_charset, NATIVE_CODE:code
+0907 - 0913 : mapgen_generate_dungeon, NATIVE_CODE:code
+0913 - 0924 : reset_viewport_state, NATIVE_CODE:code
+0924 - 0942 : reset_display_state, NATIVE_CODE:code
+0942 - 0979 : reset_all_generation_data, NATIVE_CODE:code
+0979 - 0990 : init_rnd, NATIVE_CODE:code
+0990 - 09af : clear_map, NATIVE_CODE:code
+09af - 09f3 : init_connection_system, NATIVE_CODE:code
+09f3 - 0a1f : generate_level, NATIVE_CODE:code
+0a1f - 0a43 : print_text, NATIVE_CODE:code
+0a43 - 0a59 : to_mixed_charset, NATIVE_CODE:code
+0a59 - 0a7d : *, DATA:code
+0a7d - 0bb2 : create_rooms, NATIVE_CODE:code
+0bb2 - 0bfe : init_rooms, NATIVE_CODE:code
+0bfe - 0c00 : *, DATA:code
+0c00 - 0c10 : *, DATA:code
+0c10 - 0c41 : rnd, NATIVE_CODE:code
+0c41 - 0d0b : try_place_room_at_grid, NATIVE_CODE:code
+0d0b - 0d91 : get_grid_position, NATIVE_CODE:code
+0d91 - 0e0e : can_place_room, NATIVE_CODE:code
+0e0e - 0e97 : get_compact_tile, NATIVE_CODE:code
+0e97 - 0f1d : place_room, NATIVE_CODE:code
+0f1d - 0fe4 : set_compact_tile, NATIVE_CODE:code
+0fe4 - 1034 : assign_room_priorities, NATIVE_CODE:code
+1034 - 110d : connect_rooms, NATIVE_CODE:code
+110d - 111f : *, DATA:code
+111f - 1189 : get_cached_room_distance, NATIVE_CODE:code
+1189 - 12ec : calculate_room_distance, NATIVE_CODE:code
+12ec - 151d : connect_rooms_directly, NATIVE_CODE:code
+151d - 155f : rooms_are_connected, NATIVE_CODE:code
+155f - 1593 : can_connect_rooms_safely, NATIVE_CODE:code
+1593 - 1641 : calculate_exit_from_target, NATIVE_CODE:code
+1641 - 16e9 : check_room_alignment, NATIVE_CODE:code
+16e9 - 1827 : calculate_straight_exits, NATIVE_CODE:code
+1827 - 1952 : calculate_l_exits, NATIVE_CODE:code
+1952 - 1a01 : path_is_safe, NATIVE_CODE:code
+1a01 - 1a42 : get_wall_side_from_exit, NATIVE_CODE:code
+1a42 - 1aa2 : draw_corridor_from_door, NATIVE_CODE:code
+1aa2 - 1b15 : draw_straight_path, NATIVE_CODE:code
+1b15 - 1be4 : can_place_corridor, NATIVE_CODE:code
+1be4 - 1bf7 : is_within_map_bounds, NATIVE_CODE:code
+1bf7 - 1c3d : draw_l_path, NATIVE_CODE:code
+1c3d - 1cfd : draw_z_path, NATIVE_CODE:code
+1cfd - 1d9c : place_door, NATIVE_CODE:code
+1d9c - 1dff : add_room_connection, NATIVE_CODE:code
+1dff - 1e4d : add_door_to_room, NATIVE_CODE:code
+1e4d - 1f35 : mark_secret_rooms, NATIVE_CODE:code
+1f35 - 1f4b : *, DATA:code
+1f4b - 20dc : convert_path_to_secret, NATIVE_CODE:code
+20dc - 20de : *, DATA:code
+20de - 22f4 : add_stairs, NATIVE_CODE:code
+22f4 - 2300 : getch, NATIVE_CODE:code
+2300 - 2311 : *, DATA:code
+2311 - 2db2 : add_walls, NATIVE_CODE:code
+2db2 - 2dc2 : *, DATA:code
+2dc2 - 2dd4 : is_walkable_tile, NATIVE_CODE:code
+2dd4 - 2e4d : initialize_camera, NATIVE_CODE:code
+2e4d - 2ee1 : init_room_center_cache, NATIVE_CODE:code
+2ee1 - 2f3d : update_camera, NATIVE_CODE:code
+2f3d - 2f6e : render_map_viewport, NATIVE_CODE:code
+2f6e - 31fc : update_partial_screen, NATIVE_CODE:code
+31fc - 3251 : update_full_screen, NATIVE_CODE:code
+3251 - 3306 : get_map_tile, NATIVE_CODE:code
+3306 - 33a0 : memmove, NATIVE_CODE:code
+33a0 - 33d2 : convch, NATIVE_CODE:code
+33d2 - 33f4 : save_compact_map, NATIVE_CODE:code
+33f4 - 340a : krnio_setnam, NATIVE_CODE:code
+340a - 342a : krnio_save, NATIVE_CODE:code
+342a - 3436 : *, DATA:code
+3436 - 3519 : move_camera_direction, NATIVE_CODE:code
+3519 - 3551 : mul16by8, NATIVE_CODE:code
+3551 - 35d6 : divmod, NATIVE_CODE:code
+35d6 - 35da : __multab14L, DATA:code
+35da - 35e0 : __shltab7L, DATA:code
+35e0 - 35e1 : spentry, DATA:data
+35e1 - 35e2 : camera_center_x, DATA:data
+35e2 - 35e3 : camera_center_y, DATA:data
+35e3 - 35e5 : view, DATA:data
+35e5 - 35e6 : screen_dirty, DATA:data
+35e6 - 35e7 : last_scroll_direction, DATA:data
+35e7 - 35e8 : rnd_state, DATA:data
+35e8 - 35e9 : room_count, DATA:data
+35e9 - 35ea : room_center_cache_valid, DATA:data
+35ea - 35eb : distance_cache_valid, DATA:data
+35eb - 35ec : giocharmap, DATA:data
+35ec - 3600 : connected, DATA:bss
+3600 - 3638 : bitshift, DATA:data
+3638 - 3638 : BSSStart, START:bss
+3638 - 3a20 : screen_buffer, DATA:bss
+3a20 - 4020 : compact_map, DATA:bss
+4020 - 4264 : rooms, DATA:bss
+4264 - 428c : room_center_cache, DATA:bss
+428c - 441c : room_distance_cache, DATA:bss
+441c - 441c : BSSEnd, END:bss
+9fd8 - 9fe3 : create_rooms@stack, BSS:create_rooms@stack
+9fd8 - 9fd8 : StackEnd, END:stack
+9fe1 - 9fe9 : connect_rooms@stack, BSS:connect_rooms@stack
+9fe3 - 9fe4 : y, BSS:create_rooms@stack
+9fe4 - 9fe5 : x, BSS:create_rooms@stack
+9fe5 - 9ff5 : grid_positions, BSS:create_rooms@stack
+9fe8 - 9ff7 : add_walls@stack, BSS:add_walls@stack
+9fe9 - 9ff1 : connect_rooms_directly@stack, BSS:connect_rooms_directly@stack
+9ff1 - 9ff2 : has_vertical_overlap, BSS:connect_rooms_directly@stack
+9ff1 - 9ff5 : move_camera_direction@stack, BSS:move_camera_direction@stack
+9ff2 - 9ff3 : has_horizontal_overlap, BSS:connect_rooms_directly@stack
+9ff3 - 9ff4 : exit2_y, BSS:connect_rooms_directly@stack
+9ff4 - 9ff5 : exit2_x, BSS:connect_rooms_directly@stack
+9ff5 - 9ff6 : exit1_y, BSS:connect_rooms_directly@stack
+9ff5 - 9ff7 : update_partial_screen@stack, BSS:update_partial_screen@stack
+9ff5 - 9ff6 : y, BSS:try_place_room_at_grid@stack
+9ff6 - 9ff7 : exit1_x, BSS:connect_rooms_directly@stack
+9ff6 - 9ff7 : x, BSS:try_place_room_at_grid@stack
+9ff7 - a000 : sstack, STACK:sstack
+
+objects by size
+2311 (0aa1) : add_walls, NATIVE_CODE:code
+3a20 (0600) : compact_map, DATA:bss
+3638 (03e8) : screen_buffer, DATA:bss
+2f6e (028e) : update_partial_screen, NATIVE_CODE:code
+4020 (0244) : rooms, DATA:bss
+12ec (0231) : connect_rooms_directly, NATIVE_CODE:code
+20de (0216) : add_stairs, NATIVE_CODE:code
+1f4b (0191) : convert_path_to_secret, NATIVE_CODE:code
+428c (0190) : room_distance_cache, DATA:bss
+1189 (0163) : calculate_room_distance, NATIVE_CODE:code
+16e9 (013e) : calculate_straight_exits, NATIVE_CODE:code
+0a7d (0135) : create_rooms, NATIVE_CODE:code
+1827 (012b) : calculate_l_exits, NATIVE_CODE:code
+1e4d (00e8) : mark_secret_rooms, NATIVE_CODE:code
+3436 (00e3) : move_camera_direction, NATIVE_CODE:code
+1034 (00d9) : connect_rooms, NATIVE_CODE:code
+1b15 (00cf) : can_place_corridor, NATIVE_CODE:code
+0c41 (00ca) : try_place_room_at_grid, NATIVE_CODE:code
+0f1d (00c7) : set_compact_tile, NATIVE_CODE:code
+1c3d (00c0) : draw_z_path, NATIVE_CODE:code
+3251 (00b5) : get_map_tile, NATIVE_CODE:code
+1952 (00af) : path_is_safe, NATIVE_CODE:code
+1593 (00ae) : calculate_exit_from_target, NATIVE_CODE:code
+1641 (00a8) : check_room_alignment, NATIVE_CODE:code
+1cfd (009f) : place_door, NATIVE_CODE:code
+3306 (009a) : memmove, NATIVE_CODE:code
+2e4d (0094) : init_room_center_cache, NATIVE_CODE:code
+0e0e (0089) : get_compact_tile, NATIVE_CODE:code
+0d0b (0086) : get_grid_position, NATIVE_CODE:code
+0e97 (0086) : place_room, NATIVE_CODE:code
+3551 (0085) : divmod, NATIVE_CODE:code
+0d91 (007d) : can_place_room, NATIVE_CODE:code
+2dd4 (0079) : initialize_camera, NATIVE_CODE:code
+0880 (0074) : main, NATIVE_CODE:code
+1aa2 (0073) : draw_straight_path, NATIVE_CODE:code
+111f (006a) : get_cached_room_distance, NATIVE_CODE:code
+1d9c (0063) : add_room_connection, NATIVE_CODE:code
+1a42 (0060) : draw_corridor_from_door, NATIVE_CODE:code
+2ee1 (005c) : update_camera, NATIVE_CODE:code
+31fc (0055) : update_full_screen, NATIVE_CODE:code
+0801 (0052) : startup, NATIVE_CODE:startup
+0fe4 (0050) : assign_room_priorities, NATIVE_CODE:code
+1dff (004e) : add_door_to_room, NATIVE_CODE:code
+0bb2 (004c) : init_rooms, NATIVE_CODE:code
+1bf7 (0046) : draw_l_path, NATIVE_CODE:code
+09af (0044) : init_connection_system, NATIVE_CODE:code
+151d (0042) : rooms_are_connected, NATIVE_CODE:code
+1a01 (0041) : get_wall_side_from_exit, NATIVE_CODE:code
+3519 (0038) : mul16by8, NATIVE_CODE:code
+3600 (0038) : bitshift, DATA:data
+0942 (0037) : reset_all_generation_data, NATIVE_CODE:code
+155f (0034) : can_connect_rooms_safely, NATIVE_CODE:code
+33a0 (0032) : convch, NATIVE_CODE:code
+0c10 (0031) : rnd, NATIVE_CODE:code
+2f3d (0031) : render_map_viewport, NATIVE_CODE:code
+09f3 (002c) : generate_level, NATIVE_CODE:code
+4264 (0028) : room_center_cache, DATA:bss
+0a1f (0024) : print_text, NATIVE_CODE:code
+33d2 (0022) : save_compact_map, NATIVE_CODE:code
+340a (0020) : krnio_save, NATIVE_CODE:code
+0990 (001f) : clear_map, NATIVE_CODE:code
+0924 (001e) : reset_display_state, NATIVE_CODE:code
+0979 (0017) : init_rnd, NATIVE_CODE:code
+0a43 (0016) : to_mixed_charset, NATIVE_CODE:code
+33f4 (0016) : krnio_setnam, NATIVE_CODE:code
+35ec (0014) : connected, DATA:bss
+1be4 (0013) : is_within_map_bounds, NATIVE_CODE:code
+2dc2 (0012) : is_walkable_tile, NATIVE_CODE:code
+0913 (0011) : reset_viewport_state, NATIVE_CODE:code
+9fe5 (0010) : grid_positions, BSS:create_rooms@stack
+9fe8 (000f) : add_walls@stack, BSS:add_walls@stack
+0907 (000c) : mapgen_generate_dungeon, NATIVE_CODE:code
+22f4 (000c) : getch, NATIVE_CODE:code
+9fd8 (000b) : create_rooms@stack, BSS:create_rooms@stack
+08f4 (000a) : clrscr, NATIVE_CODE:code
+08fe (0009) : set_mixed_charset, NATIVE_CODE:code
+9ff7 (0009) : sstack, STACK:sstack
+9fe1 (0008) : connect_rooms@stack, BSS:connect_rooms@stack
+9fe9 (0008) : connect_rooms_directly@stack, BSS:connect_rooms_directly@stack
+35da (0006) : __shltab7L, DATA:code
+35d6 (0004) : __multab14L, DATA:code
+9ff1 (0004) : move_camera_direction@stack, BSS:move_camera_direction@stack
+35e3 (0002) : view, DATA:data
+9ff5 (0002) : update_partial_screen@stack, BSS:update_partial_screen@stack
+35e0 (0001) : spentry, DATA:data
+35e1 (0001) : camera_center_x, DATA:data
+35e2 (0001) : camera_center_y, DATA:data
+35e5 (0001) : screen_dirty, DATA:data
+35e6 (0001) : last_scroll_direction, DATA:data
+35e7 (0001) : rnd_state, DATA:data
+35e8 (0001) : room_count, DATA:data
+35e9 (0001) : room_center_cache_valid, DATA:data
+35ea (0001) : distance_cache_valid, DATA:data
+35eb (0001) : giocharmap, DATA:data
+9fe3 (0001) : y, BSS:create_rooms@stack
+9fe4 (0001) : x, BSS:create_rooms@stack
+9ff1 (0001) : has_vertical_overlap, BSS:connect_rooms_directly@stack
+9ff2 (0001) : has_horizontal_overlap, BSS:connect_rooms_directly@stack
+9ff3 (0001) : exit2_y, BSS:connect_rooms_directly@stack
+9ff4 (0001) : exit2_x, BSS:connect_rooms_directly@stack
+9ff5 (0001) : exit1_y, BSS:connect_rooms_directly@stack
+9ff5 (0001) : y, BSS:try_place_room_at_grid@stack
+9ff6 (0001) : exit1_x, BSS:connect_rooms_directly@stack
+9ff6 (0001) : x, BSS:try_place_room_at_grid@stack
+00f7 (0000) : ZeroStart, START:zeropage
+00f7 (0000) : ZeroEnd, END:zeropage
+3638 (0000) : BSSStart, START:bss
+441c (0000) : BSSEnd, END:bss
+9fd8 (0000) : StackEnd, END:stack

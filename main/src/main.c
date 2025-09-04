@@ -12,7 +12,14 @@
 // Project headers
 #include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon
 #include "mapgen/mapgen_display.h"    // For move_camera_direction
-#include "mapgen/map_export.h"        // For save_compact_map
+
+// Include C files for OSCAR64 linking
+#include "mapgen/mapgen_utils.c"
+#include "mapgen/map_generation.c"
+#include "mapgen/room_management.c"
+#include "mapgen/connection_system.c"
+#include "mapgen/mapgen_display.c"
+#include "mapgen/map_export.c"
 
 // VIC-II base address and memory control register definitions
 #define VIC_BASE 0xD000

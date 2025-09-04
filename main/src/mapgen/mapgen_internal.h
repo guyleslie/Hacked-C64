@@ -4,21 +4,8 @@
 #include "mapgen_types.h"
 
 // =============================================================================
-// OPTIMIZED EXIT POINT STRUCTURE
+// SIMPLIFIED CONNECTION SYSTEM
 // =============================================================================
-
-/**
- * @brief Unified exit point structure containing door positions
- * 
- * This structure simplifies corridor generation by directly calculating door positions
- * (1 tile from room perimeter). Exit points and door positions are unified - corridors
- * connect directly from door to door, eliminating redundant offset calculations.
- */
-typedef struct {
-    unsigned char x, y;                    // Door/corridor position (1 tile from perimeter)
-    unsigned char wall_side;               // 0=left, 1=right, 2=top, 3=bottom
-    unsigned char edge_position;           // Position along the selected edge
-} ExitPoint;
 
 // Core map generation algorithm functions (internal only)
 void create_rooms(void);
@@ -29,13 +16,11 @@ unsigned char generate_level(void);
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
 void assign_room_priorities(void);
 
+// Room initialization
+void init_rooms(void);
+
 // Secret room management
 void mark_secret_rooms(unsigned char secret_percentage);
-unsigned char find_room_single_door(unsigned char room_idx, unsigned char* door_x, unsigned char* door_y);
-unsigned char get_room_containing_adjacent_position(unsigned char x, unsigned char y);
-void place_door_for_room(unsigned char door_x, unsigned char door_y, 
-                        unsigned char room1, unsigned char room2, 
-                        unsigned char door_belongs_to_room);
 
 // =============================================================================
 // CONSOLIDATED GLOBAL VARIABLE DECLARATIONS
@@ -59,29 +44,10 @@ extern unsigned char screen_buffer[VIEW_H][VIEW_W];
 extern unsigned char screen_dirty;
 extern unsigned char last_scroll_direction;
 
-/**
- * @brief Calculates door positions for corridor connections
- * @param room Pointer to the room
- * @param target_x Target X coordinate to connect towards
- * @param target_y Target Y coordinate to connect towards
- * @param exit Pointer to ExitPoint structure to populate
- * 
- * This function directly calculates door positions (1 tile from room perimeter).
- * Corridors connect from door to door, eliminating redundant offset calculations.
- */
-void calculate_exit_points(Room *room, unsigned char target_x, unsigned char target_y, 
-                                 ExitPoint *exit);
-
-/**
- * @brief Optimized corridor drawing with unified exit points
- * @param room1 First room index
- * @param room2 Second room index
- * @return 1 if corridor was successfully drawn, 0 otherwise
- * 
- * Uses unified exit point calculation to eliminate redundant computations
- * and the need for corridor_endpoint_override global state.
- */
-unsigned char draw_corridor(unsigned char room1, unsigned char room2);
+// Connection functions
+unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2);
+void init_connection_system(void);
+unsigned char rooms_are_connected(unsigned char room1, unsigned char room2);
 
 /**
  * @brief Checks if two rooms can be safely connected according to simplified rules.
@@ -104,112 +70,16 @@ unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2)
  */
 unsigned char can_place_corridor(unsigned char x, unsigned char y);
 
-/**
- * @brief Checks if a corridor path would intersect any rooms other than source/destination.
- * @param start_x Starting X coordinate.
- * @param start_y Starting Y coordinate.
- * @param end_x Ending X coordinate.
- * @param end_y Ending Y coordinate.
- * @param source_room Source room index to exclude from intersection check.
- * @param dest_room Destination room index to exclude from intersection check.
- * @return 1 if path intersects other rooms, 0 if clear.
- */
-unsigned char path_intersects_other_rooms(unsigned char start_x, unsigned char start_y, 
-                                         unsigned char end_x, unsigned char end_y,
-                                         unsigned char source_room, unsigned char dest_room);
 
-/**
- * @brief Checks if an L-shaped path between two points avoids room intersections.
- * @param sx Starting X coordinate.
- * @param sy Starting Y coordinate.
- * @param ex Ending X coordinate.
- * @param ey Ending Y coordinate.
- * @param source_room Source room index to exclude from intersection check.
- * @param dest_room Destination room index to exclude from intersection check.
- * @param xy_first 1 to move X-axis first, 0 to move Y-axis first.
- * @return 1 if path avoids room intersections, 0 if it intersects rooms.
- */
-unsigned char l_path_avoids_rooms(unsigned char sx, unsigned char sy, unsigned char ex, unsigned char ey,
-                                 unsigned char source_room, unsigned char dest_room, unsigned char xy_first);
-
-/**
- * @brief Main logic for connecting rooms using rule-based system.
- * @param room1 The first room index.
- * @param room2 The second room index.
- * @return 1 if connection was made, 0 otherwise.
- */
-unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2);
-
-// MST optimization functions - Oscar64 performance enhancement
-unsigned char find_best_connection(unsigned char *connected, unsigned char *best_room1, unsigned char *best_room2);
-unsigned char add_mst_edge(unsigned char room1, unsigned char room2, unsigned char distance);
-void clear_mst_candidates(void);
-
-
-/**
- * @brief Initializes the rule-based connection system.
- */
-void init_connection_system(void);
-
-/**
- * @brief Checks if two rooms are already connected.
- * @param room1 The first room index.
- * @param room2 The second room index.
- * @return 1 if rooms are connected, 0 otherwise.
- */
-unsigned char rooms_are_connected(unsigned char room1, unsigned char room2);
-
-/**
- * @brief Checks if room2 is reachable from room1 through existing connections.
- * @param room1 Starting room index.
- * @param room2 Target room index.
- * @return 1 if room2 is reachable from room1, 0 otherwise.
- * 
- * Uses Depth-First Search to prevent duplicate connections by detecting
- * indirect paths between rooms through other connections.
- */
-unsigned char is_room_reachable(unsigned char room1, unsigned char room2);
 
 // =============================================================================
 // ROOM CONNECTION FUNCTIONS
 // =============================================================================
 
-/**
- * @brief Check if two rooms have overlapping projections on X or Y axis for straight corridors
- * @param room1 First room index
- * @param room2 Second room index
- * @param has_horizontal_overlap Pointer to store horizontal overlap result
- * @param has_vertical_overlap Pointer to store vertical overlap result
- */
-void check_room_axis_alignment(unsigned char room1, unsigned char room2, 
-                              unsigned char *has_horizontal_overlap, 
-                              unsigned char *has_vertical_overlap);
-
-/**
- * @brief Find optimal exit points for straight corridor between aligned rooms
- * @param room1 First room index
- * @param room2 Second room index
- * @param horizontal_aligned 1 if horizontally aligned, 0 if vertically aligned
- * @param exit1_x Pointer to store room1 exit X coordinate
- * @param exit1_y Pointer to store room1 exit Y coordinate
- * @param exit2_x Pointer to store room2 exit X coordinate
- * @param exit2_y Pointer to store room2 exit Y coordinate
- */
-void find_straight_corridor_exits(unsigned char room1, unsigned char room2, 
-                                 unsigned char horizontal_aligned,
-                                 unsigned char *exit1_x, unsigned char *exit1_y,
-                                 unsigned char *exit2_x, unsigned char *exit2_y);
 
 // =============================================================================
 // DOOR PLACEMENT FUNCTIONS
 // =============================================================================
-
-// Structure for a path of points (corridor)
-typedef struct {
-    unsigned char x[MAX_PATH_LENGTH];
-    unsigned char y[MAX_PATH_LENGTH];
-    unsigned char length;
-} CorridorPath;
 
 /**
  * @brief Place a door at (x, y) on the room edge (perimeter) if valid (Oscar64/C64)
@@ -218,26 +88,6 @@ typedef struct {
  */
 void place_door(unsigned char x, unsigned char y);
 
-/**
- * @brief Place doors at the first and last walkable tiles of the corridor path between two rooms
- * @param roomA Pointer to the first room.
- * @param roomB Pointer to the second room.
- * @param path Pointer to the corridor path.
- */
-void place_door_between_rooms(Room *roomA, Room *roomB, CorridorPath *path);
-
-/**
- * @brief Find the best existing door on a room side that's closest to target coordinates
- * @param room_idx Room index to check
- * @param side Side of room: 0=left, 1=right, 2=top, 3=bottom
- * @param target_x Target X coordinate to find closest door to
- * @param target_y Target Y coordinate to find closest door to
- * @param door_x Pointer to store door X coordinate if found
- * @param door_y Pointer to store door Y coordinate if found
- * @return 1 if door found on specified side, 0 otherwise
- */
-unsigned char find_existing_door_on_room_side(unsigned char room_idx, unsigned char side,
-                                                  unsigned char target_x, unsigned char target_y,
-                                                  unsigned char *door_x, unsigned char *door_y);
+// Door functions moved to connection_system.c
 
 #endif // MAPGEN_INTERNAL_H

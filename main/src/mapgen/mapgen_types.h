@@ -37,7 +37,6 @@
 
 // C64 screen memory constants
 #define SCREEN_MEMORY_BASE 0x0400
-#define SCREEN_MEMORY_END  0x07E7
 
 // Compact tile type encoding
 #define TILE_EMPTY  0
@@ -49,14 +48,6 @@
 #define TILE_DOWN   5
 #define TILE_MASK   7
 
-// Conversion macro from compact tile to PETSCII
-#define TILE_TO_PETSCII(tile) ((tile) == TILE_EMPTY ? EMPTY : \
-                               (tile) == TILE_WALL ? WALL : \
-                               (tile) == TILE_FLOOR ? FLOOR : \
-                               (tile) == TILE_DOOR ? DOOR : \
-                               (tile) == TILE_SECRET_PATH ? SECRET_PATH : \
-                               (tile) == TILE_UP ? UP : \
-                               (tile) == TILE_DOWN ? DOWN : EMPTY)
 
 // Tile validation bit flags
 #define TILE_CHECK_EMPTY  0x01
@@ -75,12 +66,15 @@
 
 // Corridor and connection parameters
 #define MAX_PATH_LENGTH 20
-#define ROOM_UNCONNECTED 0
-#define ROOM_CONNECTED   1
-#define MAX_CORRIDOR_SEGMENTS 32
-#define MAX_CONNECTION_CACHE  24
 
-// Room structure
+// Door metadata structure
+typedef struct {
+    unsigned char x, y;
+    unsigned char wall_side; // 0=left, 1=right, 2=top, 3=bottom
+    unsigned char connected_room; // Which room this door connects to
+} Door;
+
+// Room structure with connection and corridor data
 typedef struct {
     unsigned char x, y;
     unsigned char w, h;
@@ -88,41 +82,17 @@ typedef struct {
     unsigned char state;
     unsigned char hub_distance;
     unsigned char priority;
+    
+    // Connection data stored explicitly
+    unsigned char connected_rooms[4]; // Max 4 connections per room
+    unsigned char corridor_types[4]; // Corridor types for each connection (0=straight, 1=L, 2=Z)
+    Door doors[4]; // Door positions and metadata
+    unsigned char door_count;
 } Room;
-
-// Corridor segment structure
-typedef struct {
-    unsigned char start_x, start_y;
-    unsigned char end_x, end_y;
-    unsigned char room_passed;
-    unsigned char active;
-} CorridorSegment;
 
 // Viewport structure
 typedef struct {
     unsigned char x, y;
 } Viewport;
-
-// Corridor connections structure (bit fields for memory efficiency)
-typedef struct {
-    unsigned char has_north : 1;
-    unsigned char has_south : 1;
-    unsigned char has_east : 1;
-    unsigned char has_west : 1;
-} CorridorConnections;
-
-// Memory pool structures for C64
-typedef struct {
-    CorridorSegment segments[MAX_CORRIDOR_SEGMENTS];
-    unsigned char active_count;
-    unsigned char next_free_index;
-} CorridorPool;
-
-typedef struct {
-    unsigned char room1[MAX_CONNECTION_CACHE];
-    unsigned char room2[MAX_CONNECTION_CACHE];
-    unsigned char distance[MAX_CONNECTION_CACHE];
-    unsigned char count;
-} ConnectionCache;
 
 #endif // MAPGEN_TYPES_H

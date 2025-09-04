@@ -43,9 +43,9 @@ unsigned char is_outside_room(unsigned char x, unsigned char y, unsigned char ro
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y);
 
-// OPTIMIZED: Unified exit point calculation (replaces find_room_exit + corridor_endpoint_override)
-void calculate_exit_points(Room *room, unsigned char target_x, unsigned char target_y, 
-                                 ExitPoint *exit);
+// Room exit utilities - simplified
+void find_room_exit_simple(unsigned char room_idx, unsigned char target_x, unsigned char target_y, 
+                           unsigned char *exit_x, unsigned char *exit_y, unsigned char *wall_side);
 
 unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char min_distance);
 

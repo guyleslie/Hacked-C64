@@ -75,7 +75,7 @@ static void get_grid_position(unsigned char grid_index, unsigned char *x, unsign
  * @return 1 if placement is valid, 0 if placement conflicts
  */
 unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
-    // Calculate buffer zone boundaries with minimum room distance
+    // Calculate safety margin boundaries with minimum room distance
     unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? x - MIN_ROOM_DISTANCE : BORDER_PADDING;
     unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? y - MIN_ROOM_DISTANCE : BORDER_PADDING;
     unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
@@ -86,11 +86,11 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
         return 0;
     }
     
-    // Clamp buffer zone to map boundaries
+    // Clamp safety margin to map boundaries
     if (buffer_x2 >= MAP_W) buffer_x2 = MAP_W - 1;
     if (buffer_y2 >= MAP_H) buffer_y2 = MAP_H - 1;
     
-    // Check if buffer zone is clear
+    // Check if safety margin is clear
     for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
         for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
             if (get_compact_tile(ix, iy) != TILE_EMPTY) {
@@ -161,7 +161,7 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         rooms[room_count].w = w;
         rooms[room_count].h = h;
         rooms[room_count].priority = 0;    // Will be set by assign_room_priorities()
-        rooms[room_count].connections = 0; // Initialize connections
+        
         room_count++;
     }
 }
@@ -188,13 +188,30 @@ void assign_room_priorities(void) {
 // ROOM GENERATION
 // =============================================================================
 
+// Initialize room data structures 
+void init_rooms(void) {
+    for (unsigned char i = 0; i < MAX_ROOMS; i++) {
+        rooms[i].connections = 0;
+        rooms[i].door_count = 0;
+        rooms[i].state = 0;
+        
+        for (unsigned char j = 0; j < 4; j++) {
+            rooms[i].connected_rooms[j] = 255;
+        }
+    }
+    room_count = 0;
+}
+
 // Generates all rooms using grid-based placement
 void create_rooms(void) {
     unsigned char placed_rooms = 0;
     unsigned char grid_positions[16]; // Maximum 4x4 grid
     unsigned char grid_count = 0;
 
-    print_text("\nBuilding rooms");
+    // Initialize room structures
+    init_rooms();
+    
+    print_text("\n\nBuilding rooms");
     
     // Initialize grid position array
     for (unsigned char i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
