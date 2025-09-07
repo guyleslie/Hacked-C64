@@ -475,4 +475,20 @@ void print_text(const char* text) {
     }
 }
 
+// =============================================================================
+// SIMPLE PROGRESS SYSTEM
+// =============================================================================
+
+void init_progress(const char* task_name) {
+    print_text(task_name);
+}
+
+void show_progress(void) {
+    print_text(".");
+}
+
+void init_generation_progress(void) {
+    print_text("      *** Hacked Map Generator ***\n");
+}
+
 

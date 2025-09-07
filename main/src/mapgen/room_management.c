@@ -211,7 +211,7 @@ void create_rooms(void) {
     // Initialize room structures
     init_rooms();
     
-    print_text("\n\nBuilding rooms");
+    init_progress("\n\nBuilding rooms");
     
     // Initialize grid position array
     for (unsigned char i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
@@ -264,7 +264,7 @@ void create_rooms(void) {
         if (try_place_room_at_grid(grid_positions[i], w, h, &x, &y)) {
             place_room(x, y, w, h);
             placed_rooms++;
-            print_text("."); // Progress indicator
+            show_progress(); // Progress indicator
         }
     }
     

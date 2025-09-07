@@ -37,7 +37,7 @@ unsigned char is_walkable_tile(unsigned char tile) {
 
 // Place stairs in appropriate rooms based on priority
 void add_stairs(void) {
-    print_text("\n\nPlacing stairs");
+    init_progress("\n\nPlacing stairs");
 
     if (room_count < 2) return; // Need at least 2 rooms for stairs
     
@@ -47,7 +47,7 @@ void add_stairs(void) {
     // Find highest priority room for up stairs
     unsigned char highest_priority = 0;
     for (unsigned char i = 0; i < room_count; i++) {
-        if (i % 4 == 0) print_text("."); // Progress indicator every 4th room
+        if (i % 4 == 0) show_progress(); // Progress indicator every 4th room
         if (rooms[i].priority > highest_priority) {
             highest_priority = rooms[i].priority;
             start_room = i;
@@ -57,7 +57,7 @@ void add_stairs(void) {
     // Find second highest priority room for down stairs
     unsigned char second_highest = 0;
     for (unsigned char i = 0; i < room_count; i++) {
-        if (i % 4 == 0) print_text("."); // Progress indicator every 4th room
+        if (i % 4 == 0) show_progress(); // Progress indicator every 4th room
         if (i != start_room && rooms[i].priority > second_highest) {
             second_highest = rooms[i].priority;
             end_room = i;
@@ -87,7 +87,7 @@ void add_walls(void) {
     unsigned char x, y; // Oscar64 register allocation
     unsigned char tile;
 
-    print_text("\n\nPlacing walls");
+    init_progress("\n\nPlacing walls");
     
     for (y = 0; y < MAP_H; y++) {
         // Loop unrolling
@@ -126,7 +126,7 @@ void add_walls(void) {
                 }
             }
         }
-        if ((y & 7) == 0) print_text(".");
+        if ((y & 7) == 0) show_progress();
     }
 }
 
@@ -136,9 +136,8 @@ void add_walls(void) {
 
 // Level generation pipeline
 unsigned char generate_level(void) {
-    // Display map generation progress message
-    // Print the map generation message centered horizontally (40 columns)
-    print_text("      *** Hacked Map Generator ***\n");
+    // Initialize progress system
+    init_generation_progress();
     
     // Phase 1: Create rooms using grid-based placement
     create_rooms();

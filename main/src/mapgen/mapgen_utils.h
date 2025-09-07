@@ -10,6 +10,10 @@ unsigned char rnd(unsigned char max);
 
 // Console functions for Oscar64
 void print_text(const char* text);
+// Simple progress system
+void init_generation_progress(void);
+void init_progress(const char* task_name);
+void show_progress(void);
 
 // Tile access and manipulation (optimized for C64 performance)
 unsigned char get_compact_tile(unsigned char x, unsigned char y);

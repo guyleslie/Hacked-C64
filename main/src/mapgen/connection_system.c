@@ -460,7 +460,7 @@ void init_connection_system(void) {
 void connect_rooms(void) {
     static unsigned char connected[MAX_ROOMS];
     
-    print_text("\n\nConnecting rooms");
+    init_progress("\n\nConnecting rooms");
     
     // Initialize - only first room is connected
     for (unsigned char i = 0; i < room_count; i++) {
@@ -495,7 +495,7 @@ void connect_rooms(void) {
             if (connect_rooms_directly(best_room1, best_room2)) {
                 connected[best_room2] = 1;
                 connections_made++;
-                print_text(p".");
+                show_progress();
             } else {
                 break; // Connection failed
             }
@@ -511,7 +511,7 @@ void connect_rooms(void) {
 
 // Mark single-connection rooms as secret and convert their corridors with exact path preservation
 void mark_secret_rooms(unsigned char secret_percentage) {
-    print_text("\n\nMarking secret rooms");
+    init_progress("\n\nConnecting rooms");
     
     for (unsigned char i = 0; i < room_count; i++) {
         if (rooms[i].connections == 1 && rnd(100) < secret_percentage) {
@@ -549,7 +549,7 @@ void mark_secret_rooms(unsigned char secret_percentage) {
                     // Convert doors to secret passages
                     set_tile_raw(secret_door->x, secret_door->y, TILE_SECRET_PATH);
                     set_tile_raw(normal_door->x, normal_door->y, TILE_SECRET_PATH);
-                    print_text(".");
+                    show_progress();
                 }
             }
         }
