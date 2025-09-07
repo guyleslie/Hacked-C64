@@ -20,15 +20,9 @@ set(OSCAR64_INCLUDE_C128 "${OSCAR64_PATH}/oscar64/include/c128")
 set(OSCAR64_INCLUDE_AUDIO "${OSCAR64_PATH}/oscar64/include/audio")
 set(OSCAR64_INCLUDE_GFX "${OSCAR64_PATH}/oscar64/include/gfx")
 
-# Source files (explicit list, unified utilities)
+# Source files (main.c includes all modules, just like build.bat)
 set(SRC_FILES
     ${CMAKE_SOURCE_DIR}/main/src/main.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/map_export.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/map_generation.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/mapgen_utils.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/room_management.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/connection_system.c
-    ${CMAKE_SOURCE_DIR}/main/src/mapgen/mapgen_display.c
 )
 
 # Output directory and file
@@ -37,26 +31,20 @@ file(MAKE_DIRECTORY ${BUILD_DIR})
 set(PROJECT_NAME_OUT "Hacked C64")
 set(OUTPUT_PRG "${BUILD_DIR}/${PROJECT_NAME_OUT}.prg")
 
-# Include directories (as in build.bat)
+# Include directories (matching build.bat exactly)
 set(OSCAR64_INCLUDES
     -i=${OSCAR64_INCLUDE}
     -i=${OSCAR64_INCLUDE_C64}
-    -i=${OSCAR64_INCLUDE_C128}
-    -i=${OSCAR64_INCLUDE_AUDIO}
-    -i=${OSCAR64_INCLUDE_GFX}
-    -i=${CMAKE_SOURCE_DIR}
-    -i=${CMAKE_SOURCE_DIR}/src
     -i=${CMAKE_SOURCE_DIR}/main/src/mapgen
-    -i=${BUILD_DIR}
 )
 
-# Add custom command to build with Oscar64
+# Add custom command to build with Oscar64 (matching build.bat parameters exactly)
 add_custom_command(
     OUTPUT ${OUTPUT_PRG}
-    COMMAND ${OSCAR64_BIN} -o="${OUTPUT_PRG}" -n -g -tf=prg -O0 -tm=c64 -v2 -dDEBUG -d__oscar64__ ${OSCAR64_INCLUDES} ${SRC_FILES}
+    COMMAND ${OSCAR64_BIN} -o="${OUTPUT_PRG}" -n -tf=prg -Os -dNOLONG -dNOFLOAT -psci -tm=c64 -dDEBUG -d__oscar64__ ${OSCAR64_INCLUDES} ${SRC_FILES}
     DEPENDS ${SRC_FILES}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Building with Oscar64 cross-assembler"
+    COMMENT "Building with Oscar64 cross-assembler (matching build.bat)"
 )
 
 add_custom_target(oscar64_build ALL DEPENDS ${OUTPUT_PRG})
