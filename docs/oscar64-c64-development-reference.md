@@ -1,6 +1,6 @@
 # Oscar64 C Compiler and C64 Hardware Programming Reference
 
-This comprehensive technical reference provides detailed information for professional C64 development using the Oscar64 C compiler, specifically tailored for memory-constrained procedural generation applications targeting ~7KB executable and ~3KB data constraints.
+This comprehensive technical reference provides detailed information for professional C64 development using the Oscar64 C compiler, specifically tailored for memory-constrained procedural generation applications targeting compact executable and efficient data allocation.
 
 ## Oscar64 compiler overview and optimization strategy
 
@@ -8,7 +8,7 @@ Oscar64 represents a revolutionary advancement in 6502 C compilation, achieving 
 
 ### Command line optimization for memory-constrained applications
 
-For projects targeting 7KB executable and 3KB data limits, the optimal Oscar64 configuration combines aggressive size optimization with strategic performance enhancements:
+For projects targeting compact executables and efficient memory usage, the optimal Oscar64 configuration combines aggressive size optimization with strategic performance enhancements:
 
 ```bash
 # Maximum size optimization for tight memory constraints
@@ -47,17 +47,17 @@ Oscar64's **static stack analysis** eliminates the expensive overhead of 6502's 
 
 ### Memory layout optimization for constrained applications
 
-**Recommended memory layout for 7KB executable + 3KB data:**
+**Recommended memory layout for optimized C64 applications:**
 
 ```
-$0000-$00FF: Zero page (256 bytes) - Critical variables and pointers
-$0100-$01FF: Hardware stack (256 bytes) - Preserved for system use
-$0200-$03FF: System workspace (512 bytes) - BASIC/KERNAL variables
-$0400-$07FF: Screen memory (1KB) - Relocatable via VIC-II
-$0801-$2000: Main executable (7KB) - Program code
-$2000-$2C00: Data area (3KB) - Game data, lookup tables
+$0000-$00FF: Zero page - Critical variables and pointers
+$0100-$01FF: Hardware stack - Preserved for system use
+$0200-$03FF: System workspace - BASIC/KERNAL variables
+$0400-$07FF: Screen memory - Relocatable via VIC-II
+$0801-$2000: Main executable - Program code
+$2000-$2C00: Data area - Game data, lookup tables
 $2C00-$4000: Available buffer space - Sprites, charsets, generation buffers
-$C000-$D000: High memory (4KB) - Additional space when ROM banked out
+$C000-$D000: High memory - Additional space when ROM banked out
 ```
 
 ### VIC-II programming essentials
@@ -117,7 +117,7 @@ Essential for indirect addressing modes required for efficient memory operations
 
 ### Static vs dynamic allocation for constrained systems
 
-**Static allocation advantages** for 7KB/3KB constraints:
+**Static allocation advantages** for memory-constrained applications:
 - **Zero fragmentation**: Predictable memory layout prevents runtime failures
 - **Deterministic timing**: No allocation overhead during generation
 - **Simplified implementation**: Direct memory addressing without management overhead
@@ -137,7 +137,7 @@ void restore_basic(void) {
 ### Efficient data structures for 8-bit constraints
 
 **Structure design principles:**
-- **Maximum 256 bytes per structure** (8-bit index register limit)
+- **Maximum 256 bytes per structure** (register limit)
 - **Fixed-size instances** for indexed access efficiency
 - **Strategic member ordering** by access frequency
 
@@ -149,7 +149,7 @@ typedef struct {
     uint8_t monster_count;    // Number of monsters to generate
     uint8_t treasure_flags;   // Bit flags for treasure types
     uint16_t special_data;    // Pointer to special room data
-} DungeonRoom;  // Total: 6 bytes per room
+} DungeonRoom;  // Compact structure per room
 ```
 
 ## Algorithm implementation for 6502 constraints
@@ -392,7 +392,7 @@ jobs:
           x64sc -console -autostartprgmode 1 dungeon.prg
 ```
 
-## Memory optimization for 7KB/3KB constraints
+## Memory optimization for C64 constraints
 
 ### Practical implementation strategy
 
@@ -409,10 +409,10 @@ __attribute__((section("init"))) void initialize_system(void) {
 // Main game loop optimized for minimal memory footprint
 void main_loop(void) {
     while (1) {
-        process_input();           // ~200 bytes
-        update_generation();       // ~800 bytes  
-        render_dungeon();          // ~400 bytes
-        wait_frame();              // ~50 bytes
+        process_input();           // input handling
+        update_generation();       // generation logic  
+        render_dungeon();          // display rendering
+        wait_frame();              // timing control
     }
 }
 ```
@@ -423,7 +423,7 @@ void main_loop(void) {
 typedef struct {
     uint8_t room_data;    // bits 0-3: room type, bits 4-7: connections
     uint8_t contents;     // bits 0-2: monster type, bits 3-7: treasure flags  
-} PackedRoom;           // Only 2 bytes per room vs 6+ bytes unpacked
+} PackedRoom;           // Optimized vs unpacked structure
 
 // Use bit manipulation for access
 #define ROOM_TYPE(room)        ((room).room_data & 0x0F)

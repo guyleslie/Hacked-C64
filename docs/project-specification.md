@@ -8,8 +8,8 @@ This project implements a procedural dungeon generation algorithm for the Commod
 
 **Target Platform:** Commodore 64 (6502 processor, 64KB RAM)  
 **Compiler:** OSCAR64 cross-compiler  
-**Output:** 7434-byte executable (.prg format)  
-**Memory Footprint:** ~3KB for map data and room structures
+**Output:** Optimized C64 executable (.prg format)  
+**Memory Footprint:** Efficient allocation for map data and room structures
 
 ## Project Structure
 
@@ -96,7 +96,7 @@ Map data is stored using a 3-bit per tile encoding:
 
 **Bit-Level Compression:**
 - Each tile type is represented by 3 bits (8 possible types)
-- 64×64 map = 4096 tiles × 3 bits = 12288 bits = 1536 bytes
+- 64×64 map = 4096 tiles × 3 bits = efficiently packed data
 - Bits can span byte boundaries for maximum compression
 - Direct bit manipulation provides O(1) tile access
 
@@ -134,11 +134,11 @@ Each room maintains metadata for:
 - Zero page variables for critical path operations
 
 **Memory Layout:**
-- `$0400-$07E7`: VIC-II screen memory (1000 bytes)
-- `$0800-$0BFF`: Compact map data (1536 bytes)
-- `$0C00-$0FFF`: Room structure arrays (~400 bytes)
-- `$1000-$13FF`: Display buffer (1000 bytes)
-- `$1400-$17FF`: Program code (~7400 bytes)
+- `$0400-$07E7`: VIC-II screen memory
+- `$0800-$0BFF`: Compact map data
+- `$0C00-$0FFF`: Room structure arrays
+- `$1000-$13FF`: Display buffer
+- `$1400-$17FF`: Program code (optimized executable)
 
 ## Algorithm Performance
 
@@ -186,8 +186,8 @@ oscar64.exe -o="build/Hacked C64.prg" -n -tf=prg -Os -dNOLONG -dNOFLOAT -tm=c64
 
 **Flag Details:**
 - `-Os`: Size optimization priority
-- `-dNOLONG`: Exclude long integer support (saves ~1KB)  
-- `-dNOFLOAT`: Remove floating point operations (saves ~2KB)
+- `-dNOLONG`: Exclude long integer support (saves space)  
+- `-dNOFLOAT`: Remove floating point operations (saves space)
 - `-tm=c64`: Target Commodore 64 platform
 - `-tf=prg`: Generate .prg executable format
 
@@ -229,8 +229,8 @@ unsigned char mapgen_validate_map(void);
 
 ### Performance Metrics
 - **Generation Time**: <1 second on original C64 hardware
-- **Memory Usage**: 3KB total footprint with room for expansion
-- **Code Size**: 7434 bytes including all functionality
+- **Memory Usage**: Efficient footprint with room for expansion
+- **Code Size**: Optimized for C64 including all functionality
 - **Screen Updates**: 50Hz-compatible delta rendering
 
 This implementation uses 8-bit programming techniques and classical algorithms adapted for the hardware constraints of the Commodore 64.

@@ -64,7 +64,7 @@ Final dungeon map:
 - **Platform**: Commodore 64
 - **Map Size**: 64×64 tiles
 - **Room Count**: Up to 20 rooms
-- **Program Size**: 7.4KB
+- **Program Size**: Compact C64 executable optimized for size
 
 ## How It Works
 

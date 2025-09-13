@@ -23,7 +23,7 @@ cmake --build build
 
 ### Build System Details
 - **OSCAR64 Compiler**: Cross-compiler for C64 development
-- **Output**: `build/Hacked C64.prg` (7.4KB executable)
+- **Output**: `build/Hacked C64.prg` (optimized C64 executable)
 - **Build flags**: `-Os -dNOLONG -dNOFLOAT -psci -tm=c64 -dDEBUG`
 - **Target**: C64 platform with 64KB RAM constraint
 
@@ -42,7 +42,7 @@ cmake --build build
 ### Memory Architecture
 - **Map Size**: Fixed 64×64 tile grid
 - **Room System**: Up to 20 rooms on 4×4 placement grid
-- **Memory Usage**: ~3KB for map data structures
+- **Memory Usage**: Efficient allocation for map data structures
 - **Display**: Character-mode rendering with custom tiles
 
 ### Generation Algorithm
