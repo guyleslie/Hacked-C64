@@ -8,7 +8,7 @@ if(DEFINED ENV{OSCAR64_PATH})
 elseif(DEFINED ENV{GITHUB_WORKSPACE})
   set(OSCAR64_PATH "$ENV{GITHUB_WORKSPACE}/oscar64_temp")
 else()
-  set(OSCAR64_PATH "E:/Apps/oscar64")
+  set(OSCAR64_PATH "${CMAKE_SOURCE_DIR}")
 endif()
 
 # Oscar64 binary and include paths (always use these variables below)
