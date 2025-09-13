@@ -596,7 +596,7 @@ void connect_rooms(void) {
 
 // Mark single-connection rooms as secret and convert their corridors with exact path preservation
 void mark_secret_rooms(unsigned char secret_percentage) {
-    init_progress("\n\nConnecting rooms");
+    init_progress("\n\nCreating secret rooms");
     
     for (unsigned char i = 0; i < room_count; i++) {
         if (rooms[i].connections == 1 && rnd(100) < secret_percentage) {
