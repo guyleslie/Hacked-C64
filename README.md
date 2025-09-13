@@ -17,11 +17,11 @@ This program generates randomized dungeon layouts on the Commodore 64. Each map 
 
 Generation progress display:
 
-<img width="1205" height="909" alt="image" src="https://github.com/user-attachments/assets/32b037af-7c1c-40b3-a288-7dc1ab5a5194" />
+<img width="1193" height="907" alt="image" src="https://github.com/user-attachments/assets/e66223e2-981a-4224-bbca-965c98ccd859" />
 
 Final dungeon map:
 
-<img width="1203" height="908" alt="image" src="https://github.com/user-attachments/assets/2fb6eab8-335f-4c00-909c-a2f2e453c627" />
+<img width="1196" height="911" alt="image" src="https://github.com/user-attachments/assets/8a847c59-5f79-46b2-af68-b0306b6640bf" />
 
 ## How to Run
 
