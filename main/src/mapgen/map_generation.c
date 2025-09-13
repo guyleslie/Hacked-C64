@@ -43,6 +43,8 @@ void add_stairs(void) {
     
     unsigned char start_room = 0;
     unsigned char end_room = room_count - 1;
+    // Adaptive minimum distance: smaller maps need shorter distances
+    unsigned char min_stair_distance = (room_count <= 6) ? 20 : 30;
     
     // Find highest priority room for up stairs
     unsigned char highest_priority = 0;
@@ -54,13 +56,16 @@ void add_stairs(void) {
         }
     }
     
-    // Find second highest priority room for down stairs
+    // Find second highest priority room for down stairs with distance check
     unsigned char second_highest = 0;
     for (unsigned char i = 0; i < room_count; i++) {
         if (i % 4 == 0) show_progress(); // Progress indicator every 4th room
         if (i != start_room && rooms[i].priority > second_highest) {
-            second_highest = rooms[i].priority;
-            end_room = i;
+            unsigned char distance = calculate_room_distance(start_room, i);
+            if (distance >= min_stair_distance) { // Check minimum distance
+                second_highest = rooms[i].priority;
+                end_room = i;
+            }
         }
     }
     
