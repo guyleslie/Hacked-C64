@@ -11,6 +11,26 @@
 // HELPER FUNCTIONS
 // =============================================================================
 
+// Find existing door on specified wall side within tolerance
+static unsigned char find_existing_door_on_wall(unsigned char room_idx, unsigned char wall_side, 
+                                               unsigned char target_x, unsigned char target_y,
+                                               unsigned char *found_x, unsigned char *found_y) {
+    for (unsigned char i = 0; i < rooms[room_idx].door_count; i++) {
+        Door *door = &rooms[room_idx].doors[i];
+        if (door->wall_side == wall_side) {
+            // Check if door is within reasonable distance (±2 tiles)
+            unsigned char dx = abs_diff(door->x, target_x);
+            unsigned char dy = abs_diff(door->y, target_y);
+            if (dx <= 2 && dy <= 2) {
+                *found_x = door->x;
+                *found_y = door->y;
+                return 1; // Found existing door
+            }
+        }
+    }
+    return 0; // No suitable door found
+}
+
 // Simple door placement function
 void place_door(unsigned char x, unsigned char y) {
     if (!tile_is_any_door(x, y)) {
@@ -239,7 +259,7 @@ static void calculate_exit_from_target(unsigned char room_idx, unsigned char tar
     }
 }
 
-// Calculate door positions for aligned rooms using straight corridors
+// Calculate door positions for aligned rooms using straight corridors with door reuse
 static void calculate_straight_exits(unsigned char room1, unsigned char room2, unsigned char horizontal_aligned,
                                    unsigned char *exit1_x, unsigned char *exit1_y,
                                    unsigned char *exit2_x, unsigned char *exit2_y) {
@@ -253,17 +273,50 @@ static void calculate_straight_exits(unsigned char room1, unsigned char room2, u
         unsigned char center_y = overlap_start + (overlap_end - overlap_start) / 2;
         
         if (r1->x + r1->w < r2->x) {
-            // Room1 left, Room2 right - doors ON the wall (outside room)
-            *exit1_x = r1->x + r1->w; // Right wall (outside room1)
-            *exit1_y = center_y;
-            *exit2_x = r2->x - 1; // Left wall (outside room2)
-            *exit2_y = center_y;
+            // Room1 left, Room2 right
+            unsigned char wall1 = 1; // Right wall
+            unsigned char wall2 = 0; // Left wall
+            
+            // Check for existing doors first
+            unsigned char found_x, found_y;
+            if (find_existing_door_on_wall(room1, wall1, r1->x + r1->w, center_y, &found_x, &found_y)) {
+                *exit1_x = found_x;
+                *exit1_y = found_y;
+                center_y = found_y; // Align second door with first
+            } else {
+                *exit1_x = r1->x + r1->w;
+                *exit1_y = center_y;
+            }
+            
+            if (find_existing_door_on_wall(room2, wall2, r2->x - 1, center_y, &found_x, &found_y)) {
+                *exit2_x = found_x;
+                *exit2_y = found_y;
+            } else {
+                *exit2_x = r2->x - 1;
+                *exit2_y = center_y;
+            }
         } else {
-            // Room2 left, Room1 right - doors ON the wall (outside room)
-            *exit1_x = r1->x - 1; // Left wall (outside room1)
-            *exit1_y = center_y;
-            *exit2_x = r2->x + r2->w; // Right wall (outside room2)
-            *exit2_y = center_y;
+            // Room2 left, Room1 right
+            unsigned char wall1 = 0; // Left wall
+            unsigned char wall2 = 1; // Right wall
+            
+            unsigned char found_x, found_y;
+            if (find_existing_door_on_wall(room1, wall1, r1->x - 1, center_y, &found_x, &found_y)) {
+                *exit1_x = found_x;
+                *exit1_y = found_y;
+                center_y = found_y;
+            } else {
+                *exit1_x = r1->x - 1;
+                *exit1_y = center_y;
+            }
+            
+            if (find_existing_door_on_wall(room2, wall2, r2->x + r2->w, center_y, &found_x, &found_y)) {
+                *exit2_x = found_x;
+                *exit2_y = found_y;
+            } else {
+                *exit2_x = r2->x + r2->w;
+                *exit2_y = center_y;
+            }
         }
     } else {
         // Vertically aligned - use horizontal walls
@@ -272,17 +325,49 @@ static void calculate_straight_exits(unsigned char room1, unsigned char room2, u
         unsigned char center_x = overlap_start + (overlap_end - overlap_start) / 2;
         
         if (r1->y + r1->h < r2->y) {
-            // Room1 top, Room2 bottom - doors ON the wall (outside room)
-            *exit1_x = center_x;
-            *exit1_y = r1->y + r1->h; // Bottom wall (outside room1)
-            *exit2_x = center_x;
-            *exit2_y = r2->y - 1; // Top wall (outside room2)
+            // Room1 top, Room2 bottom
+            unsigned char wall1 = 3; // Bottom wall
+            unsigned char wall2 = 2; // Top wall
+            
+            unsigned char found_x, found_y;
+            if (find_existing_door_on_wall(room1, wall1, center_x, r1->y + r1->h, &found_x, &found_y)) {
+                *exit1_x = found_x;
+                *exit1_y = found_y;
+                center_x = found_x;
+            } else {
+                *exit1_x = center_x;
+                *exit1_y = r1->y + r1->h;
+            }
+            
+            if (find_existing_door_on_wall(room2, wall2, center_x, r2->y - 1, &found_x, &found_y)) {
+                *exit2_x = found_x;
+                *exit2_y = found_y;
+            } else {
+                *exit2_x = center_x;
+                *exit2_y = r2->y - 1;
+            }
         } else {
-            // Room2 top, Room1 bottom - doors ON the wall (outside room)
-            *exit1_x = center_x;
-            *exit1_y = r1->y - 1; // Top wall (outside room1)
-            *exit2_x = center_x;
-            *exit2_y = r2->y + r2->h; // Bottom wall (outside room2)
+            // Room2 top, Room1 bottom
+            unsigned char wall1 = 2; // Top wall
+            unsigned char wall2 = 3; // Bottom wall
+            
+            unsigned char found_x, found_y;
+            if (find_existing_door_on_wall(room1, wall1, center_x, r1->y - 1, &found_x, &found_y)) {
+                *exit1_x = found_x;
+                *exit1_y = found_y;
+                center_x = found_x;
+            } else {
+                *exit1_x = center_x;
+                *exit1_y = r1->y - 1;
+            }
+            
+            if (find_existing_door_on_wall(room2, wall2, center_x, r2->y + r2->h, &found_x, &found_y)) {
+                *exit2_x = found_x;
+                *exit2_y = found_y;
+            } else {
+                *exit2_x = center_x;
+                *exit2_y = r2->y + r2->h;
+            }
         }
     }
 }
@@ -400,7 +485,7 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
         // ALIGNED ROOMS: 70% straight, 30% Z-shaped (NEVER L-shaped)
         if (rnd(100) < 70) {
             corridor_type = 0; // Straight
-            // Recalculate exits for straight corridors
+            // Recalculate exits for straight corridors with door reuse
             calculate_straight_exits(room1, room2, has_horizontal_overlap, 
                                    &exit1_x, &exit1_y, &exit2_x, &exit2_y);
         } else {
