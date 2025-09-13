@@ -1,10 +1,10 @@
 # Hacked C64 - Dungeon Map Generator
 
-Dungeon map generator for the Commodore 64, made with Oscar64.
+A dungeon map generator for the Commodore 64, built with Oscar64.
 
 ## Description
 
-This program generates randomized dungeon layouts on the Commodore 64. Each map has rooms connected by corridors, with stairs, doors, walls, and secret passages.
+This program generates randomized dungeon layouts on the Commodore 64. Each map contains rooms connected by corridors, with stairs, doors, walls, and secret passages.
 
 ## Features
 
@@ -74,4 +74,9 @@ Final dungeon map:
 4. **Stairs**: Adds up/down stairs for navigation
 5. **Walls**: Fills empty areas around rooms
 
-For technical details see: [main/src/README.md](main/src/README.md)
+## Documentation
+
+For detailed technical information, see:
+
+- **[Project Specification](docs/project-specification.md)** - Complete technical specification including algorithms, data structures, and implementation details
+- **[Oscar64 Development Reference](docs/oscar64-c64-development-reference.md)** - Comprehensive guide for C64 development using Oscar64 compiler

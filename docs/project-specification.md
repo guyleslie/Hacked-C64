@@ -1,15 +1,32 @@
 # C64 Procedural Dungeon Generator
 
-Professional implementation of a real-time dungeon map generation system for the Commodore 64, utilizing OSCAR64 cross-compiler for optimized 8-bit performance.
+A real-time dungeon map generation system for the Commodore 64, utilizing OSCAR64 cross-compiler for 8-bit development.
 
 ## Project Overview
 
-This project implements a sophisticated procedural dungeon generation algorithm designed specifically for the Commodore 64 hardware architecture. The system generates connected room networks using minimum spanning tree algorithms, features secret room mechanics, and provides real-time interactive navigation with optimized memory usage patterns.
+This project implements a procedural dungeon generation algorithm for the Commodore 64 hardware architecture. The system generates connected room networks using minimum spanning tree algorithms, features secret room mechanics, and provides interactive navigation with constrained memory usage.
 
 **Target Platform:** Commodore 64 (6502 processor, 64KB RAM)  
 **Compiler:** OSCAR64 cross-compiler  
 **Output:** 7434-byte executable (.prg format)  
 **Memory Footprint:** ~3KB for map data and room structures
+
+## Project Structure
+
+```
+main/src/
+├── main.c                   # Entry point and VIC-II setup
+├── mapgen/
+│   ├── mapgen_api.h         # Public interface definitions
+│   ├── mapgen_types.h       # Core data structures  
+│   ├── map_generation.c     # Generation pipeline control
+│   ├── room_management.c    # Room placement algorithms
+│   ├── connection_system.c  # MST and corridor generation
+│   ├── mapgen_display.c     # Viewport and rendering
+│   ├── mapgen_utils.c       # Utility functions and math
+│   └── map_export.c         # File I/O operations
+CMakeLists.txt               # Cross-platform build configuration
+```
 
 ## Map Generation Logic
 
@@ -32,7 +49,7 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 **Collision Detection System:**
 - Pre-placement validation checks against existing rooms
 - Safety buffer zones ensure minimum inter-room spacing
-- 15 placement attempts per grid position for optimal positioning
+- 15 placement attempts per grid position for suitable positioning
 - Boundary clamping keeps rooms within map limits
 
 ### Phase 2: Room Connectivity (MST Algorithm)
@@ -67,15 +84,15 @@ The secret room system provides a special gameplay mechanic:
 
 **Secret Pathway Conversion:**
 - The entire corridor leading to the secret room becomes `TILE_SECRET_PATH`
-- Original corridor geometry is perfectly preserved (straight/L/Z shape)
+- Original corridor geometry is preserved (straight/L/Z shape)
 - Both secret room door and connecting normal room door become secret passages
-- Visual representation uses special character (`^` symbol)
+- Visual representation uses special character (`░` symbol)
 
 ## Data Storage System
 
 ### Compact Map Format
 
-Map data is stored using an extremely efficient 3-bit per tile encoding:
+Map data is stored using a 3-bit per tile encoding:
 
 **Bit-Level Compression:**
 - Each tile type is represented by 3 bits (8 possible types)
@@ -94,7 +111,7 @@ Map data is stored using an extremely efficient 3-bit per tile encoding:
 
 ### Room Data Structure
 
-Each room maintains comprehensive metadata:
+Each room maintains metadata for:
 
 **Core Properties:**
 - `x, y`: Room top-left corner coordinates
@@ -199,14 +216,14 @@ unsigned char mapgen_validate_map(void);
 
 ### Interactive Controls
 - **Arrow Keys**: Navigate viewport across generated dungeon
-- **Real-time**: Immediate response with optimized screen updates
+- **Real-time**: Immediate response with screen updates
 - **Bounds Checking**: Automatic viewport constraint handling
 
 ## Development Standards
 
 ### Code Quality
 - **Static Analysis**: Zero dynamic memory allocation
-- **Type Safety**: Explicit unsigned char usage for 8-bit optimization  
+- **Type Safety**: Explicit unsigned char usage for 8-bit targets
 - **Documentation**: Inline comments for algorithm implementations
 - **Testing**: Validation functions for map integrity verification
 
@@ -216,21 +233,4 @@ unsigned char mapgen_validate_map(void);
 - **Code Size**: 7434 bytes including all functionality
 - **Screen Updates**: 50Hz-compatible delta rendering
 
-## Project Structure
-
-```
-main/src/
-├── main.c                    # Entry point and VIC-II setup
-├── mapgen/
-│   ├── mapgen_api.h         # Public interface definitions
-│   ├── mapgen_types.h       # Core data structures  
-│   ├── map_generation.c     # Generation pipeline control
-│   ├── room_management.c    # Room placement algorithms
-│   ├── connection_system.c  # MST and corridor generation
-│   ├── mapgen_display.c     # Viewport and rendering
-│   ├── mapgen_utils.c       # Utility functions and math
-│   └── map_export.c         # File I/O operations
-CMakeLists.txt               # Cross-platform build configuration
-```
-
-This implementation demonstrates advanced 8-bit programming techniques, combining classical algorithms with hardware-specific optimizations to achieve real-time performance within strict memory constraints.
+This implementation uses 8-bit programming techniques and classical algorithms adapted for the hardware constraints of the Commodore 64.
