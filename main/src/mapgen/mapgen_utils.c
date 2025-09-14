@@ -27,6 +27,16 @@ extern unsigned char last_scroll_direction;
 static unsigned char room_center_cache[MAX_ROOMS][2];
 static unsigned char room_center_cache_valid = 0;
 
+// OSCAR64 Optimization: Pre-calculated Y bit offsets lookup table
+// Replaces expensive 16-bit multiplication: y * 192 = y * (64 * 3)
+// Each Y coordinate maps to bit offset: y * MAP_W * 3 = y * 192
+static const unsigned short y_bit_offsets[64] = {
+    0, 192, 384, 576, 768, 960, 1152, 1344, 1536, 1728, 1920, 2112, 2304, 2496, 2688, 2880,
+    3072, 3264, 3456, 3648, 3840, 4032, 4224, 4416, 4608, 4800, 4992, 5184, 5376, 5568, 5760, 5952,
+    6144, 6336, 6528, 6720, 6912, 7104, 7296, 7488, 7680, 7872, 8064, 8256, 8448, 8640, 8832, 9024,
+    9216, 9408, 9600, 9792, 9984, 10176, 10368, 10560, 10752, 10944, 11136, 11328, 11520, 11712, 11904, 12096
+};
+
 void init_rnd(void) {
     rnd_state = (unsigned char)(cia1.ta ^ vic.raster);
     if (rnd_state == 0) rnd_state = 1;
@@ -38,9 +48,16 @@ unsigned char rnd(unsigned char max) {
 }
 
 unsigned char get_compact_tile(unsigned char x, unsigned char y) {
+    // OSCAR64 optimization hints for 8-bit range analysis
+    __assume(x < MAP_W);  // x < 64
+    __assume(y < MAP_H);  // y < 64
+    
     if (x >= MAP_W || y >= MAP_H) return TILE_EMPTY;
     
-    unsigned short bit_offset = ((unsigned short)y << 7) + ((unsigned short)y << 6) + x + x + x;
+    // OSCAR64 Optimized: Use lookup table instead of 16-bit multiplication
+    // Old: ((unsigned short)y << 7) + ((unsigned short)y << 6) + x + x + x
+    // New: y_bit_offsets[y] + x * 3 (much faster)
+    unsigned short bit_offset = y_bit_offsets[y] + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
     
@@ -55,9 +72,15 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
 }
 
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
+    // OSCAR64 optimization hints for 8-bit range analysis
+    __assume(x < MAP_W);  // x < 64
+    __assume(y < MAP_H);  // y < 64
+    __assume(tile <= TILE_MASK);  // tile < 8
+    
     if (x >= MAP_W || y >= MAP_H) return;
     
-    unsigned short bit_offset = ((unsigned short)y << 7) + ((unsigned short)y << 6) + x + x + x;
+    // OSCAR64 Optimized: Use lookup table instead of 16-bit multiplication
+    unsigned short bit_offset = y_bit_offsets[y] + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
     
@@ -128,12 +151,21 @@ inline unsigned char tile_is_empty(unsigned char x, unsigned char y) {
 }
 
 void clear_map(void) {
-    unsigned short total_bytes = (MAP_H * MAP_W * 3 + 7) / 8;
-    unsigned short i;
+    // OSCAR64 Optimized: Use 8-bit operations instead of 16-bit loop
+    // Total bytes: (64*64*3+7)/8 = 3072 bytes = 12 chunks of 256 + 0 remainder
+    unsigned char *ptr = compact_map;
+    unsigned char chunks = 12;  // 3072 / 256 = 12
     
-    for (i = 0; i < total_bytes; i++) {
-        compact_map[i] = 0;
+    // Clear in 256-byte chunks for optimal 8-bit performance
+    for (unsigned char chunk = 0; chunk < chunks; chunk++) {
+        for (unsigned char i = 0; i < 255; i++) {
+            *ptr++ = 0;
+        }
+        // Handle the 256th byte separately to avoid 8-bit overflow
+        *ptr++ = 0;
     }
+    
+    // No remainder bytes for 3072 (12 * 256 = 3072 exactly)
 }
 
 inline unsigned char coords_in_bounds(unsigned char x, unsigned char y) {

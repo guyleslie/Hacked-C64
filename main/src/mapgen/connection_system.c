@@ -42,6 +42,9 @@ void place_door(unsigned char x, unsigned char y) {
 unsigned char can_place_corridor(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return 0;
     
+    // OSCAR64 optimization: Help compiler with range analysis
+    __assume(room_count <= MAX_ROOMS);  // room_count <= 20
+    
     // Check all rooms - avoid only room interiors, not the immediate perimeter
     for (unsigned char i = 0; i < room_count; i++) {
         Room *room = &rooms[i];
@@ -546,6 +549,9 @@ void connect_rooms(void) {
     static unsigned char connected[MAX_ROOMS];
     
     init_progress("\n\nConnecting rooms");
+    
+    // OSCAR64 optimization: Help compiler with range analysis
+    __assume(room_count <= MAX_ROOMS);  // room_count <= 20
     
     // Initialize - only first room is connected
     for (unsigned char i = 0; i < room_count; i++) {

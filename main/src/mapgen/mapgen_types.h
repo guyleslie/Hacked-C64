@@ -8,16 +8,22 @@
 #define BITS_PER_BYTE 8             // Number of bits in a byte
 #define UNDERFLOW_CHECK_VALUE 0xFF  // Used for underflow/invalid checks
 
-// Map dimensions and room parameters
-#define MAP_W  64
-#define MAP_H  64
-#define VIEW_W 40
-#define VIEW_H 25
-#define MAX_ROOMS 20
-#define MIN_SIZE 4
-#define MAX_SIZE 8
-#define MIN_ROOM_DISTANCE 4
-#define GRID_SIZE 4
+// OSCAR64 Optimization: Use enum instead of #define for better range analysis
+// This helps the compiler optimize 8-bit vs 16-bit operations
+enum MapConstants {
+    MAP_W = 64,
+    MAP_H = 64,
+    VIEW_W = 40,
+    VIEW_H = 25,
+    MAX_ROOMS = 20,
+    MIN_SIZE = 4,
+    MAX_SIZE = 8,
+    MIN_ROOM_DISTANCE = 4,
+    GRID_SIZE = 4,
+    // Pre-calculated map size constants for 8-bit optimization
+    COMPACT_MAP_SIZE = 3072,  // (MAP_H * MAP_W * 3 + 7) / 8
+    COMPACT_MAP_CHUNKS = 12   // COMPACT_MAP_SIZE / 256
+};
 
 // Dynamic maximum connection distance calculation
 // For maps with few rooms, allow longer connections to ensure connectivity

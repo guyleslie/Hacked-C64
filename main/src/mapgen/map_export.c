@@ -14,14 +14,13 @@
 // The filename must be a PETSCII string, max 16 chars
 void save_compact_map(const char* filename) {
     // Calculate the exact size of the compact map in bytes
-    // 64x64 tiles * 3 bits per tile = 12288 bits = 1536 bytes
-    const unsigned short map_size = (MAP_H * MAP_W * 3 + 7) / 8; // Round up division
+    const unsigned short map_size = COMPACT_MAP_SIZE; // 3072 bytes
     
     // Set the filename for KERNAL SAVE
     krnio_setnam(filename);
     
-    // Save the compact_map array to device 8 (disk drive)
-    // Parameters: device number, start address, end address (exclusive)
+    // Save the compact_map raw data to device 8 (disk drive)
+    // Original simple approach - just save the raw map data
     krnio_save(8, compact_map, compact_map + map_size);
     
     // The file is saved as a PRG file with load address
