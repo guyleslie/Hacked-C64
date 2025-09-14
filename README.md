@@ -64,16 +64,19 @@ Final dungeon map:
 ## Technical Specifications
 
 ### Platform Requirements
+
 - **Platform**: Commodore 64 (6502 processor, 64KB RAM)
 - **Compiler**: OSCAR64 cross-compiler with C64-specific optimizations
 - **Storage**: VICE emulator or real C64 with disk drive
 
-### Map Specifications  
+### Map Specifications
+
 - **Map Size**: 64×64 tiles with 40×25 viewport
 - **Room Count**: Up to 20 rooms (4×4 to 8×8 tiles each)
 - **Storage**: 3-bit tile encoding in 3072 bytes
 
 ### Performance
+
 - **Generation Time**: ~6-7 seconds on C64 hardware
 - **Memory Management**: Static allocation only, no dynamic memory allocation
 - **Storage**: 3-bit packed tile encoding for efficient memory usage

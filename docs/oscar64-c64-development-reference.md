@@ -19,6 +19,7 @@ oscar64 -g -O0 -e source.c
 ```
 
 **Critical optimization flags:**
+
 - **-Os**: Optimize for size over speed (essential for memory constraints)
 - **-Oo**: Enable "outliner" to extract repeated code sequences into functions
 - **-Oz**: Auto-placement of global variables in zero page for faster access
@@ -30,6 +31,7 @@ oscar64 -g -O0 -e source.c
 Oscar64's **static stack analysis** eliminates the expensive overhead of 6502's limited 256-byte hardware stack. By analyzing call graphs at compile time, it creates optimized static allocations that avoid zero-page indirect addressing for local variables, providing significant performance gains over traditional 6502 C compilers.
 
 **Memory management capabilities:**
+
 - Zero-page optimization for frequently accessed variables
 - Bank switching support for expanded memory access
 - Overlay system for applications exceeding available RAM
@@ -49,7 +51,6 @@ Oscar64's **static stack analysis** eliminates the expensive overhead of 6502's 
 
 **Recommended memory layout for optimized C64 applications:**
 
-```
 $0000-$00FF: Zero page - Critical variables and pointers
 $0100-$01FF: Hardware stack - Preserved for system use
 $0200-$03FF: System workspace - BASIC/KERNAL variables
@@ -58,17 +59,18 @@ $0801-$2000: Main executable - Program code
 $2000-$2C00: Data area - Game data, lookup tables
 $2C00-$4000: Available buffer space - Sprites, charsets, generation buffers
 $C000-$D000: High memory - Additional space when ROM banked out
-```
 
 ### VIC-II programming essentials
 
 **Critical registers for procedural generation:**
+
 - **$D011 (Control Register 1)**: Display control, bitmap mode switching
 - **$D016 (Control Register 2)**: Multicolor mode, horizontal scrolling
 - **$D018 (Memory Control)**: Screen and character memory location
 - **$D020-$D024**: Color registers for procedural color schemes
 
 **Graphics modes for dungeon rendering:**
+
 - **Standard text mode (40×25)**: Efficient for character-based dungeons
 - **Multicolor text mode**: Four colors per character for detailed tiles
 - **Standard bitmap mode (320×200)**: High resolution for complex graphics
@@ -76,6 +78,7 @@ $C000-$D000: High memory - Additional space when ROM banked out
 ### CIA chip integration for input and timing
 
 **CIA #1 ($DC00-$DC0F) - Keyboard and joystick:**
+
 ```c
 // Efficient keyboard scanning for player input
 uint8_t scan_keyboard(void) {
@@ -90,6 +93,7 @@ CIA timers provide microsecond precision for seeded random generation and timing
 ### Hardware timing constraints for real-time generation
 
 **Critical timing considerations:**
+
 - **Bad lines** occur every 8th raster line, stealing 40-43 CPU cycles
 - **Sprite DMA** reduces available CPU time based on active sprites
 - **PAL timing**: 312 lines × 63 cycles = 19,656 cycles per frame
@@ -104,6 +108,7 @@ For real-time procedural generation, budget generation algorithms to complete wi
 Zero page provides **1-cycle faster access** and **1-byte smaller instructions** compared to absolute addressing. For procedural generation, prioritize zero page allocation for:
 
 **Most critical variables ($02-$06):**
+
 ```c
 // Place generation state in zero page
 __zeropage uint8_t gen_x_pos;      // Current generation X coordinate
@@ -118,11 +123,13 @@ Essential for indirect addressing modes required for efficient memory operations
 ### Static vs dynamic allocation for constrained systems
 
 **Static allocation advantages** for memory-constrained applications:
+
 - **Zero fragmentation**: Predictable memory layout prevents runtime failures
 - **Deterministic timing**: No allocation overhead during generation
 - **Simplified implementation**: Direct memory addressing without management overhead
 
 **Memory banking for expanded access:**
+
 ```c
 // Access RAM under BASIC ROM for additional storage
 void bank_out_basic(void) {
@@ -137,6 +144,7 @@ void restore_basic(void) {
 ### Efficient data structures for 8-bit constraints
 
 **Structure design principles:**
+
 - **Maximum 256 bytes per structure** (register limit)
 - **Fixed-size instances** for indexed access efficiency
 - **Strategic member ordering** by access frequency
@@ -157,6 +165,7 @@ typedef struct {
 ### Performance optimization techniques for procedural generation
 
 **Lookup table strategy** for complex calculations:
+
 ```c
 // Pre-calculated sine table for smooth movement/generation curves  
 const uint8_t sine_table[64] = {
@@ -170,6 +179,7 @@ uint8_t fast_sine(uint8_t angle) {
 ```
 
 **Bit manipulation for efficient algorithms:**
+
 ```c
 // Fast random number generation using Linear Congruential Generator
 uint16_t prng_state = 1;
@@ -183,6 +193,7 @@ uint8_t fast_random(void) {
 ### Real-time constraints and time-slicing
 
 **Procedural generation time-slicing:**
+
 ```c
 // Generate dungeon over multiple frames to avoid frame drops
 typedef struct {
@@ -214,6 +225,7 @@ void time_sliced_generation(GenerationState* state) {
 ### Efficient mathematical operations
 
 **16-bit arithmetic optimization:**
+
 ```c
 // Efficient 16-bit addition avoiding carry propagation when possible
 uint16_t fast_add16(uint16_t a, uint16_t b) {
@@ -225,6 +237,7 @@ uint16_t fast_add16(uint16_t a, uint16_t b) {
 ```
 
 **Multiplication by constants:**
+
 ```asm
 ; Multiply by 5 efficiently
 asl a     ; *2
@@ -237,6 +250,7 @@ adc original_value  ; +1 = *5
 ### Coding conventions for Oscar64 projects
 
 **Variable naming and type selection:**
+
 ```c
 // Use descriptive but concise names to minimize symbol overhead
 uint8_t dng_x, dng_y;           // Dungeon coordinates
@@ -249,6 +263,7 @@ uint8_t room_count;             // Always positive count
 ```
 
 **Function organization for optimization:**
+
 ```c
 // Place related functions in same file for inlining opportunities
 static inline void __fastcall__ set_pixel(uint8_t x, uint8_t y, uint8_t color) {
@@ -262,6 +277,7 @@ const uint8_t room_templates[16][8] = { /* room data */ };
 ### Hardware-specific programming patterns
 
 **VIC-II bank switching for memory expansion:**
+
 ```c
 // Switch VIC-II to bank 1 ($4000-$7FFF) to free up low memory
 void switch_vic_bank1(void) {
@@ -270,6 +286,7 @@ void switch_vic_bank1(void) {
 ```
 
 **Sprite management for dynamic objects:**
+
 ```c
 typedef struct {
     uint8_t x, y;                // Position
@@ -288,6 +305,7 @@ void update_sprite_hardware(uint8_t sprite_num, GameObject* obj) {
 ### Real-time programming constraints
 
 **Interrupt-safe generation algorithms:**
+
 ```c
 volatile uint8_t generation_active = 0;
 
@@ -301,6 +319,7 @@ void raster_interrupt(void) {
 ```
 
 **Memory access optimization:**
+
 ```c
 // Avoid page boundary crossings in time-critical code
 // Align frequently accessed arrays to page boundaries
@@ -313,6 +332,7 @@ uint8_t __aligned(256) room_data[64];
 ### CMake integration for professional workflows
 
 **Basic CMakeLists.txt for Oscar64:**
+
 ```cmake
 cmake_minimum_required(VERSION 3.10)
 project(C64DungeonGenerator)
@@ -334,6 +354,7 @@ add_custom_target(c64_build
 ### Cross-platform development environment
 
 **VS Code configuration with VS64 extension:**
+
 ```json
 {
     "name": "C64_Dungeon_Generator",
@@ -354,6 +375,7 @@ add_custom_target(c64_build
 ### File format integration and deployment
 
 **Automated build pipeline:**
+
 ```bash
 #!/bin/bash
 # Build script for automated deployment
@@ -372,6 +394,7 @@ oscar64 -g -O0 src/main.c -o build/debug.prg
 ```
 
 **GitHub Actions CI/CD integration:**
+
 ```yaml
 name: C64 Build
 on: [push, pull_request]
@@ -397,6 +420,7 @@ jobs:
 ### Practical implementation strategy
 
 **Code organization for size optimization:**
+
 ```c
 // Place initialization code in overlay or separate segment
 __attribute__((section("init"))) void initialize_system(void) {
@@ -418,6 +442,7 @@ void main_loop(void) {
 ```
 
 **Data structure optimization:**
+
 ```c
 // Pack multiple data elements efficiently
 typedef struct {
@@ -434,6 +459,7 @@ typedef struct {
 ### Advanced memory techniques
 
 **Self-modifying code for space efficiency:**
+
 ```c
 // Modify jump table entries to avoid storing function pointers
 void setup_room_generator(uint8_t room_type) {
@@ -450,6 +476,7 @@ void setup_room_generator(uint8_t room_type) {
 ```
 
 **Overlay system for large generation algorithms:**
+
 ```c
 // Load generation algorithms on-demand
 void load_generation_overlay(uint8_t algorithm) {
