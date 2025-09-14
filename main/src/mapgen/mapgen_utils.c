@@ -24,8 +24,7 @@ extern unsigned char screen_buffer[VIEW_H][VIEW_W];
 extern unsigned char screen_dirty;
 extern unsigned char last_scroll_direction;
 
-static unsigned char room_center_cache[MAX_ROOMS][2];
-static unsigned char room_center_cache_valid = 0;
+// Room center cache removed for OSCAR64 efficiency - simple calculation is faster
 
 // OSCAR64 Optimization: Pre-calculated Y bit offsets lookup table
 // Replaces expensive 16-bit multiplication: y * 192 = y * (64 * 3)
@@ -189,8 +188,11 @@ unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room
 }
 
 unsigned char is_inside_any_room(unsigned char x, unsigned char y) {
+    // OSCAR64 optimization: inline bounds check to avoid wrapper overhead
     for (unsigned char i = 0; i < room_count; i++) {
-        if (point_in_room(x, y, i)) {
+        Room *room = &rooms[i];
+        if (x >= room->x && x < room->x + room->w &&
+            y >= room->y && y < room->y + room->h) {
             return 1;
         }
     }
@@ -314,16 +316,7 @@ inline unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsi
 }
 
 
-void get_room_bounds(unsigned char room_id, unsigned char *x1, unsigned char *y1, unsigned char *x2, unsigned char *y2) {
-    if (room_id >= room_count) {
-        *x1 = *y1 = *x2 = *y2 = 0;
-        return;
-    }
-    *x1 = rooms[room_id].x;
-    *y1 = rooms[room_id].y;
-    *x2 = rooms[room_id].x + rooms[room_id].w - 1;
-    *y2 = rooms[room_id].y + rooms[room_id].h - 1;
-}
+// get_room_bounds() removed - dead code (never used)
 
 unsigned char calculate_direction(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2) {
     unsigned char dx = abs_diff(x1, x2);
@@ -343,36 +336,16 @@ unsigned char calculate_direction(unsigned char x1, unsigned char y1, unsigned c
 }
 
 inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y) {
-    if (!room_center_cache_valid || room_id >= MAX_ROOMS) {
-        if (room_id >= room_count) {
-            *center_x = *center_y = 0;
-            return;
-        }
-        *center_x = rooms[room_id].x + (rooms[room_id].w - 1) / 2;
-        *center_y = rooms[room_id].y + (rooms[room_id].h - 1) / 2;
-        if (room_id < MAX_ROOMS) {
-            room_center_cache[room_id][0] = *center_x;
-            room_center_cache[room_id][1] = *center_y;
-        }
+    // OSCAR64 optimization: Remove cache overhead for simple calculation
+    if (room_id >= room_count) {
+        *center_x = *center_y = 0;
         return;
     }
-    *center_x = room_center_cache[room_id][0];
-    *center_y = room_center_cache[room_id][1];
+    *center_x = rooms[room_id].x + (rooms[room_id].w - 1) / 2;
+    *center_y = rooms[room_id].y + (rooms[room_id].h - 1) / 2;
 }
 
-void init_room_center_cache(void) {
-    unsigned char i;
-    
-    for (i = 0; i < room_count && i < MAX_ROOMS; i++) {
-        room_center_cache[i][0] = rooms[i].x + (rooms[i].w - 1) / 2;
-        room_center_cache[i][1] = rooms[i].y + (rooms[i].h - 1) / 2;
-    }
-    room_center_cache_valid = 1;
-}
-
-void clear_room_center_cache(void) {
-    room_center_cache_valid = 0;
-}
+// Room center cache functions removed - direct calculation is more efficient for OSCAR64
 
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2) {
     unsigned char x1, y1, x2, y2;
@@ -476,8 +449,7 @@ void reset_all_generation_data(void) {
     }
     
     room_count = 0;
-    clear_room_center_cache();
-    init_connection_system();
+    // Cache functions removed for OSCAR64 efficiency
 }
 
 void mapgen_init(unsigned int seed) {
@@ -485,8 +457,7 @@ void mapgen_init(unsigned int seed) {
     if (rnd_state == 0) rnd_state = 1;
     room_count = 0;
     clear_map();
-    clear_room_center_cache();
-    init_connection_system();
+    // Cache functions removed for OSCAR64 efficiency
 }
 
 unsigned char mapgen_generate_dungeon(void) {

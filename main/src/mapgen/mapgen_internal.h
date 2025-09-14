@@ -20,7 +20,7 @@ void assign_room_priorities(void);
 void init_rooms(void);
 
 // Secret room management
-void mark_secret_rooms(unsigned char secret_percentage);
+void convert_secret_corridors(unsigned char secret_percentage);
 
 // =============================================================================
 // CONSOLIDATED GLOBAL VARIABLE DECLARATIONS
@@ -44,9 +44,8 @@ extern unsigned char screen_buffer[VIEW_H][VIEW_W];
 extern unsigned char screen_dirty;
 extern unsigned char last_scroll_direction;
 
-// Connection functions
-unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2);
-void init_connection_system(void);
+// Connection functions (wrappers removed for OSCAR64 efficiency)
+unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, unsigned char is_secret);
 unsigned char rooms_are_connected(unsigned char room1, unsigned char room2);
 
 /**

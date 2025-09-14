@@ -13,14 +13,14 @@
 // Save the compact map to disk using C64 KERNAL routines (device 8)
 // The filename must be a PETSCII string, max 16 chars
 void save_compact_map(const char* filename) {
-    // Calculate the exact size of the compact map in bytes
-    const unsigned short map_size = COMPACT_MAP_SIZE; // 3072 bytes
+    // Calculate the actual size of the compact_map array
+    const unsigned short map_size = sizeof(compact_map);
     
     // Set the filename for KERNAL SAVE
     krnio_setnam(filename);
     
     // Save the compact_map raw data to device 8 (disk drive)
-    // Original simple approach - just save the raw map data
+    // Use pointer arithmetic that matches actual array bounds
     krnio_save(8, compact_map, compact_map + map_size);
     
     // The file is saved as a PRG file with load address

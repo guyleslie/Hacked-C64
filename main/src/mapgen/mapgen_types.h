@@ -73,28 +73,37 @@ enum MapConstants {
 // Corridor and connection parameters
 #define MAX_PATH_LENGTH 20
 
-// Door metadata structure
+// OSCAR64 optimized packed door structure (3 bytes vs 4 bytes)
 typedef struct {
-    unsigned char x, y;
-    unsigned char wall_side; // 0=left, 1=right, 2=top, 3=bottom
-    unsigned char connected_room; // Which room this door connects to
-} Door;
+    unsigned char x, y;                    // 2 bytes - door position
+    unsigned char wall_side : 2;           // 0-3 wall sides (2 bits)
+    unsigned char connected_room : 6;      // 0-63 room ID (6 bits, enough for MAX_ROOMS=20)
+} Door; // 3 bytes total
 
-// Room structure with connection and corridor data
+// OSCAR64 optimized packed connection structure (1 byte vs 2 bytes)  
 typedef struct {
-    unsigned char x, y;
-    unsigned char w, h;
-    unsigned char connections;
-    unsigned char state;
-    unsigned char hub_distance;
-    unsigned char priority;
+    unsigned char room_id : 5;             // 0-31 room ID (5 bits, enough for MAX_ROOMS=20)
+    unsigned char corridor_type : 2;       // 0-2 corridor types (2 bits)
+    unsigned char used : 1;                // connection slot used flag (1 bit)
+} PackedConnection; // 1 byte total
+
+// OSCAR64 optimized Room structure (24 bytes vs 33 bytes = 27% savings)
+typedef struct {
+    // Most frequently accessed during generation (ordered by access frequency)
+    unsigned char x, y, w, h;              // 4 bytes - room position and size
+    unsigned char connections;             // 1 byte - number of active connections
+    unsigned char state;                   // 1 byte - room state flags
     
-    // Connection data stored explicitly
-    unsigned char connected_rooms[4]; // Max 4 connections per room
-    unsigned char corridor_types[4]; // Corridor types for each connection (0=straight, 1=L, 2=Z)
-    Door doors[4]; // Door positions and metadata
-    unsigned char door_count;
-} Room;
+    // OSCAR64 packed connection metadata (4 bytes vs 8 bytes)
+    PackedConnection conn_data[4];         // 4 bytes - packed connection info
+    
+    // Door metadata (12 bytes vs 16 bytes)  
+    Door doors[4];                         // 12 bytes - packed door positions
+    
+    // Less frequently accessed (moved to end for better cache behavior)
+    unsigned char hub_distance;           // 1 byte - distance from hub room
+    unsigned char priority;               // 1 byte - generation priority
+} Room; // 24 bytes total vs 33 bytes (27% memory savings)
 
 // Viewport structure
 typedef struct {

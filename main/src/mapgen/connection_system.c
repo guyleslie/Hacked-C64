@@ -15,7 +15,7 @@
 static unsigned char find_existing_door_on_wall(unsigned char room_idx, unsigned char wall_side, 
                                                unsigned char target_x, unsigned char target_y,
                                                unsigned char *found_x, unsigned char *found_y) {
-    for (unsigned char i = 0; i < rooms[room_idx].door_count; i++) {
+    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
         Door *door = &rooms[room_idx].doors[i];
         if (door->wall_side == wall_side) {
             // Check if door is within reasonable distance (±2 tiles)
@@ -72,40 +72,12 @@ unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2)
 }
 
 
-// Add door to room's door list
-static void add_door_to_room(unsigned char room_idx, unsigned char x, unsigned char y, 
-                            unsigned char wall_side, unsigned char connected_room) {
-    if (rooms[room_idx].door_count < 4) {
-        Door *door = &rooms[room_idx].doors[rooms[room_idx].door_count];
-        door->x = x;
-        door->y = y;
-        door->wall_side = wall_side;
-        door->connected_room = connected_room;
-        rooms[room_idx].door_count++;
-    }
-}
+// Wrapper functions removed - using direct inline access for OSCAR64 efficiency
 
-// Add connection between two rooms
-static void add_room_connection(unsigned char room1, unsigned char room2, unsigned char corridor_type) {
-    // Add to room1's connection list
-    if (rooms[room1].connections < 4) {
-        rooms[room1].connected_rooms[rooms[room1].connections] = room2;
-        rooms[room1].corridor_types[rooms[room1].connections] = corridor_type;
-        rooms[room1].connections++;
-    }
-    
-    // Add to room2's connection list  
-    if (rooms[room2].connections < 4) {
-        rooms[room2].connected_rooms[rooms[room2].connections] = room1;
-        rooms[room2].corridor_types[rooms[room2].connections] = corridor_type;
-        rooms[room2].connections++;
-    }
-}
-
-// Check if rooms are already connected
+// Check if rooms are already connected using OSCAR64 optimized packed structure
 unsigned char rooms_are_connected(unsigned char room1, unsigned char room2) {
     for (unsigned char i = 0; i < rooms[room1].connections; i++) {
-        if (rooms[room1].connected_rooms[i] == room2) {
+        if (rooms[room1].conn_data[i].used && rooms[room1].conn_data[i].room_id == room2) {
             return 1;
         }
     }
@@ -453,7 +425,7 @@ static unsigned char path_is_safe(unsigned char start_x, unsigned char start_y,
 // =============================================================================
 
 // Connect two rooms with corridor and store connection metadata
-unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
+unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, unsigned char is_secret) {
     // Check if already connected
     if (rooms_are_connected(room1, room2)) {
         return 1;
@@ -510,35 +482,66 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2) {
         return 0; // Path would intersect rooms
     }
     
+    // Secret flag is now passed as parameter
+    
     // Draw corridor and store connection data
     unsigned char wall1 = get_wall_side_from_exit(room1, exit1_x, exit1_y);
     unsigned char wall2 = get_wall_side_from_exit(room2, exit2_x, exit2_y);
     
-    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, 0);
+    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret);
     
-    // Place doors at calculated positions
-    place_door(exit1_x, exit1_y);
-    place_door(exit2_x, exit2_y);
+    // Place doors at calculated positions (secret passages use TILE_SECRET_PATH)
+    if (is_secret) {
+        set_tile_raw(exit1_x, exit1_y, TILE_SECRET_PATH);
+        set_tile_raw(exit2_x, exit2_y, TILE_SECRET_PATH);
+    } else {
+        place_door(exit1_x, exit1_y);
+        place_door(exit2_x, exit2_y);
+    }
     
-    // Store connection data with corridor type
-    add_room_connection(room1, room2, corridor_type);
-    add_door_to_room(room1, exit1_x, exit1_y, wall1, room2);
-    add_door_to_room(room2, exit2_x, exit2_y, wall2, room1);
+    // Mark secret rooms in their state
+    if (is_secret) {
+        rooms[room1].state |= ROOM_SECRET;
+        rooms[room2].state |= ROOM_SECRET;
+    }
+    
+    // Store connection data with corridor type - direct inline assignment
+    // Add to room1's connection
+    if (rooms[room1].connections < 4) {
+        unsigned char idx1 = rooms[room1].connections;
+        rooms[room1].conn_data[idx1].room_id = room2;
+        rooms[room1].conn_data[idx1].corridor_type = corridor_type;
+        rooms[room1].conn_data[idx1].used = 1;
+        
+        // Add door directly
+        rooms[room1].doors[idx1].x = exit1_x;
+        rooms[room1].doors[idx1].y = exit1_y;
+        rooms[room1].doors[idx1].wall_side = wall1;
+        rooms[room1].doors[idx1].connected_room = room2;
+        
+        rooms[room1].connections++;
+    }
+    
+    // Add to room2's connection  
+    if (rooms[room2].connections < 4) {
+        unsigned char idx2 = rooms[room2].connections;
+        rooms[room2].conn_data[idx2].room_id = room1;
+        rooms[room2].conn_data[idx2].corridor_type = corridor_type;
+        rooms[room2].conn_data[idx2].used = 1;
+        
+        // Add door directly
+        rooms[room2].doors[idx2].x = exit2_x;
+        rooms[room2].doors[idx2].y = exit2_y;
+        rooms[room2].doors[idx2].wall_side = wall2;
+        rooms[room2].doors[idx2].connected_room = room1;
+        
+        rooms[room2].connections++;
+    }
     
     return 1;
 }
 
-// Initialize room connection data
-void init_connection_system(void) {
-    for (unsigned char i = 0; i < MAX_ROOMS; i++) {
-        rooms[i].connections = 0;
-        rooms[i].door_count = 0;
-        for (unsigned char j = 0; j < 4; j++) {
-            rooms[i].connected_rooms[j] = 255; // Invalid room index
-            rooms[i].corridor_types[j] = 0; // Default to straight corridors
-        }
-    }
-}
+// init_connection_system() removed - initialization handled by init_rooms() to avoid duplication
 
 // =============================================================================
 // MST CONNECTION ALGORITHM
@@ -581,9 +584,9 @@ void connect_rooms(void) {
             }
         }
         
-        // Connect the best pair
+        // Connect the best pair with normal corridors first
         if (best_room1 != 255 && best_room2 != 255) {
-            if (connect_rooms_directly(best_room1, best_room2)) {
+            if (connect_rooms_directly(best_room1, best_room2, 0)) {
                 connected[best_room2] = 1;
                 connections_made++;
                 show_progress();
@@ -600,25 +603,23 @@ void connect_rooms(void) {
 // SECRET ROOM SYSTEM
 // =============================================================================
 
-// Mark single-connection rooms as secret and convert their corridors with exact path preservation
-void mark_secret_rooms(unsigned char secret_percentage) {
-    init_progress("\n\nCreating secret rooms");
+// Convert corridors of single-connection rooms to secret passages
+void convert_secret_corridors(unsigned char secret_percentage) {
+    init_progress("\n\nConverting secret rooms");
     
     for (unsigned char i = 0; i < room_count; i++) {
+        // Only rooms with exactly one connection can be secret
         if (rooms[i].connections == 1 && rnd(100) < secret_percentage) {
             rooms[i].state |= ROOM_SECRET;
             
-            // Convert corridor to secret path using stored connection metadata
-            if (rooms[i].door_count > 0) {
+            if (rooms[i].connections > 0) {
                 Door *secret_door = &rooms[i].doors[0];
                 unsigned char connected_room = secret_door->connected_room;
+                unsigned char corridor_type = rooms[i].conn_data[0].corridor_type;
                 
-                // Retrieve corridor type from explicit connection data
-                unsigned char corridor_type = rooms[i].corridor_types[0];
-                
-                // Locate corresponding door in connected room
+                // Find corresponding door in connected room
                 Door *normal_door = NULL;
-                for (unsigned char j = 0; j < rooms[connected_room].door_count; j++) {
+                for (unsigned char j = 0; j < rooms[connected_room].connections; j++) {
                     if (rooms[connected_room].doors[j].connected_room == i) {
                         normal_door = &rooms[connected_room].doors[j];
                         break;
@@ -626,16 +627,11 @@ void mark_secret_rooms(unsigned char secret_percentage) {
                 }
                 
                 if (normal_door) {
-                    // Preserve original corridor path through deterministic door ordering
-                    if (i < connected_room) {
-                        // Secret room has lower index - maintain original door sequence
-                        draw_corridor_from_door(secret_door->x, secret_door->y, secret_door->wall_side,
-                                              normal_door->x, normal_door->y, corridor_type, 1);
-                    } else {
-                        // Secret room has higher index - reverse to match original sequence
-                        draw_corridor_from_door(normal_door->x, normal_door->y, normal_door->wall_side,
-                                              secret_door->x, secret_door->y, corridor_type, 1);
-                    }
+                    // In MST, secret rooms were always "room2" (unconnected), connected rooms were "room1" 
+                    // Original call: connect_rooms_directly(connected_room, secret_room, 0)
+                    // So we need: draw_corridor_from_door(room1_door, room1_wall, room2_door, ...)
+                    draw_corridor_from_door(normal_door->x, normal_door->y, normal_door->wall_side,
+                                          secret_door->x, secret_door->y, corridor_type, 1);
                     
                     // Convert doors to secret passages
                     set_tile_raw(secret_door->x, secret_door->y, TILE_SECRET_PATH);

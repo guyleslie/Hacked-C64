@@ -75,7 +75,8 @@ Final dungeon map:
 
 ### Performance
 - **Generation Time**: ~6-7 seconds on C64 hardware
-- **Memory Usage**: 3072 bytes for map storage, static allocation only
+- **Memory Management**: Static allocation only, no dynamic memory allocation
+- **Storage**: 3-bit packed tile encoding for efficient memory usage
 
 ## Generation Process
 

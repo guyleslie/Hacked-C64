@@ -53,8 +53,7 @@ unsigned char last_scroll_direction = 0;
 
 // Initialize camera system for new map
 void initialize_camera(void) {
-    // Initialize room center cache
-    init_room_center_cache();
+    // Cache initialization removed for OSCAR64 efficiency
     
     // Position camera in first room if available
     if (room_count > 0) {

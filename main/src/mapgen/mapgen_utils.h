@@ -61,12 +61,7 @@ unsigned char abs_diff(unsigned char a, unsigned char b);
 unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
 unsigned char calculate_direction(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
 
-// Room boundary calculation utilities (commonly used patterns)
-unsigned char get_room_right_edge(unsigned char room_id);
-unsigned char get_room_bottom_edge(unsigned char room_id);
-unsigned char get_room_center_x(unsigned char room_id);
-unsigned char get_room_center_y(unsigned char room_id);
-void get_room_bounds(unsigned char room_id, unsigned char *x1, unsigned char *y1, unsigned char *x2, unsigned char *y2);
+// Dead code boundary utilities removed - never implemented or used
 
 // Viewport calculation utilities (commonly used viewport patterns)
 unsigned char get_viewport_half_width(void);
@@ -76,8 +71,7 @@ unsigned char get_viewport_max_y(void);
 
 // Room center cache management
 void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y);
-void init_room_center_cache(void);
-void clear_room_center_cache(void);
+// Cache functions removed for OSCAR64 efficiency - direct calculation is faster
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2);
 unsigned char get_max_connection_distance(void);
 

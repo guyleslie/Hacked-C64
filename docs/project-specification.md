@@ -122,10 +122,9 @@ Each room maintains metadata for:
 - `state`: Secret room flag and status bits
 
 **Connection Metadata:**
-- `connected_rooms[4]`: Connected room indices (max 4 connections per room)
-- `corridor_types[4]`: Corridor types for each connection (0=straight, 1=L, 2=Z)
-- `doors[4]`: Door positions and directional data
-- `door_count`: Active door count tracker
+- `conn_data[4]`: Packed connection structures with room ID, corridor type, and usage flags
+- `doors[4]`: Packed door structures with coordinates, wall side, and connected room
+- Connection count tracked in `connections` field
 
 ### Memory Optimization Strategy
 
@@ -135,11 +134,48 @@ Each room maintains metadata for:
 - Zero page variables for critical path operations
 
 **Memory Layout:**
-- `$0400-$07E7`: VIC-II screen memory
-- `$0800-$0BFF`: Compact map data
-- `$0C00-$0FFF`: Room structure arrays
-- `$1000-$13FF`: Display buffer
-- `$1400-$17FF`: Program code (optimized executable)
+- `$0400-$07E7`: VIC-II screen memory (1000 bytes)
+- `$0800-$13FF`: Compact map data (3072 bytes, 3-bit packed encoding)
+- `$1400-$17FF`: Room structure arrays (packed data structures)
+- `$1800-$1BFF`: Display viewport buffer
+- `$2000+`: Program code (OSCAR64 optimized executable)
+
+## Data Structures
+
+### Core Room Structure
+```c
+typedef struct {
+    // Most frequently accessed (ordered by access frequency)
+    unsigned char x, y, w, h;              // Room position and dimensions
+    unsigned char connections;             // Number of active connections
+    unsigned char state;                   // Room state flags (normal/secret)
+    
+    // Packed connection metadata
+    PackedConnection conn_data[4];         // Connection information
+    Door doors[4];                         // Door positions and metadata
+    
+    // Less frequently accessed
+    unsigned char hub_distance, priority; // Generation parameters
+} Room;
+```
+
+### Packed Connection Structure
+```c
+typedef struct {
+    unsigned char room_id : 5;             // Connected room ID (0-31)
+    unsigned char corridor_type : 2;       // Corridor type (0-2)
+    unsigned char used : 1;                // Connection slot active flag
+} PackedConnection;
+```
+
+### Optimized Door Structure
+```c
+typedef struct {
+    unsigned char x, y;                    // Door coordinates
+    unsigned char wall_side : 2;           // Wall side (0-3)
+    unsigned char connected_room : 6;      // Connected room ID (0-63)
+} Door;
+```
 
 ## Algorithm Performance
 
@@ -230,7 +266,9 @@ unsigned char mapgen_validate_map(void);
 
 ### Performance Metrics
 - **Generation Time**: ~6-7 seconds on C64 hardware
-- **Memory Usage**: 3072 bytes for map storage, static allocation
-- **Code Size**: Optimized executable for C64 platform
+- **Memory Management**: Static allocation only, no dynamic memory
+- **Map Storage**: 3072 bytes (3-bit packed tile encoding)
+- **Room Data**: Packed structures for efficient memory usage
+- **Code Quality**: OSCAR64 optimized for 6502 architecture
 
 This implementation uses 8-bit programming techniques and classical algorithms adapted for the hardware constraints of the Commodore 64.

@@ -28,39 +28,7 @@
 // UTILITY FUNCTIONS
 // ============================================================================="
 
-// Calculates grid-based position with randomization for room placement
-static void get_grid_position(unsigned char grid_index, unsigned char *x, unsigned char *y) {
-    unsigned char grid_x = grid_index % GRID_SIZE;
-    unsigned char grid_y = grid_index / GRID_SIZE;
-    unsigned char cell_w = (MAP_W - 8) / GRID_SIZE;  // Leave border space
-    unsigned char cell_h = (MAP_H - 8) / GRID_SIZE;
-    
-    // Calculate base grid position
-    unsigned char base_x = 4 + grid_x * cell_w;
-    unsigned char base_y = 4 + grid_y * cell_h;
-    
-    // Add randomness to break grid alignment
-    unsigned char extra_range_x = cell_w;
-    unsigned char extra_range_y = cell_h;
-    
-    // Random positioning with displacement
-    unsigned char random_offset_x = rnd(extra_range_x + cell_w / 2);
-    unsigned char random_offset_y = rnd(extra_range_y + cell_h / 2);
-    
-    // Apply random displacement from grid base
-    *x = base_x + random_offset_x - (extra_range_x / 2);
-    *y = base_y + random_offset_y - (extra_range_y / 2);
-    
-    // Add scatter to break grid patterns
-    *x += rnd(SCATTER_RANGE * 2 + 1) - SCATTER_RANGE;  // ±3 pixel random scatter
-    *y += rnd(SCATTER_RANGE * 2 + 1) - SCATTER_RANGE;  // ±3 pixel random scatter
-    
-    // Clamp to valid map bounds
-    if (*x < MAP_BORDER) *x = MAP_BORDER;
-    if (*y < MAP_BORDER) *y = MAP_BORDER;
-    if (*x + MAX_SIZE + BORDER_PADDING >= MAP_W) *x = MAP_W - MAX_SIZE - MAP_BORDER;
-    if (*y + MAX_SIZE + BORDER_PADDING >= MAP_H) *y = MAP_H - MAX_SIZE - MAP_BORDER;
-}
+// get_grid_position() wrapper removed - inlined for OSCAR64 efficiency
 
 // =============================================================================
 // ROOM VALIDATION FUNCTIONS
@@ -115,8 +83,37 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
     while (attempts < PLACEMENT_ATTEMPTS) {
         unsigned char x, y;
         
-        // Get base grid position
-        get_grid_position(grid_index, &x, &y);
+        // Get base grid position - inline for OSCAR64 efficiency
+        unsigned char grid_x = grid_index % GRID_SIZE;
+        unsigned char grid_y = grid_index / GRID_SIZE;
+        unsigned char cell_w = (MAP_W - 8) / GRID_SIZE;  // Leave border space
+        unsigned char cell_h = (MAP_H - 8) / GRID_SIZE;
+        
+        // Calculate base grid position with randomization
+        unsigned char base_x = 4 + grid_x * cell_w;
+        unsigned char base_y = 4 + grid_y * cell_h;
+        
+        // Add randomness to break grid alignment
+        unsigned char extra_range_x = cell_w;
+        unsigned char extra_range_y = cell_h;
+        
+        // Random positioning with displacement
+        unsigned char random_offset_x = rnd(extra_range_x + cell_w / 2);
+        unsigned char random_offset_y = rnd(extra_range_y + cell_h / 2);
+        
+        // Apply random displacement from grid base
+        x = base_x + random_offset_x - (extra_range_x / 2);
+        y = base_y + random_offset_y - (extra_range_y / 2);
+        
+        // Add scatter to break grid patterns
+        x += rnd(SCATTER_RANGE * 2 + 1) - SCATTER_RANGE;  // ±3 pixel random scatter
+        y += rnd(SCATTER_RANGE * 2 + 1) - SCATTER_RANGE;  // ±3 pixel random scatter
+        
+        // Clamp to valid map bounds
+        if (x < MAP_BORDER) x = MAP_BORDER;
+        if (y < MAP_BORDER) y = MAP_BORDER;
+        if (x + MAX_SIZE + BORDER_PADDING >= MAP_W) x = MAP_W - MAX_SIZE - MAP_BORDER;
+        if (y + MAX_SIZE + BORDER_PADDING >= MAP_H) y = MAP_H - MAX_SIZE - MAP_BORDER;
         
         // Add random variation for later attempts
         if (attempts > VARIATION_THRESHOLD) {
@@ -188,15 +185,25 @@ void assign_room_priorities(void) {
 // ROOM GENERATION
 // =============================================================================
 
-// Initialize room data structures 
+// Initialize room data structures using OSCAR64 optimized packed structures
 void init_rooms(void) {
     for (unsigned char i = 0; i < MAX_ROOMS; i++) {
         rooms[i].connections = 0;
-        rooms[i].door_count = 0;
         rooms[i].state = 0;
+        rooms[i].hub_distance = 0;
+        rooms[i].priority = 0;
         
+        // Initialize packed connection data
         for (unsigned char j = 0; j < 4; j++) {
-            rooms[i].connected_rooms[j] = 255;
+            rooms[i].conn_data[j].room_id = 31; // Invalid room index
+            rooms[i].conn_data[j].corridor_type = 0;
+            rooms[i].conn_data[j].used = 0;
+            
+            // Initialize doors
+            rooms[i].doors[j].x = 0;
+            rooms[i].doors[j].y = 0;
+            rooms[i].doors[j].wall_side = 0;
+            rooms[i].doors[j].connected_room = 63; // Invalid room index
         }
     }
     room_count = 0;

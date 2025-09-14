@@ -151,12 +151,11 @@ unsigned char generate_level(void) {
         return 0; // Generation failed
     }
     
-    // Phase 2: Room Connection System
-    init_connection_system();
+    // Phase 2: Room Connection System (init_rooms() already initialized connection data)
     connect_rooms();
     
-    // Phase 2.5: Mark secret rooms and convert doors
-    mark_secret_rooms(SECRET_ROOM_PERCENTAGE);
+    // Phase 2.5: Convert single-connection rooms to secret rooms
+    convert_secret_corridors(SECRET_ROOM_PERCENTAGE);
     
     // Phase 3: Place stairs for level navigation
     add_stairs();
