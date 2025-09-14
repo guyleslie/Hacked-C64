@@ -6,15 +6,6 @@ A dungeon map generator for the Commodore 64, built with Oscar64.
 
 This program generates randomized dungeon layouts on the Commodore 64. Each map contains rooms connected by corridors, with stairs, doors, walls, and secret passages.
 
-## Features
-
-- **Procedural Generation**: Grid-based room placement with MST connectivity ensures all rooms are reachable
-- **Interactive Navigation**: Explore generated dungeons with WASD keys and viewport scrolling
-- **Secret Rooms**: Hidden areas accessible through secret passages (15% of single-connection rooms)
-- **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections for varied layouts
-- **Map Export**: Save generated maps to disk for later use
-- **Memory Efficient**: 3-bit tile encoding optimized for C64 constraints
-
 ## Screenshots
 
 Generation progress display:
@@ -61,6 +52,15 @@ Final dungeon map:
 | < | Up Stairs | Level exit up |
 | > | Down Stairs | Level exit down |
 
+## Features
+
+- **Procedural Generation**: Grid-based room placement with MST connectivity ensures all rooms are reachable
+- **Interactive Navigation**: Explore generated dungeons with WASD keys and viewport scrolling
+- **Secret Rooms**: Hidden areas accessible through secret passages (15% of single-connection rooms)
+- **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections for varied layouts
+- **Map Export**: Save generated maps to disk for later use
+- **Memory Efficient**: 3-bit tile encoding optimized for C64 constraints
+
 ## Technical Specifications
 
 ### Platform Requirements
@@ -94,4 +94,5 @@ Final dungeon map:
 For detailed technical information, see:
 
 - **[Project Specification](docs/project-specification.md)** - Complete technical specification including algorithms, data structures, and implementation details
+
 - **[Oscar64 Development Reference](docs/oscar64-c64-development-reference.md)** - Comprehensive guide for C64 development using Oscar64 compiler
