@@ -256,11 +256,6 @@ void mapgen_get_statistics(unsigned char *floor_tiles, ...);
 unsigned char mapgen_validate_map(void);
 ```
 
-### Interactive Controls
-- **Arrow Keys**: Navigate viewport across generated dungeon
-- **Real-time**: Immediate response with screen updates
-- **Bounds Checking**: Automatic viewport constraint handling
-
 ## Development Standards
 
 ### Code Quality
@@ -270,7 +265,7 @@ unsigned char mapgen_validate_map(void);
 - **Testing**: Validation functions for map integrity verification
 
 ### Performance Metrics
-- **Generation Time**: ~6-7 seconds on C64 hardware
+- **Generation Time**: ~3-4 seconds on C64 hardware
 - **Memory Management**: Static allocation only, no dynamic memory
 - **Map Storage**: 3072 bytes (3-bit packed tile encoding)
 - **Room Data**: Packed structures for efficient memory usage
