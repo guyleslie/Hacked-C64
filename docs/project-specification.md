@@ -18,13 +18,14 @@ main/src/
 ├── main.c                   # Entry point and VIC-II setup
 ├── mapgen/
 │   ├── mapgen_api.h         # Public interface definitions
-│   ├── mapgen_types.h       # Core data structures  
+│   ├── mapgen_types.h       # Core data structures and constants
+│   ├── mapgen_internal.h    # Internal module definitions
 │   ├── map_generation.c     # Generation pipeline control
 │   ├── room_management.c    # Room placement algorithms
 │   ├── connection_system.c  # MST and corridor generation
-│   ├── mapgen_display.c     # Viewport and rendering
-│   ├── mapgen_utils.c       # Utility functions and math
-│   └── map_export.c         # File I/O operations
+│   ├── mapgen_display.c/.h  # Viewport and rendering
+│   ├── mapgen_utils.c/.h    # Utility functions and math
+│   └── map_export.c/.h      # File I/O operations
 CMakeLists.txt               # Cross-platform build configuration
 ```
 
@@ -59,7 +60,7 @@ Room interconnection uses Prim's algorithm to guarantee that all rooms remain re
 **MST Algorithm Operation:**
 - First room is automatically marked as "connected"
 - Each iteration finds the closest unconnected room to the connected set
-- Calculates euclidean distance between room centers
+- Calculates Manhattan distance between room centers
 - Creates a corridor connecting the two rooms
 
 **Corridor Types and Geometry:**
@@ -228,9 +229,8 @@ unsigned char mapgen_validate_map(void);
 - **Testing**: Validation functions for map integrity verification
 
 ### Performance Metrics
-- **Generation Time**: <1 second on original C64 hardware
-- **Memory Usage**: Efficient footprint with room for expansion
-- **Code Size**: Optimized for C64 including all functionality
-- **Screen Updates**: 50Hz-compatible delta rendering
+- **Generation Time**: ~6-7 seconds on C64 hardware
+- **Memory Usage**: 3072 bytes for map storage, static allocation
+- **Code Size**: Optimized executable for C64 platform
 
 This implementation uses 8-bit programming techniques and classical algorithms adapted for the hardware constraints of the Commodore 64.
