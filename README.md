@@ -77,17 +77,17 @@ Final dungeon map:
 
 ### Performance
 
-- **Generation Time**: ~6-7 seconds on C64 hardware
+- **Generation Time**: ~3-4 seconds on C64 hardware
 - **Memory Management**: Static allocation only, no dynamic memory allocation
 - **Storage**: 3-bit packed tile encoding for efficient memory usage
 
 ## Generation Process
 
-1. **Room Placement**: 4×4 grid with Fisher-Yates shuffle prevents patterns
+1. **Room Placement**: 4×4 grid with Fisher-Yates shuffle prevents patterns, walls built around each room
 2. **Connectivity**: Minimum Spanning Tree links all rooms optimally
-3. **Corridors**: Three types (straight, L-shaped, Z-shaped) based on room positions
+3. **Corridors**: Three types (straight, L-shaped, Z-shaped) based on room positions, walls built during corridor creation
 4. **Secret Areas**: Single-connection rooms become hidden (15% chance)
-5. **Stairs & Walls**: Priority-based stair placement and automatic wall generation
+5. **Stairs**: Priority-based stair placement in room centers
 
 ## Documentation
 

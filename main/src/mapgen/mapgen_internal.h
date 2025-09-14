@@ -10,7 +10,6 @@
 // Core map generation algorithm functions (internal only)
 void create_rooms(void);
 void connect_rooms(void);
-void add_walls(void);
 void add_stairs(void);
 unsigned char generate_level(void);
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);

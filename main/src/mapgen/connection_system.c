@@ -88,7 +88,7 @@ unsigned char rooms_are_connected(unsigned char room1, unsigned char room2) {
 // CORRIDOR DRAWING FUNCTIONS
 // =============================================================================
 
-// Draw straight corridor connecting two doors
+// Draw straight corridor connecting two doors with walls
 static void draw_straight_path(unsigned char door1_x, unsigned char door1_y, unsigned char door2_x, unsigned char door2_y, unsigned char is_secret) {
     signed char x = door1_x, y = door1_y;
     unsigned char tile_type = is_secret ? TILE_SECRET_PATH : TILE_FLOOR;
@@ -98,6 +98,8 @@ static void draw_straight_path(unsigned char door1_x, unsigned char door1_y, uns
         // Place corridor tiles, avoiding only room interiors
         if (can_place_corridor(x, y)) {
             set_tile_raw(x, y, tile_type);
+            // Place walls around this corridor tile
+            place_walls_around_corridor_tile(x, y);
         }
         
         // Move towards target door
@@ -109,7 +111,7 @@ static void draw_straight_path(unsigned char door1_x, unsigned char door1_y, uns
     }
 }
 
-// Draw L-shaped corridor connecting two doors with perpendicular segments
+// Draw L-shaped corridor connecting two doors with perpendicular segments and walls
 static void draw_l_path(unsigned char door1_x, unsigned char door1_y, unsigned char door2_x, unsigned char door2_y, unsigned char wall_side, unsigned char is_secret) {
     signed char pivot_x = door1_x, pivot_y = door1_y; // Initialize to avoid warnings
     
@@ -134,7 +136,7 @@ static void draw_l_path(unsigned char door1_x, unsigned char door1_y, unsigned c
     draw_straight_path(pivot_x, pivot_y, door2_x, door2_y, is_secret);
 }
 
-// Draw Z-shaped corridor connecting two doors with three segments
+// Draw Z-shaped corridor connecting two doors with three segments and walls
 static void draw_z_path(unsigned char door1_x, unsigned char door1_y, unsigned char door2_x, unsigned char door2_y, unsigned char wall_side, unsigned char is_secret) {
     // Calculate Z-corridor segment endpoints
     signed char seg1_end_x = door1_x, seg1_end_y = door1_y; // Initialize to avoid warnings

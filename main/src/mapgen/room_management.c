@@ -142,7 +142,7 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
     return 0; // Failed to place
 }
 
-// Creates room and adds it to the room list
+// Creates room and adds it to the room list with walls
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     // Fill room area with floor tiles
     for (unsigned char iy = y; iy < y + h; iy++) {
@@ -150,6 +150,9 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
             set_tile_raw(ix, iy, TILE_FLOOR);
         }
     }
+    
+    // Place walls around the room immediately
+    place_walls_around_room(x, y, w, h);
     
     // Add room to list if capacity allows
     if (room_count < MAX_ROOMS) {

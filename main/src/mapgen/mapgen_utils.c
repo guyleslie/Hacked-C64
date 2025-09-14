@@ -494,4 +494,48 @@ void init_generation_progress(void) {
     print_text("      *** Hacked Map Generator ***\n");
 }
 
+// =============================================================================
+// INCREMENTAL WALL PLACEMENT FUNCTIONS
+// =============================================================================
+
+// Place walls around a room during room creation
+void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
+    // Top and bottom walls (including corners)
+    for (unsigned char ix = x - 1; ix <= x + w; ix++) {
+        if (coords_in_bounds(ix, y - 1) && tile_is_empty(ix, y - 1)) {
+            set_tile_raw(ix, y - 1, TILE_WALL); // Top wall
+        }
+        if (coords_in_bounds(ix, y + h) && tile_is_empty(ix, y + h)) {
+            set_tile_raw(ix, y + h, TILE_WALL); // Bottom wall
+        }
+    }
+    
+    // Left and right walls (excluding corners already done)
+    for (unsigned char iy = y; iy < y + h; iy++) {
+        if (coords_in_bounds(x - 1, iy) && tile_is_empty(x - 1, iy)) {
+            set_tile_raw(x - 1, iy, TILE_WALL); // Left wall
+        }
+        if (coords_in_bounds(x + w, iy) && tile_is_empty(x + w, iy)) {
+            set_tile_raw(x + w, iy, TILE_WALL); // Right wall
+        }
+    }
+}
+
+// Place walls around a single corridor tile during corridor creation
+void place_walls_around_corridor_tile(unsigned char x, unsigned char y) {
+    // 8-directional wall placement around corridor tile
+    for (signed char dy = -1; dy <= 1; dy++) {
+        for (signed char dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue; // Skip center tile
+            
+            unsigned char wall_x = x + dx;
+            unsigned char wall_y = y + dy;
+            
+            if (coords_in_bounds(wall_x, wall_y) && tile_is_empty(wall_x, wall_y)) {
+                set_tile_raw(wall_x, wall_y, TILE_WALL);
+            }
+        }
+    }
+}
+
 

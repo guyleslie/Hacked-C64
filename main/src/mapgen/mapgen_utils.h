@@ -92,4 +92,8 @@ unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2)
 void init_room_distance_cache(void);
 void clear_room_distance_cache(void);
 
+// Incremental wall placement functions
+void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
+void place_walls_around_corridor_tile(unsigned char x, unsigned char y);
+
 #endif // MAPGEN_UTILITY_H

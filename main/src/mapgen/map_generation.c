@@ -84,74 +84,24 @@ void add_stairs(void) {
     }
 }
 
-// =============================================================================
-// PHASE 4:  WALL PLACEMENT
-// =============================================================================
-
-void add_walls(void) {
-    unsigned char x, y; // Oscar64 register allocation
-    unsigned char tile;
-
-    init_progress("\n\nPlacing walls");
-    
-    for (y = 0; y < MAP_H; y++) {
-        // Loop unrolling
-        #pragma unroll(2)
-        for (x = 0; x < MAP_W; x++) {
-            tile = get_tile_raw(x, y);
-            
-            // Only place walls around walkable tiles
-            if (is_walkable_tile(tile)) {
-                // Cardinal directions - use mapgen_utils helper functions
-                if (tile_is_empty(x, y-1)) {
-                    set_tile_raw(x, y-1, TILE_WALL);
-                }
-                if (tile_is_empty(x, y+1)) {
-                    set_tile_raw(x, y+1, TILE_WALL);
-                }
-                if (tile_is_empty(x-1, y)) {
-                    set_tile_raw(x-1, y, TILE_WALL);
-                }
-                if (tile_is_empty(x+1, y)) {
-                    set_tile_raw(x+1, y, TILE_WALL);
-                }
-                
-                // Diagonal walls - use mapgen_utils helper functions
-                if (tile_is_empty(x-1, y-1)) {
-                    set_tile_raw(x-1, y-1, TILE_WALL);
-                }
-                if (tile_is_empty(x+1, y-1)) {
-                    set_tile_raw(x+1, y-1, TILE_WALL);
-                }
-                if (tile_is_empty(x-1, y+1)) {
-                    set_tile_raw(x-1, y+1, TILE_WALL);
-                }
-                if (tile_is_empty(x+1, y+1)) {
-                    set_tile_raw(x+1, y+1, TILE_WALL);
-                }
-            }
-        }
-        if ((y & 7) == 0) show_progress();
-    }
-}
 
 // =============================================================================
 // MAIN MAP GENERATION PIPELINE
 // =============================================================================
 
-// Level generation pipeline
+// Level generation pipeline with incremental wall building
 unsigned char generate_level(void) {
     // Initialize progress system
     init_generation_progress();
     
-    // Phase 1: Create rooms using grid-based placement
+    // Phase 1: Create rooms with walls using grid-based placement
     create_rooms();
     // Early exit if no rooms were created
     if (room_count == 0) {
         return 0; // Generation failed
     }
     
-    // Phase 2: Room Connection System (init_rooms() already initialized connection data)
+    // Phase 2: Room Connection System with corridor walls (init_rooms() already initialized connection data)
     connect_rooms();
     
     // Phase 2.5: Convert single-connection rooms to secret rooms
@@ -160,10 +110,10 @@ unsigned char generate_level(void) {
     // Phase 3: Place stairs for level navigation
     add_stairs();
     
-    // Phase 4: Add walls around all floor areas
-    add_walls();
+    // Phase 4: Walls are now built incrementally during room and corridor creation
+    // add_walls() removed - no longer needed!
     
-    // Phase 5: Initialize camera for new map
+    // Phase 4: Initialize camera for new map
     initialize_camera();
     
     return 1; // Generation successful

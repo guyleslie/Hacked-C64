@@ -6,19 +6,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Commodore 64 dungeon map generator built with the OSCAR64 cross-compiler. The project generates real-time procedural dungeons with room placement, corridors, secret areas, and interactive navigation on C64 hardware.
 
-## Build Commands
+## Tech Stack
 
-### Primary Build Method
+- **Platform**: Commodore 64 (6502 processor, 64KB RAM)
+- **Compiler**: OSCAR64 cross-compiler
+- **Language**: C with C64-specific optimizations  
+- **Target**: .prg executable format
+- **Memory Model**: Static allocation only, 3-bit tile encoding
+- **Display**: 40×25 character mode viewport on 64×64 map
+
+## Commands
+
+### Build Commands
 ```bash
-# Build the project using batch script (Windows)
-build.bat
+# Create build directory
+mkdir -p build
 
-# Run in VICE emulator (requires successful build first)
-run_vice.bat
+# Build with OSCAR64 compiler
+oscar64/bin/oscar64.exe -o="build/Hacked C64.prg" -n -tf=prg -Os -dNOLONG -dNOFLOAT -psci -tm=c64 -dDEBUG -d__oscar64__ -i=oscar64/include -i=oscar64/include/c64 -i=main/src/mapgen main/src/main.c
+```
 
-# Build using CMake (cross-platform)
-cmake -B build
-cmake --build build
+### Verification Commands
+```bash
+# Check build success
+ls -la build/
+
+# Clean build directory  
+rm -rf build/*
+
+# Verify output files exist
+ls build/"Hacked C64.prg" build/"Hacked C64.map" build/"Hacked C64.asm"
 ```
 
 ### Build Process Details
@@ -32,8 +49,9 @@ The build system creates multiple output files in the `build/` directory:
 ### Build System Details
 - **OSCAR64 Compiler**: Cross-compiler for C64 development
 - **Output**: `build/Hacked C64.prg` (optimized C64 executable)
-- **Build flags**: `-Os -dNOLONG -dNOFLOAT -psci -tm=c64 -dDEBUG`
+- **Build flags**: `-Os -dNOLONG -dNOFLOAT -psci -tm=c64 -dDEBUG -d__oscar64__`
 - **Target**: C64 platform with 64KB RAM constraint
+- **Include paths**: oscar64/include, oscar64/include/c64, main/src/mapgen
 
 ## Architecture
 
@@ -57,15 +75,39 @@ The build system creates multiple output files in the `build/` directory:
 - **Display**: Character-mode rendering with custom tiles
 
 ### Generation Algorithm
-1. **Room Placement**: Fisher-Yates shuffle on 4×4 grid
-2. **Connection**: Minimum spanning tree for corridor generation
-3. **Secret Rooms**: Isolated rooms become secret areas
-4. **Wall Filling**: Flood-fill algorithm for solid barriers
+1. **Room Placement**: Fisher-Yates shuffle on 4×4 grid with immediate wall construction
+2. **Connection**: Minimum spanning tree for corridor generation with walls built during creation
+3. **Secret Rooms**: Single-connection rooms converted to secret areas
+4. **Stair Placement**: Priority-based placement in room centers
 
-## Key Development Patterns
+## Code Style & Conventions
 
-### Include Structure
-OSCAR64 uses C file inclusion rather than separate compilation. All mapgen modules are included in `main/src/main.c`:
+### C64-Specific Patterns
+- Use `unsigned char` for all coordinates, counters, and tile types
+- Avoid dynamic allocation - use fixed-size arrays only
+- Optimize for 6502: prefer 8-bit arithmetic over 16-bit operations
+- OSCAR64 requirement: include all .c files in main.c (no separate compilation)
+
+### Function Naming
+- Use snake_case: `place_walls_around_room()`, `calculate_room_distance()`
+- Prefix with module: `mapgen_`, `room_`, `connection_`
+- Keep function names descriptive but concise
+
+### Memory Management
+- Static allocation only - no malloc/free
+- 3-bit tile encoding in packed arrays
+- Use `__zeropage` annotation for frequently accessed variables
+
+## Core Files & Architecture
+
+### Critical Files
+- **main/src/main.c**: Entry point - includes ALL mapgen modules (OSCAR64 pattern)
+- **main/src/mapgen/map_generation.c**: Generation pipeline controller
+- **main/src/mapgen/room_management.c**: Room placement with immediate wall building  
+- **main/src/mapgen/connection_system.c**: MST corridors with incremental wall construction
+- **main/src/mapgen/mapgen_utils.c**: Core utilities including `place_walls_around_room()`, `place_walls_around_corridor_tile()`
+
+### Include Structure (OSCAR64 Requirement)
 ```c
 #include "mapgen/mapgen_utils.c"
 #include "mapgen/map_generation.c"
@@ -74,6 +116,18 @@ OSCAR64 uses C file inclusion rather than separate compilation. All mapgen modul
 #include "mapgen/mapgen_display.c"
 #include "mapgen/map_export.c"
 ```
+
+### Build Output Analysis
+OSCAR64 generates detailed build information for optimization:
+- **`build/Hacked C64.map`**: Memory usage analysis, function sizes, optimization opportunities
+- **`build/Hacked C64.asm`**: 6502 assembly listing for performance analysis and debugging
+- **`build/Hacked C64.lbl`**: VICE debugger labels for runtime debugging
+- Use these files to verify optimizations and identify performance bottlenecks
+
+### OSCAR64 Requirements
+- All mapgen modules MUST be included in main.c (no separate compilation)
+- Use provided compiler flags exactly as specified
+- Review memory map for optimization opportunities
 
 ### Memory Constraints
 - Avoid dynamic allocation (limited heap)
@@ -95,9 +149,10 @@ unsigned char map[MAP_HEIGHT][MAP_WIDTH];
 
 ## Testing and Verification
 
-The project includes validation systems:
-- `mapgen_validate_map()`: Checks map integrity
-- `mapgen_get_statistics()`: Analyzes generation results
+Build verification:
+- Successful compilation produces `build/Hacked C64.prg`
+- Assembly listing in `build/Hacked C64.asm` for debugging
+- Memory map in `build/Hacked C64.map` for optimization analysis
 - Manual testing via VICE emulator
 
 ## Documentation References
@@ -108,12 +163,8 @@ The project includes validation systems:
 
 ## Platform-Specific Notes
 
-### Windows Development
-- Uses batch scripts for build automation
-- VICE emulator integration via `run_vice.bat`
-- Requires OSCAR64 compiler in project structure
-
-### Cross-Platform Support
-- CMake configuration supports multiple platforms
-- Environment variable detection for CI/CD
-- Automatic path resolution for compiler location
+### Cross-Platform Development
+- OSCAR64 compiler located in `oscar64/bin/oscar64.exe`
+- Build directory automatically created as `build/`
+- Source files in `main/src/` with mapgen modules in `main/src/mapgen/`
+- All mapgen modules included in main.c (OSCAR64 pattern)

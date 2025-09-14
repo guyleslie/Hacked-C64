@@ -53,6 +53,11 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - 15 placement attempts per grid position for suitable positioning
 - Boundary clamping keeps rooms within map limits
 
+**Wall Construction:**
+- Walls are built immediately around each room during placement
+- 8-directional wall placement covers cardinal and diagonal positions
+- Existing tiles are not overwritten to preserve previously placed structures
+
 ### Phase 2: Room Connectivity (MST Algorithm)
 
 Room interconnection uses Prim's algorithm to guarantee that all rooms remain reachable:
@@ -67,6 +72,7 @@ Room interconnection uses Prim's algorithm to guarantee that all rooms remain re
 - **Straight Corridors:** Direct connection between two rooms
 - **L-shaped Corridors:** Two perpendicular segments (horizontal-then-vertical or vice versa)
 - **Z-shaped Corridors:** Three segments for complex navigation around obstacles
+- **Wall Building:** Walls are constructed around each corridor tile as it's placed
 
 **Door Placement Logic:**
 - Each connection creates two doors (one per room wall)
@@ -182,7 +188,7 @@ typedef struct {
 ### Computational Complexity
 - **Room Placement**: O(n) with grid constraints
 - **MST Generation**: O(n²) for complete connectivity
-- **Wall Placement**: O(map_size) single pass
+- **Wall Placement**: O(room_perimeter + corridor_length) incremental during creation
 - **Screen Rendering**: O(viewport_size) with delta optimization
 
 ### Hardware Integration
@@ -194,12 +200,11 @@ typedef struct {
 ## Generation Pipeline
 
 1. **Initialization**: Map clearing, random seed setup
-2. **Room Creation**: Grid-based placement with collision detection
-3. **Connection System**: MST algorithm execution
+2. **Room Creation**: Grid-based placement with collision detection and immediate wall construction
+3. **Connection System**: MST algorithm execution with corridor walls built during creation
 4. **Secret Rooms**: Single-connection room conversion
 5. **Stair Placement**: Start/end room assignment by priority
-6. **Wall Generation**: Automatic wall placement around floor areas
-7. **Camera Initialization**: Viewport setup for navigation
+6. **Camera Initialization**: Viewport setup for navigation
 
 ## Technical Architecture
 
