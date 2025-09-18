@@ -221,7 +221,7 @@ void create_rooms(void) {
     // Initialize room structures
     init_rooms();
     
-    init_progress("\n\nBuilding rooms");
+    // Room creation phase - progress handled by main generation loop
     
     // Initialize grid position array
     for (unsigned char i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
@@ -274,7 +274,8 @@ void create_rooms(void) {
         if (try_place_room_at_grid(grid_positions[i], w, h, &x, &y)) {
             place_room(x, y, w, h);
             placed_rooms++;
-            show_progress(); // Progress indicator
+            // First phase should reach ~40%: call more frequently  
+            update_progress_step();  // Every room gets a progress step
         }
     }
     
