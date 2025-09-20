@@ -31,7 +31,9 @@ CMakeLists.txt               # Cross-platform build configuration
 
 ## Map Generation Logic
 
-### Phase 1: Room Creation and Placement
+The generation process displays real-time progress with centered progress bar and phase indicators:
+
+### Phase 1: Building Rooms
 
 The room generation operates on a 4×4 grid system providing 16 potential positions across the map. The process works as follows:
 
@@ -58,7 +60,7 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - 8-directional wall placement covers cardinal and diagonal positions
 - Existing tiles are not overwritten to preserve previously placed structures
 
-### Phase 2: Room Connectivity (MST Algorithm)
+### Phase 2: Connecting Rooms (MST Algorithm)
 
 Room interconnection uses Prim's algorithm to guarantee that all rooms remain reachable:
 
@@ -80,7 +82,7 @@ Room interconnection uses Prim's algorithm to guarantee that all rooms remain re
 - System stores door metadata including position, direction, and connected room index
 - Maximum 4 doors per room with explicit tracking
 
-### Phase 3: Secret Rooms and Pathways
+### Phase 3: Creating Secret Areas
 
 The secret room system provides a special gameplay mechanic:
 
@@ -94,6 +96,33 @@ The secret room system provides a special gameplay mechanic:
 - Original corridor geometry is preserved (straight/L/Z shape)
 - Both secret room door and connecting normal room door become secret passages
 - Visual representation uses special character (`░` symbol)
+
+### Phase 4: Placing Stairs
+
+Stair placement system ensures optimal level navigation:
+
+**Priority-Based Selection:**
+- Up stairs placed in highest priority room
+- Down stairs placed in second highest priority room
+- Priority ensures stairs are placed in well-connected, accessible rooms
+
+**Distance Validation:**
+- Adaptive minimum distance requirements: 20 tiles (≤6 rooms) or 30 tiles (>6 rooms)
+- Distance calculated using Manhattan distance between room centers
+- Ensures reasonable separation between level entry and exit points
+
+**Placement Strategy:**
+- Stairs positioned at room centers for optimal accessibility
+- Coordinate bounds checking prevents placement errors
+- System guarantees valid navigation paths between levels
+
+### Phase 5: Finalizing
+
+Final generation step completes the map:
+
+**Camera Initialization:**
+- Viewport positioning for interactive navigation
+- System preparation for player movement
 
 ## Data Storage System
 

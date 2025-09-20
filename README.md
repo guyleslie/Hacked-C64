@@ -83,11 +83,14 @@ Final dungeon map:
 
 ## Generation Process
 
-1. **Room Placement**: 4×4 grid with Fisher-Yates shuffle prevents patterns, walls built around each room
-2. **Connectivity**: Minimum Spanning Tree links all rooms optimally
-3. **Corridors**: Three types (straight, L-shaped, Z-shaped) based on room positions, walls built during corridor creation
-4. **Secret Areas**: Single-connection rooms become hidden (15% chance)
-5. **Stairs**: Priority-based stair placement in room centers
+The generation process displays real-time progress with a centered progress bar and phase indicators:
+
+1. **Building Rooms**: 4×4 grid with Fisher-Yates shuffle prevents patterns, walls built around each room
+2. **Connecting Rooms**: Minimum Spanning Tree links all rooms optimally with corridors
+3. **Creating Secret Areas**: Single-connection rooms become hidden passages (15% chance)
+4. **Placing Stairs**: Priority-based stair placement in room centers
+5. **Finalizing**: Camera initialization and map preparation
+6. **Generation Success**: Completion message with 3-second display delay
 
 ## Documentation
 
