@@ -10,10 +10,13 @@ unsigned char rnd(unsigned char max);
 
 // Console functions for Oscar64
 void print_text(const char* text);
-// Simple progress system
+// PETSCII Progress bar system - direct functions, no wrappers
+void init_progress_bar_simple(const char* title);
+void update_progress_step(void);
+void finish_progress_bar_simple(void);
+void show_phase_name(const char* phase_name);
+void clear_phase_name(void);
 void init_generation_progress(void);
-void init_progress(const char* task_name);
-void show_progress(void);
 
 // Tile access and manipulation (optimized for C64 performance)
 unsigned char get_compact_tile(unsigned char x, unsigned char y);

@@ -479,19 +479,117 @@ void print_text(const char* text) {
 }
 
 // =============================================================================
-// SIMPLE PROGRESS SYSTEM
+// PETSCII PROGRESS BAR SYSTEM
 // =============================================================================
 
-void init_progress(const char* task_name) {
-    print_text(task_name);
+// Screen code characters for progress bar - CharPad mixedcases basis ROM values
+#define PROGRESS_QUARTER  0x65  // 101 = 0x65 left quarter block
+#define PROGRESS_HALF     0x61  // 97 = 0x61 left half block (corrected value)
+#define PROGRESS_THREE_Q  0xE7  // 231 = 0xE7 left three-quarter block  
+#define PROGRESS_FULL     0xA0  // 160 = 0xA0 full block (inverse space)
+
+// Progress bar state - OSCAR64 simplified and optimized
+static unsigned char progress_steps = 0;    // Total steps (0-80: 20 positions × 4 phases)
+static const unsigned char progress_x = 9;  // X position (centered: (40-22)/2 = 9)
+static const unsigned char progress_y = 12; // Y position (screen center)
+
+// Initialize progress bar with C64-optimized display
+void init_progress_bar_simple(const char* title) {
+    progress_steps = 0;
+    
+    // Clear screen and show title using OSCAR64 compatible functions
+    clrscr();
+    gotoxy(13, 10); // Center generation status: (40-14)/2 = 13
+    print_text(title);
+    
+    // Progress bar will be drawn by update_progress_step() calls
 }
 
-void show_progress(void) {
-    print_text(".");
+// Update progress bar one step - OSCAR64 simplified and optimized
+void update_progress_step(void) {
+    // Increment progress and clamp to maximum
+    if (progress_steps < 80) {
+        progress_steps++;
+    }
+    
+    // Calculate position and phase from total steps
+    unsigned char pos = progress_steps >> 2;        // Divide by 4 (OSCAR64 optimizes to shift)
+    unsigned char phase = progress_steps & 3;       // Modulo 4 (OSCAR64 optimizes to AND)
+    
+    // OSCAR64 optimization hints for 8-bit value range analysis
+    __assume(pos < 20);
+    __assume(phase < 4);
+    
+    // Direct screen memory access for CharPad screen codes
+    // putchar() converts PETSCII->screen, but we already have screen codes!
+    volatile unsigned char * const screen_mem = (volatile unsigned char *)SCREEN_MEMORY_BASE;
+    unsigned short base_pos = progress_y * 40 + (progress_x + 1);
+    
+    // Fill all previous positions with full blocks
+    for (unsigned char i = 0; i < pos; i++) {
+        screen_mem[base_pos + i] = PROGRESS_FULL;  // Direct screen code write
+    }
+    
+    // Show current position with appropriate phase character
+    switch(phase) {
+        case 0:
+            screen_mem[base_pos + pos] = PROGRESS_QUARTER;   // Left quarter block
+            break;
+        case 1:
+            screen_mem[base_pos + pos] = PROGRESS_HALF;      // Left half block
+            break;
+        case 2:
+            screen_mem[base_pos + pos] = PROGRESS_THREE_Q;   // Left three-quarter block
+            break;
+        case 3:
+            screen_mem[base_pos + pos] = PROGRESS_FULL;      // Full block
+            break;
+    }
 }
 
+// Finish progress bar - OSCAR64 simplified completion
+void finish_progress_bar_simple(void) {
+    // Simply set to maximum and display final state
+    progress_steps = 80;
+    
+    // Direct screen memory access for final progress bar
+    volatile unsigned char * const screen_mem = (volatile unsigned char *)SCREEN_MEMORY_BASE;
+    unsigned short base_pos = progress_y * 40 + (progress_x + 1);
+    
+    // Draw all 20 positions filled with full blocks using direct screen codes
+    for (unsigned char i = 0; i < 20; i++) {
+        screen_mem[base_pos + i] = PROGRESS_FULL;  // Direct screen code write
+    }
+}
+
+// Show current phase name below progress bar - centered
+void show_phase_name(const char* phase_name) {
+    // Calculate center position for phase name based on text length
+    unsigned char text_len = 0;
+    const char* p = phase_name;
+    while (*p) { // Simple string length calculation - fixed
+        text_len++;
+        p++;
+    }
+    
+    unsigned char phase_x = (40 - text_len) / 2; // Center horizontally
+    
+    // Clear previous phase name line
+    gotoxy(0, progress_y + 2);
+    print_text("                                        ");  // Clear full line (40 chars)
+    gotoxy(phase_x, progress_y + 2);
+    print_text(phase_name);
+}
+
+// Clear phase name area
+void clear_phase_name(void) {
+    gotoxy(0, progress_y + 2);
+    print_text("                                        ");  // Clear full line (40 chars)
+}
+
+// Simplified progress system - direct calls, no unnecessary wrappers
 void init_generation_progress(void) {
-    print_text("      *** Hacked Map Generator ***\n");
+    init_progress_bar_simple("MAP GENERATION");
 }
 
 // =============================================================================

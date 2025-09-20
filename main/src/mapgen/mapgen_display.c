@@ -61,8 +61,12 @@ void initialize_camera(void) {
         update_camera();
     }
     
-    // Render initial view with full refresh
-    render_map_viewport(1);
+    // Finalization: fill remaining progress to 100%
+    for (unsigned char fill = 0; fill < 10; fill++) {
+        update_progress_step();
+    }
+    
+    // NOTE: render_map_viewport() moved out - will be called after progress bar finishes
 }
 
 // Update viewport based on camera center position with boundary checking

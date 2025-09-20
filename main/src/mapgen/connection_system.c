@@ -553,7 +553,7 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
 void connect_rooms(void) {
     static unsigned char connected[MAX_ROOMS];
     
-    init_progress("\n\nConnecting rooms");
+    // Room connection phase - progress handled by main generation loop
     
     // OSCAR64 optimization: Help compiler with range analysis
     __assume(room_count <= MAX_ROOMS);  // room_count <= 20
@@ -591,7 +591,9 @@ void connect_rooms(void) {
             if (connect_rooms_directly(best_room1, best_room2, 0)) {
                 connected[best_room2] = 1;
                 connections_made++;
-                show_progress();
+                // Second phase should reach 100% (40 more steps): ~2 steps per connection
+                update_progress_step();
+                update_progress_step();  // Two steps per connection for faster fill
             } else {
                 break; // Connection failed
             }
@@ -607,7 +609,7 @@ void connect_rooms(void) {
 
 // Convert corridors of single-connection rooms to secret passages
 void convert_secret_corridors(unsigned char secret_percentage) {
-    init_progress("\n\nConverting secret rooms");
+    // Secret room conversion phase - progress handled by main generation loop
     
     for (unsigned char i = 0; i < room_count; i++) {
         // Only rooms with exactly one connection can be secret
@@ -638,7 +640,10 @@ void convert_secret_corridors(unsigned char secret_percentage) {
                     // Convert doors to secret passages
                     set_tile_raw(secret_door->x, secret_door->y, TILE_SECRET_PATH);
                     set_tile_raw(normal_door->x, normal_door->y, TILE_SECRET_PATH);
-                    show_progress();
+                    // Secret phase: quickly fill any remaining progress
+                    for (unsigned char fill = 0; fill < 3; fill++) {
+                        update_progress_step();
+                    }
                 }
             }
         }
