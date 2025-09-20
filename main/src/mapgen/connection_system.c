@@ -608,12 +608,12 @@ void connect_rooms(void) {
 // =============================================================================
 
 // Convert corridors of single-connection rooms to secret passages
-void convert_secret_corridors(unsigned char secret_percentage) {
+void convert_secret_corridors(void) {
     // Secret room conversion phase - progress handled by main generation loop
     
     for (unsigned char i = 0; i < room_count; i++) {
         // Only rooms with exactly one connection can be secret
-        if (rooms[i].connections == 1 && rnd(100) < secret_percentage) {
+        if (rooms[i].connections == 1 && rnd(100) < SECRET_ROOM_PERCENTAGE) {
             rooms[i].state |= ROOM_SECRET;
             
             if (rooms[i].connections > 0) {

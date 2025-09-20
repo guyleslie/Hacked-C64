@@ -19,7 +19,7 @@ void assign_room_priorities(void);
 void init_rooms(void);
 
 // Secret room management
-void convert_secret_corridors(unsigned char secret_percentage);
+void convert_secret_corridors(void);
 
 // =============================================================================
 // CONSOLIDATED GLOBAL VARIABLE DECLARATIONS

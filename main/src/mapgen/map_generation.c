@@ -111,7 +111,7 @@ unsigned char generate_level(void) {
     
     // Phase 2.5: Convert single-connection rooms to secret rooms
     show_phase_name("Creating Secret Areas");
-    convert_secret_corridors(SECRET_ROOM_PERCENTAGE);
+    convert_secret_corridors();
     
     // Phase 3: Place stairs for level navigation
     show_phase_name("Placing Stairs");
