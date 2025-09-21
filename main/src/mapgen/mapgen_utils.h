@@ -99,4 +99,7 @@ void clear_room_distance_cache(void);
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
 void place_walls_around_corridor_tile(unsigned char x, unsigned char y);
 
+// Door placement functions
+void place_door(unsigned char x, unsigned char y);
+
 #endif // MAPGEN_UTILITY_H

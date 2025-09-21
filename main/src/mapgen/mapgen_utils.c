@@ -650,4 +650,16 @@ void place_walls_around_corridor_tile(unsigned char x, unsigned char y) {
     }
 }
 
+// =============================================================================
+// DOOR PLACEMENT FUNCTIONS  
+// =============================================================================
+
+// Simple door placement function with duplicate prevention
+void place_door(unsigned char x, unsigned char y) {
+    // Only place door if position is not already a door
+    if (coords_in_bounds(x, y) && get_compact_tile(x, y) != TILE_DOOR) {
+        set_tile_raw(x, y, TILE_DOOR);
+    }
+}
+
 

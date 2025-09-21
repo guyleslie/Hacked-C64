@@ -45,33 +45,64 @@ int main(void) {
     // Generate complete level (includes all necessary resets)
     mapgen_generate_dungeon();
     
-    // Interactive loop
+    // Interactive loop with continuous input using CIA keyboard matrix
     while (1) {
-        key = getch();
-
-        if (key == 'Q' || key == 'q') {
-            clrscr();
-            break;
-
-        } else if (key == ' ') {
-            clrscr();
-            // Generate new level (includes all necessary resets)
-            mapgen_generate_dungeon();
-
-        } else if (key == 'M' || key == 'm') {
-            // Save the current map to disk
-            save_compact_map("MAPDATA.BIN");
-        } else {
-            // Handle movement input (WASD)
-            if (key == 'w' || key == 'W') {
-                move_camera_direction(MOVE_UP);
-            } else if (key == 's' || key == 'S') {
-                move_camera_direction(MOVE_DOWN);
-            } else if (key == 'a' || key == 'A') {
-                move_camera_direction(MOVE_LEFT);
-            } else if (key == 'd' || key == 'D') {
-                move_camera_direction(MOVE_RIGHT);
+        // Check for non-movement keys using standard input
+        if (kbhit()) {
+            key = getch();
+            
+            if (key == 'Q' || key == 'q') {
+                clrscr();
+                break;
+            } else if (key == ' ') {
+                clrscr();
+                // Generate new level (includes all necessary resets)
+                mapgen_generate_dungeon();
+            } else if (key == 'M' || key == 'm') {
+                // Save the current map to disk
+                save_compact_map("MAPDATA.BIN");
             }
+        }
+        
+        // Continuous movement using CIA keyboard matrix direct access
+        // Save current CIA state
+        unsigned char old_porta = cia1.pra;
+        
+        // Scan row 1 (contains W, A, S keys) - set row 1 to 0, others to 1
+        cia1.pra = 0xFD; // 11111101 - scan row 1
+        
+        // Read column states from port B
+        unsigned char row1_keys = cia1.prb;
+        
+        // Check W key (row 1, column 1) - bit 1
+        if (!(row1_keys & 0x02)) {
+            move_camera_direction(MOVE_UP);
+        }
+        // Check A key (row 1, column 2) - bit 2  
+        if (!(row1_keys & 0x04)) {
+            move_camera_direction(MOVE_LEFT);
+        }
+        // Check S key (row 1, column 5) - bit 5
+        if (!(row1_keys & 0x20)) {
+            move_camera_direction(MOVE_DOWN);
+        }
+        
+        // Scan row 2 (contains D key) - set row 2 to 0, others to 1
+        cia1.pra = 0xFB; // 11111011 - scan row 2
+        
+        unsigned char row2_keys = cia1.prb;
+        
+        // Check D key (row 2, column 2) - bit 2
+        if (!(row2_keys & 0x04)) {
+            move_camera_direction(MOVE_RIGHT);
+        }
+        
+        // Restore CIA port A
+        cia1.pra = old_porta;
+        
+        // Small delay for smooth scrolling - prevents too fast movement
+        for (unsigned char i = 0; i < 100; i++) {
+            // Timing loop - adjust for desired scroll speed
         }
     }
     

@@ -13,12 +13,7 @@
 
 // find_existing_door_on_wall moved to room_management.c
 
-// Simple door placement function
-void place_door(unsigned char x, unsigned char y) {
-    if (!tile_is_any_door(x, y)) {
-        set_tile_raw(x, y, TILE_DOOR);
-    }
-}
+// place_door function moved to mapgen_utils.c
 
 // Corridor placement check - avoid room interiors only
 unsigned char can_place_corridor(unsigned char x, unsigned char y) {
@@ -181,7 +176,7 @@ static void check_room_alignment(unsigned char room1, unsigned char room2,
     *has_vertical_overlap = !(r1->x + r1->w <= r2->x || r2->x + r2->w <= r1->x);
 }
 
-// Calculate door position on room wall facing target
+// Calculate door position on room wall facing target with door reuse optimization
 static void calculate_exit_from_target(unsigned char room_idx, unsigned char target_x, unsigned char target_y,
                                      unsigned char *door_x, unsigned char *door_y) {
     Room *room = &rooms[room_idx];
@@ -191,26 +186,46 @@ static void calculate_exit_from_target(unsigned char room_idx, unsigned char tar
     unsigned char dx = abs_diff(target_x, room_center_x);
     unsigned char dy = abs_diff(target_y, room_center_y);
     
+    // Determine target wall and ideal position
+    unsigned char target_wall;
+    unsigned char ideal_x, ideal_y;
+    
     // Position door on room wall (outside walkable area)
     if (dx > dy) {
         // Horizontal movement preferred
         if (target_x > room_center_x) {
-            *door_x = room->x + room->w; // Right wall (outside room)
-            *door_y = room->y + room->h / 2;
+            target_wall = 1; // Right wall
+            ideal_x = room->x + room->w; // Right wall (outside room)
+            ideal_y = room->y + room->h / 2;
         } else {
-            *door_x = room->x - 1; // Left wall (outside room)
-            *door_y = room->y + room->h / 2;
+            target_wall = 0; // Left wall
+            ideal_x = room->x - 1; // Left wall (outside room)
+            ideal_y = room->y + room->h / 2;
         }
     } else {
         // Vertical movement preferred
         if (target_y > room_center_y) {
-            *door_x = room->x + room->w / 2;
-            *door_y = room->y + room->h; // Bottom wall (outside room)
+            target_wall = 3; // Bottom wall
+            ideal_x = room->x + room->w / 2;
+            ideal_y = room->y + room->h; // Bottom wall (outside room)
         } else {
-            *door_x = room->x + room->w / 2;
-            *door_y = room->y - 1; // Top wall (outside room)
+            target_wall = 2; // Top wall
+            ideal_x = room->x + room->w / 2;
+            ideal_y = room->y - 1; // Top wall (outside room)
         }
     }
+    
+    // DOOR REUSE: Only check if room has existing connections
+    if (rooms[room_idx].connections > 0) {
+        if (find_existing_door_on_wall(room_idx, target_wall, ideal_x, ideal_y, door_x, door_y)) {
+            // Found existing door - reuse it
+            return;
+        }
+    }
+    
+    // No existing door or no connections - use ideal position
+    *door_x = ideal_x;
+    *door_y = ideal_y;
 }
 
 // Calculate door positions for aligned rooms using straight corridors (NO door reuse)
