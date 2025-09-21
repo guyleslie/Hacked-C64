@@ -27,8 +27,8 @@ volatile unsigned char * const screen_memory = (volatile unsigned char *)SCREEN_
 // =============================================================================
 
 // Camera position in map space
-unsigned char camera_center_x = 32;
-unsigned char camera_center_y = 32;
+unsigned char camera_center_x = 36;  // 72/2 = 36 (map center for 72x72)
+unsigned char camera_center_y = 36;  // 72/2 = 36 (map center for 72x72)
 
 // Current viewport position (top-left corner)
 Viewport view = {0, 0};

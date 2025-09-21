@@ -13,7 +13,7 @@ This is a Commodore 64 dungeon map generator built with the OSCAR64 cross-compil
 - **Language**: C with C64-specific optimizations  
 - **Target**: .prg executable format
 - **Memory Model**: Static allocation only, 3-bit tile encoding
-- **Display**: 40×25 character mode viewport on 64×64 map
+- **Display**: 40×25 character mode viewport on 72×72 map
 
 ## Commands
 
@@ -69,7 +69,7 @@ The build system creates multiple output files in the `build/` directory:
   - `map_export.c/.h`: File I/O operations
 
 ### Memory Architecture
-- **Map Size**: Fixed 64×64 tile grid (3-bit packed encoding: 3072 bytes)
+- **Map Size**: Fixed 72×72 tile grid (3-bit packed encoding: 3888 bytes)
 - **Room System**: Up to 20 rooms on 4×4 placement grid (20 bytes each, 39% savings)
 - **Memory Usage**: Optimized allocation with atomic metadata management
 - **Display**: Character-mode rendering with custom tiles (40×25 viewport)

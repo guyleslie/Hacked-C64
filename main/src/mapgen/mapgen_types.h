@@ -11,8 +11,8 @@
 // OSCAR64 Optimization: Use enum instead of #define for better range analysis
 // This helps the compiler optimize 8-bit vs 16-bit operations
 enum MapConstants {
-    MAP_W = 64,
-    MAP_H = 64,
+    MAP_W = 72,
+    MAP_H = 72,
     VIEW_W = 40,
     VIEW_H = 25,
     MAX_ROOMS = 20,
@@ -21,8 +21,8 @@ enum MapConstants {
     MIN_ROOM_DISTANCE = 4,
     GRID_SIZE = 4,
     // Pre-calculated map size constants for 8-bit optimization
-    COMPACT_MAP_SIZE = 3072,  // (MAP_H * MAP_W * 3 + 7) / 8
-    COMPACT_MAP_CHUNKS = 12   // COMPACT_MAP_SIZE / 256
+    COMPACT_MAP_SIZE = 3888,  // (72 * 72 * 3 + 7) / 8 = (15552 + 7) / 8 = 3888
+    COMPACT_MAP_CHUNKS = 16   // COMPACT_MAP_SIZE / 256 = 3888 / 256 = 15.2 → 16
 };
 
 // Dynamic maximum connection distance calculation
@@ -68,7 +68,7 @@ enum MapConstants {
 #define ROOM_SECRET 0x01
 
 // Secret room system constants
-#define SECRET_ROOM_PERCENTAGE 15  // Percentage of single-connection rooms to mark as secret
+#define SECRET_ROOM_PERCENTAGE 30  // Percentage of single-connection rooms to mark as secret
 
 // Corridor and connection parameters
 #define MAX_PATH_LENGTH 20

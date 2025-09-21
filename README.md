@@ -71,9 +71,9 @@ Final dungeon map:
 
 ### Map Specifications
 
-- **Map Size**: 64×64 tiles with 40×25 viewport
+- **Map Size**: 72×72 tiles with 40×25 viewport
 - **Room Count**: Up to 20 rooms (4×4 to 8×8 tiles each)
-- **Storage**: 3-bit tile encoding in 3072 bytes
+- **Storage**: 3-bit tile encoding in 3888 bytes
 
 ### Performance
 

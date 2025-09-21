@@ -132,7 +132,7 @@ Map data is stored using a 3-bit per tile encoding:
 
 **Bit-Level Compression:**
 - Each tile type is represented by 3 bits (8 possible types)
-- 64×64 map = 4096 tiles × 3 bits = efficiently packed data
+- 72×72 map = 5184 tiles × 3 bits = efficiently packed data
 - Bits can span byte boundaries for maximum compression
 - Direct bit manipulation provides O(1) tile access
 

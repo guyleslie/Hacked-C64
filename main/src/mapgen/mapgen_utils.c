@@ -27,13 +27,14 @@ extern unsigned char last_scroll_direction;
 // Room center cache removed for OSCAR64 efficiency - simple calculation is faster
 
 // OSCAR64 Optimization: Pre-calculated Y bit offsets lookup table
-// Replaces expensive 16-bit multiplication: y * 192 = y * (64 * 3)
-// Each Y coordinate maps to bit offset: y * MAP_W * 3 = y * 192
-static const unsigned short y_bit_offsets[64] = {
-    0, 192, 384, 576, 768, 960, 1152, 1344, 1536, 1728, 1920, 2112, 2304, 2496, 2688, 2880,
-    3072, 3264, 3456, 3648, 3840, 4032, 4224, 4416, 4608, 4800, 4992, 5184, 5376, 5568, 5760, 5952,
-    6144, 6336, 6528, 6720, 6912, 7104, 7296, 7488, 7680, 7872, 8064, 8256, 8448, 8640, 8832, 9024,
-    9216, 9408, 9600, 9792, 9984, 10176, 10368, 10560, 10752, 10944, 11136, 11328, 11520, 11712, 11904, 12096
+// Replaces expensive 16-bit multiplication: y * 216 = y * (72 * 3)
+// Each Y coordinate maps to bit offset: y * MAP_W * 3 = y * 216
+static const unsigned short y_bit_offsets[72] = {
+    0, 216, 432, 648, 864, 1080, 1296, 1512, 1728, 1944, 2160, 2376, 2592, 2808, 3024, 3240,
+    3456, 3672, 3888, 4104, 4320, 4536, 4752, 4968, 5184, 5400, 5616, 5832, 6048, 6264, 6480, 6696,
+    6912, 7128, 7344, 7560, 7776, 7992, 8208, 8424, 8640, 8856, 9072, 9288, 9504, 9720, 9936, 10152,
+    10368, 10584, 10800, 11016, 11232, 11448, 11664, 11880, 12096, 12312, 12528, 12744, 12960, 13176, 13392, 13608,
+    13824, 14040, 14256, 14472, 14688, 14904, 15120, 15336
 };
 
 void init_rnd(void) {
@@ -151,9 +152,9 @@ inline unsigned char tile_is_empty(unsigned char x, unsigned char y) {
 
 void clear_map(void) {
     // OSCAR64 Optimized: Use 8-bit operations instead of 16-bit loop
-    // Total bytes: (64*64*3+7)/8 = 3072 bytes = 12 chunks of 256 + 0 remainder
+    // Total bytes: (72*72*3+7)/8 = 3888 bytes = 15 chunks of 256 + 48 remainder
     unsigned char *ptr = compact_map;
-    unsigned char chunks = 12;  // 3072 / 256 = 12
+    unsigned char chunks = 15;  // 3888 / 256 = 15 (+ 48 remainder)
     
     // Clear in 256-byte chunks for optimal 8-bit performance
     for (unsigned char chunk = 0; chunk < chunks; chunk++) {
@@ -164,7 +165,10 @@ void clear_map(void) {
         *ptr++ = 0;
     }
     
-    // No remainder bytes for 3072 (12 * 256 = 3072 exactly)
+    // Clear remainder bytes: 3888 - (15 * 256) = 48 bytes
+    for (unsigned char i = 0; i < 48; i++) {
+        *ptr++ = 0;
+    }
 }
 
 inline unsigned char coords_in_bounds(unsigned char x, unsigned char y) {
@@ -427,8 +431,8 @@ unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned ch
 
 
 void reset_viewport_state(void) {
-    camera_center_x = 32;
-    camera_center_y = 32;
+    camera_center_x = 36;  // 72/2 = 36 (map center for 72x72)
+    camera_center_y = 36;  // 72/2 = 36 (map center for 72x72)
     view.x = 0;
     view.y = 0;
 }

@@ -11,8 +11,8 @@
 #include "mapgen_utils.h"      // For utility functions
 
 // Local constants
-#define MAP_BORDER 4
-#define BORDER_PADDING 3
+#define MAP_BORDER 1
+#define BORDER_PADDING 1
 #define SCATTER_RANGE 3
 #define PLACEMENT_ATTEMPTS 15
 #define VARIATION_THRESHOLD 5
@@ -86,12 +86,12 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
         // Get base grid position - inline for OSCAR64 efficiency
         unsigned char grid_x = grid_index % GRID_SIZE;
         unsigned char grid_y = grid_index / GRID_SIZE;
-        unsigned char cell_w = (MAP_W - 8) / GRID_SIZE;  // Leave border space
-        unsigned char cell_h = (MAP_H - 8) / GRID_SIZE;
+        unsigned char cell_w = (MAP_W - 8) / GRID_SIZE;  // Adjusted for 72x72: (72-8)/4 = 16
+        unsigned char cell_h = (MAP_H - 8) / GRID_SIZE;  // More conservative border for larger map
         
         // Calculate base grid position with randomization
-        unsigned char base_x = 4 + grid_x * cell_w;
-        unsigned char base_y = 4 + grid_y * cell_h;
+        unsigned char base_x = 4 + grid_x * cell_w;  // Increased margin for 72x72
+        unsigned char base_y = 4 + grid_y * cell_h;  // Increased margin for 72x72
         
         // Add randomness to break grid alignment
         unsigned char extra_range_x = cell_w;
