@@ -79,7 +79,7 @@ Room interconnection uses Prim's algorithm to guarantee that all rooms remain re
 **Door Placement Logic:**
 - Each connection creates two doors (one per room wall)
 - Doors are automatically positioned at optimal wall points
-- System stores door metadata including position, direction, and connected room index
+- System stores door metadata including position and wall direction
 - Maximum 4 doors per room with explicit tracking
 
 ### Phase 3: Creating Secret Areas
