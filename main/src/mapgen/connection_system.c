@@ -11,25 +11,7 @@
 // HELPER FUNCTIONS
 // =============================================================================
 
-// Find existing door on specified wall side within tolerance
-static unsigned char find_existing_door_on_wall(unsigned char room_idx, unsigned char wall_side, 
-                                               unsigned char target_x, unsigned char target_y,
-                                               unsigned char *found_x, unsigned char *found_y) {
-    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
-        Door *door = &rooms[room_idx].doors[i];
-        if (door->wall_side == wall_side) {
-            // Check if door is within reasonable distance (±2 tiles)
-            unsigned char dx = abs_diff(door->x, target_x);
-            unsigned char dy = abs_diff(door->y, target_y);
-            if (dx <= 2 && dy <= 2) {
-                *found_x = door->x;
-                *found_y = door->y;
-                return 1; // Found existing door
-            }
-        }
-    }
-    return 0; // No suitable door found
-}
+// find_existing_door_on_wall moved to room_management.c
 
 // Simple door placement function
 void place_door(unsigned char x, unsigned char y) {
@@ -74,14 +56,9 @@ unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2)
 
 // Wrapper functions removed - using direct inline access for OSCAR64 efficiency
 
-// Check if rooms are already connected using OSCAR64 optimized packed structure
+// Check if rooms are already connected using optimized validation
 unsigned char rooms_are_connected(unsigned char room1, unsigned char room2) {
-    for (unsigned char i = 0; i < rooms[room1].connections; i++) {
-        if (rooms[room1].conn_data[i].used && rooms[room1].conn_data[i].room_id == room2) {
-            return 1;
-        }
-    }
-    return 0;
+    return room_has_connection_to(room1, room2);
 }
 
 // =============================================================================
@@ -507,37 +484,16 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
         rooms[room2].state |= ROOM_SECRET;
     }
     
-    // Store connection data with corridor type - direct inline assignment
-    // Add to room1's connection
-    if (rooms[room1].connections < 4) {
-        unsigned char idx1 = rooms[room1].connections;
-        rooms[room1].conn_data[idx1].room_id = room2;
-        rooms[room1].conn_data[idx1].corridor_type = corridor_type;
-        rooms[room1].conn_data[idx1].used = 1;
-        
-        // Add door directly
-        rooms[room1].doors[idx1].x = exit1_x;
-        rooms[room1].doors[idx1].y = exit1_y;
-        rooms[room1].doors[idx1].wall_side = wall1;
-        rooms[room1].doors[idx1].connected_room = room2;
-        
-        rooms[room1].connections++;
+    // Store connection data atomically using optimized metadata management
+    // Add bidirectional connection with atomic operations
+    if (!add_connection_to_room(room1, room2, exit1_x, exit1_y, wall1, corridor_type)) {
+        return 0; // Failed to add connection to room1
     }
     
-    // Add to room2's connection  
-    if (rooms[room2].connections < 4) {
-        unsigned char idx2 = rooms[room2].connections;
-        rooms[room2].conn_data[idx2].room_id = room1;
-        rooms[room2].conn_data[idx2].corridor_type = corridor_type;
-        rooms[room2].conn_data[idx2].used = 1;
-        
-        // Add door directly
-        rooms[room2].doors[idx2].x = exit2_x;
-        rooms[room2].doors[idx2].y = exit2_y;
-        rooms[room2].doors[idx2].wall_side = wall2;
-        rooms[room2].doors[idx2].connected_room = room1;
-        
-        rooms[room2].connections++;
+    if (!add_connection_to_room(room2, room1, exit2_x, exit2_y, wall2, corridor_type)) {
+        // Atomic rollback room1 connection if room2 addition fails
+        remove_last_connection_from_room(room1);
+        return 0; // Failed to add connection to room2
     }
     
     return 1;
@@ -591,9 +547,8 @@ void connect_rooms(void) {
             if (connect_rooms_directly(best_room1, best_room2, 0)) {
                 connected[best_room2] = 1;
                 connections_made++;
-                // Second phase should reach 100% (40 more steps): ~2 steps per connection
-                update_progress_step();
-                update_progress_step();  // Two steps per connection for faster fill
+                // Phase 1: Connection progress
+                update_progress_step(1, connections_made, room_count - 1);
             } else {
                 break; // Connection failed
             }
@@ -610,6 +565,7 @@ void connect_rooms(void) {
 // Convert corridors of single-connection rooms to secret passages
 void convert_secret_corridors(void) {
     // Secret room conversion phase - progress handled by main generation loop
+    unsigned char secrets_made = 0;
     
     for (unsigned char i = 0; i < room_count; i++) {
         // Only rooms with exactly one connection can be secret
@@ -618,32 +574,29 @@ void convert_secret_corridors(void) {
             
             if (rooms[i].connections > 0) {
                 Door *secret_door = &rooms[i].doors[0];
-                unsigned char connected_room = secret_door->connected_room;
+                unsigned char connected_room = rooms[i].conn_data[0].room_id; // Use optimized conn_data
                 unsigned char corridor_type = rooms[i].conn_data[0].corridor_type;
                 
-                // Find corresponding door in connected room
-                Door *normal_door = NULL;
-                for (unsigned char j = 0; j < rooms[connected_room].connections; j++) {
-                    if (rooms[connected_room].doors[j].connected_room == i) {
-                        normal_door = &rooms[connected_room].doors[j];
-                        break;
-                    }
-                }
+                // Find corresponding door in connected room using optimized validation
+                unsigned char normal_door_x = 0, normal_door_y = 0, normal_wall_side = 0, temp_corridor_type = 0;
+                unsigned char found_connection = get_connection_info(connected_room, i, 
+                                                                   &normal_door_x, &normal_door_y, 
+                                                                   &normal_wall_side, &temp_corridor_type);
                 
-                if (normal_door) {
+                if (found_connection) {
+                
                     // In MST, secret rooms were always "room2" (unconnected), connected rooms were "room1" 
                     // Original call: connect_rooms_directly(connected_room, secret_room, 0)
                     // So we need: draw_corridor_from_door(room1_door, room1_wall, room2_door, ...)
-                    draw_corridor_from_door(normal_door->x, normal_door->y, normal_door->wall_side,
+                    draw_corridor_from_door(normal_door_x, normal_door_y, normal_wall_side,
                                           secret_door->x, secret_door->y, corridor_type, 1);
                     
                     // Convert doors to secret passages
                     set_tile_raw(secret_door->x, secret_door->y, TILE_SECRET_PATH);
-                    set_tile_raw(normal_door->x, normal_door->y, TILE_SECRET_PATH);
-                    // Secret phase: quickly fill any remaining progress
-                    for (unsigned char fill = 0; fill < 3; fill++) {
-                        update_progress_step();
-                    }
+                    set_tile_raw(normal_door_x, normal_door_y, TILE_SECRET_PATH);
+                    secrets_made++;
+                    // Phase 2: Secret room progress
+                    update_progress_step(2, secrets_made, room_count);
                 }
             }
         }

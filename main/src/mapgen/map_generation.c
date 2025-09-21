@@ -52,10 +52,8 @@ void add_stairs(void) {
             start_room = i;
         }
     }
-    // Stairs phase: quickly fill remaining progress
-    for (unsigned char fill = 0; fill < 5; fill++) {
-        update_progress_step();
-    }
+    // Phase 3: Stair placement progress
+    update_progress_step(3, 1, 1);
     
     // Find second highest priority room for down stairs with distance check
     unsigned char second_highest = 0;

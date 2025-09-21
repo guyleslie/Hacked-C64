@@ -86,6 +86,63 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y);
  */
 void place_door(unsigned char x, unsigned char y);
 
-// Door functions moved to connection_system.c
+/**
+ * @brief Find existing door on specified wall side within tolerance
+ * @param room_idx The room index
+ * @param wall_side The wall side (0=left, 1=right, 2=top, 3=bottom)
+ * @param target_x Target X coordinate
+ * @param target_y Target Y coordinate
+ * @param found_x Pointer to store found door X coordinate
+ * @param found_y Pointer to store found door Y coordinate
+ * @return 1 if door found, 0 otherwise
+ */
+unsigned char find_existing_door_on_wall(unsigned char room_idx, unsigned char wall_side, 
+                                        unsigned char target_x, unsigned char target_y,
+                                        unsigned char *found_x, unsigned char *found_y);
+
+/**
+ * @brief Atomic connection management - adds connection and door metadata in single operation
+ * @param room_idx The room index
+ * @param connected_room Index of connected room
+ * @param door_x Door X coordinate
+ * @param door_y Door Y coordinate
+ * @param wall_side Wall side where door is placed
+ * @param corridor_type Type of corridor (0=straight, 1=L-shaped, 2=Z-shaped)
+ * @return 1 if successful, 0 if room is full or invalid
+ */
+unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
+                                    unsigned char door_x, unsigned char door_y, 
+                                    unsigned char wall_side, unsigned char corridor_type);
+
+/**
+ * @brief Centralized connection validation - checks if rooms are already connected
+ * @param room_idx The room index
+ * @param target_room The target room to check connection to
+ * @return 1 if connection exists, 0 otherwise
+ */
+unsigned char room_has_connection_to(unsigned char room_idx, unsigned char target_room);
+
+/**
+ * @brief Get connection info for specific connected room
+ * @param room_idx The room index
+ * @param target_room The connected room to get info for
+ * @param door_x Pointer to store door X coordinate
+ * @param door_y Pointer to store door Y coordinate
+ * @param wall_side Pointer to store wall side
+ * @param corridor_type Pointer to store corridor type
+ * @return 1 if connection found, 0 otherwise
+ */
+unsigned char get_connection_info(unsigned char room_idx, unsigned char target_room,
+                                 unsigned char *door_x, unsigned char *door_y, 
+                                 unsigned char *wall_side, unsigned char *corridor_type);
+
+/**
+ * @brief Atomic rollback - removes last connection from room safely
+ * @param room_idx The room index
+ * @return 1 if successful, 0 if no connections to remove or invalid room
+ */
+unsigned char remove_last_connection_from_room(unsigned char room_idx);
+
+// Clean implementation - all metadata management through atomic operations only
 
 #endif // MAPGEN_INTERNAL_H

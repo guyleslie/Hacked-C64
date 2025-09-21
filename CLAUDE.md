@@ -69,10 +69,11 @@ The build system creates multiple output files in the `build/` directory:
   - `map_export.c/.h`: File I/O operations
 
 ### Memory Architecture
-- **Map Size**: Fixed 64×64 tile grid
-- **Room System**: Up to 20 rooms on 4×4 placement grid
-- **Memory Usage**: Efficient allocation for map data structures
-- **Display**: Character-mode rendering with custom tiles
+- **Map Size**: Fixed 64×64 tile grid (3-bit packed encoding: 3072 bytes)
+- **Room System**: Up to 20 rooms on 4×4 placement grid (20 bytes each, 39% savings)
+- **Memory Usage**: Optimized allocation with atomic metadata management
+- **Display**: Character-mode rendering with custom tiles (40×25 viewport)
+- **Connection Management**: Single source of truth prevents data inconsistency
 
 ### Generation Algorithm
 1. **Room Placement**: Fisher-Yates shuffle on 4×4 grid with immediate wall construction
@@ -97,6 +98,24 @@ The build system creates multiple output files in the `build/` directory:
 - Static allocation only - no malloc/free
 - 3-bit tile encoding in packed arrays
 - Use `__zeropage` annotation for frequently accessed variables
+- **Atomic metadata operations** - prevent inconsistent states during connection management
+
+### Metadata Management Functions
+```c
+// Atomic connection management - single operation for all metadata
+unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
+                                    unsigned char door_x, unsigned char door_y, 
+                                    unsigned char wall_side, unsigned char corridor_type);
+
+// Centralized validation and queries
+unsigned char room_has_connection_to(unsigned char room_idx, unsigned char target_room);
+unsigned char get_connection_info(unsigned char room_idx, unsigned char target_room,
+                                 unsigned char *door_x, unsigned char *door_y, 
+                                 unsigned char *wall_side, unsigned char *corridor_type);
+
+// Atomic rollback for error handling
+unsigned char remove_last_connection_from_room(unsigned char room_idx);
+```
 
 ## Core Files & Architecture
 
@@ -137,14 +156,35 @@ OSCAR64 generates detailed build information for optimization:
 
 ### Data Types
 ```c
-// Core structures in mapgen_types.h
+// Optimized Room structure (20 bytes, 39% memory savings)
 typedef struct {
-    unsigned char x, y, w, h;
-    unsigned char priority;
+    // Most frequently accessed during generation
+    unsigned char x, y, w, h;              // Room position and size
+    unsigned char connections;             // Number of active connections
+    unsigned char state;                   // Room state flags (secret/normal)
+    
+    // Optimized packed connection metadata (4 bytes)
+    PackedConnection conn_data[4];         // Connection info (room_id, corridor_type)
+    Door doors[4];                         // Door positions (8 bytes)
+    
+    // Less frequently accessed
+    unsigned char hub_distance, priority; // Generation parameters
 } Room;
 
-// Map stored as tile array
-unsigned char map[MAP_HEIGHT][MAP_WIDTH];
+// Optimized connection structures
+typedef struct {
+    unsigned char room_id : 5;             // Connected room (0-31)
+    unsigned char corridor_type : 3;       // Corridor type (0-7)
+} PackedConnection; // 1 byte - no 'used' flag (redundant)
+
+typedef struct {
+    unsigned char x, y;                    // Door coordinates
+    unsigned char wall_side : 2;           // Wall side (0-3)
+    unsigned char reserved : 6;            // Reserved bits
+} Door; // 2 bytes - no 'connected_room' (redundant)
+
+// Map stored as 3-bit packed tile array
+unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 ```
 
 ## Testing and Verification

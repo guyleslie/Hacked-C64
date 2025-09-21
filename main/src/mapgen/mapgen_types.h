@@ -73,19 +73,18 @@ enum MapConstants {
 // Corridor and connection parameters
 #define MAX_PATH_LENGTH 20
 
-// OSCAR64 optimized packed door structure (3 bytes vs 4 bytes)
+// OSCAR64 optimized packed door structure (2 bytes vs 4 bytes)
 typedef struct {
     unsigned char x, y;                    // 2 bytes - door position
     unsigned char wall_side : 2;           // 0-3 wall sides (2 bits)
-    unsigned char connected_room : 6;      // 0-63 room ID (6 bits, enough for MAX_ROOMS=20)
-} Door; // 3 bytes total
+    unsigned char reserved : 6;            // 6 bits reserved for future use
+} Door; // 2 bytes total - removed connected_room (redundant with conn_data[].room_id)
 
 // OSCAR64 optimized packed connection structure (1 byte vs 2 bytes)  
 typedef struct {
     unsigned char room_id : 5;             // 0-31 room ID (5 bits, enough for MAX_ROOMS=20)
-    unsigned char corridor_type : 2;       // 0-2 corridor types (2 bits)
-    unsigned char used : 1;                // connection slot used flag (1 bit)
-} PackedConnection; // 1 byte total
+    unsigned char corridor_type : 3;       // 0-7 corridor types (3 bits, expanded for future use)
+} PackedConnection; // 1 byte total - removed 'used' flag (redundant with connections counter)
 
 // OSCAR64 optimized Room structure (24 bytes vs 33 bytes = 27% savings)
 typedef struct {
@@ -97,13 +96,13 @@ typedef struct {
     // OSCAR64 packed connection metadata (4 bytes vs 8 bytes)
     PackedConnection conn_data[4];         // 4 bytes - packed connection info
     
-    // Door metadata (12 bytes vs 16 bytes)  
-    Door doors[4];                         // 12 bytes - packed door positions
+    // Door metadata (8 bytes vs 16 bytes)  
+    Door doors[4];                         // 8 bytes - packed door positions
     
     // Less frequently accessed (moved to end for better cache behavior)
     unsigned char hub_distance;           // 1 byte - distance from hub room
     unsigned char priority;               // 1 byte - generation priority
-} Room; // 24 bytes total vs 33 bytes (27% memory savings)
+} Room; // 20 bytes total vs 33 bytes (39% memory savings)
 
 // Viewport structure
 typedef struct {

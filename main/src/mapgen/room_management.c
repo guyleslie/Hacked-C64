@@ -185,6 +185,100 @@ void assign_room_priorities(void) {
 }
 
 // =============================================================================
+// DOOR MANAGEMENT FUNCTIONS
+// =============================================================================
+
+// Centralized connection validation - checks if rooms are already connected
+unsigned char room_has_connection_to(unsigned char room_idx, unsigned char target_room) {
+    if (room_idx >= room_count) return 0;
+    
+    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
+        if (rooms[room_idx].conn_data[i].room_id == target_room) {
+            return 1; // Connection exists
+        }
+    }
+    return 0; // No connection found
+}
+
+// Get connection info for specific connected room
+unsigned char get_connection_info(unsigned char room_idx, unsigned char target_room,
+                                 unsigned char *door_x, unsigned char *door_y, 
+                                 unsigned char *wall_side, unsigned char *corridor_type) {
+    if (room_idx >= room_count) return 0;
+    
+    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
+        if (rooms[room_idx].conn_data[i].room_id == target_room) {
+            *door_x = rooms[room_idx].doors[i].x;
+            *door_y = rooms[room_idx].doors[i].y;
+            *wall_side = rooms[room_idx].doors[i].wall_side;
+            *corridor_type = rooms[room_idx].conn_data[i].corridor_type;
+            return 1; // Found connection
+        }
+    }
+    return 0; // Connection not found
+}
+
+// Find existing door on specified wall side within tolerance
+unsigned char find_existing_door_on_wall(unsigned char room_idx, unsigned char wall_side, 
+                                        unsigned char target_x, unsigned char target_y,
+                                        unsigned char *found_x, unsigned char *found_y) {
+    if (room_idx >= room_count) return 0;
+    
+    // Use connections counter instead of iterating through unused slots
+    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
+        Door *door = &rooms[room_idx].doors[i];
+        if (door->wall_side == wall_side) {
+            // Check if door is within reasonable distance (±2 tiles)
+            unsigned char dx = abs_diff(door->x, target_x);
+            unsigned char dy = abs_diff(door->y, target_y);
+            if (dx <= 2 && dy <= 2) {
+                *found_x = door->x;
+                *found_y = door->y;
+                return 1; // Found existing door
+            }
+        }
+    }
+    return 0; // No suitable door found
+}
+
+// Atomic connection management - adds connection metadata in single operation
+unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
+                                    unsigned char door_x, unsigned char door_y, 
+                                    unsigned char wall_side, unsigned char corridor_type) {
+    // Validate room capacity
+    if (room_idx >= room_count || rooms[room_idx].connections >= 4) {
+        return 0; // Failed - room full or invalid
+    }
+    
+    unsigned char idx = rooms[room_idx].connections;
+    
+    // Atomic update - all metadata synchronized in single operation
+    rooms[room_idx].conn_data[idx].room_id = connected_room;
+    rooms[room_idx].conn_data[idx].corridor_type = corridor_type;
+    
+    rooms[room_idx].doors[idx].x = door_x;
+    rooms[room_idx].doors[idx].y = door_y;
+    rooms[room_idx].doors[idx].wall_side = wall_side;
+    rooms[room_idx].doors[idx].reserved = 0; // Clear reserved bits
+    
+    rooms[room_idx].connections++; // Update counter last
+    return 1; // Success
+}
+
+// Atomic rollback - removes last connection from room safely
+unsigned char remove_last_connection_from_room(unsigned char room_idx) {
+    if (room_idx >= room_count || rooms[room_idx].connections == 0) {
+        return 0; // Nothing to remove or invalid room
+    }
+    
+    // Atomic rollback - simply decrement counter (connection data will be overwritten)
+    rooms[room_idx].connections--;
+    return 1; // Success
+}
+
+// Clean implementation - all metadata management through atomic operations
+
+// =============================================================================
 // ROOM GENERATION
 // =============================================================================
 
@@ -198,15 +292,14 @@ void init_rooms(void) {
         
         // Initialize packed connection data
         for (unsigned char j = 0; j < 4; j++) {
-            rooms[i].conn_data[j].room_id = 31; // Invalid room index
+            rooms[i].conn_data[j].room_id = 31; // Invalid room index (unused slot marker)
             rooms[i].conn_data[j].corridor_type = 0;
-            rooms[i].conn_data[j].used = 0;
             
             // Initialize doors
             rooms[i].doors[j].x = 0;
             rooms[i].doors[j].y = 0;
             rooms[i].doors[j].wall_side = 0;
-            rooms[i].doors[j].connected_room = 63; // Invalid room index
+            rooms[i].doors[j].reserved = 0; // Clear reserved bits
         }
     }
     room_count = 0;
@@ -274,8 +367,8 @@ void create_rooms(void) {
         if (try_place_room_at_grid(grid_positions[i], w, h, &x, &y)) {
             place_room(x, y, w, h);
             placed_rooms++;
-            // First phase should reach ~40%: call more frequently  
-            update_progress_step();  // Every room gets a progress step
+            // Phase 0: Room placement progress
+            update_progress_step(0, placed_rooms, MAX_ROOMS);
         }
     }
     

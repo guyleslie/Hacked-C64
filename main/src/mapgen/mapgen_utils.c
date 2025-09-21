@@ -488,10 +488,14 @@ void print_text(const char* text) {
 #define PROGRESS_THREE_Q  0xE7  // 231 = 0xE7 left three-quarter block  
 #define PROGRESS_FULL     0xA0  // 160 = 0xA0 full block (inverse space)
 
-// Progress bar state - OSCAR64 simplified and optimized
-static unsigned char progress_steps = 0;    // Total steps (0-80: 20 positions × 4 phases)
+// Progress bar state - OSCAR64 optimized with C64 constraints
+static unsigned char progress_steps = 0;    // Current step (0-80: 20 positions × 4 phases)
 static const unsigned char progress_x = 9;  // X position (centered: (40-22)/2 = 9)
 static const unsigned char progress_y = 12; // Y position (screen center)
+
+// C64-optimized phase boundaries (80 total steps divided by phases)
+static const unsigned char phase_starts[5] = {0, 20, 50, 65, 75};  // Phase start positions
+static const unsigned char phase_lengths[5] = {20, 30, 15, 10, 5}; // Steps per phase
 
 // Initialize progress bar with C64-optimized display
 void init_progress_bar_simple(const char* title) {
@@ -505,45 +509,55 @@ void init_progress_bar_simple(const char* title) {
     // Progress bar will be drawn by update_progress_step() calls
 }
 
-// Update progress bar one step - OSCAR64 simplified and optimized
-void update_progress_step(void) {
-    // Increment progress and clamp to maximum
-    if (progress_steps < 80) {
-        progress_steps++;
+// C64-optimized phase progress update - pure 8-bit math
+void update_progress_step(unsigned char phase, unsigned char current, unsigned char total) {
+    // OSCAR64 optimization: validate ranges for compiler analysis
+    __assume(phase < 5);
+    __assume(current <= total);
+    
+    // Calculate phase progress using 8-bit math only
+    unsigned char phase_progress = 0;
+    if (total > 0) {
+        // Avoid division: use bit shifts for common cases
+        if (total <= 4) {
+            phase_progress = (current << 2) < phase_lengths[phase] ? (current << 2) : phase_lengths[phase];
+        } else if (total <= 8) {
+            phase_progress = (current << 1) < phase_lengths[phase] ? (current << 1) : phase_lengths[phase];
+        } else {
+            // For larger totals, use simple proportion approximation
+            phase_progress = current < total ? current : phase_lengths[phase];
+        }
     }
     
-    // Calculate position and phase from total steps
-    unsigned char pos = progress_steps >> 2;        // Divide by 4 (OSCAR64 optimizes to shift)
-    unsigned char phase = progress_steps & 3;       // Modulo 4 (OSCAR64 optimizes to AND)
+    // Set absolute progress position
+    progress_steps = phase_starts[phase] + phase_progress;
+    if (progress_steps > 80) progress_steps = 80;
     
-    // OSCAR64 optimization hints for 8-bit value range analysis
-    __assume(pos < 20);
-    __assume(phase < 4);
+    // Calculate display position using bit operations
+    unsigned char pos = progress_steps >> 2;        // Divide by 4
+    unsigned char phase_char = progress_steps & 3;  // Modulo 4
     
-    // Direct screen memory access for CharPad screen codes
-    // putchar() converts PETSCII->screen, but we already have screen codes!
+    // OSCAR64 range hints
+    __assume(pos < 21);
+    __assume(phase_char < 4);
+    
+    // Direct screen memory access
     volatile unsigned char * const screen_mem = (volatile unsigned char *)SCREEN_MEMORY_BASE;
     unsigned short base_pos = progress_y * 40 + (progress_x + 1);
     
-    // Fill all previous positions with full blocks
-    for (unsigned char i = 0; i < pos; i++) {
-        screen_mem[base_pos + i] = PROGRESS_FULL;  // Direct screen code write
+    // Fill completed positions
+    for (unsigned char i = 0; i < pos && i < 20; i++) {
+        screen_mem[base_pos + i] = PROGRESS_FULL;
     }
     
-    // Show current position with appropriate phase character
-    switch(phase) {
-        case 0:
-            screen_mem[base_pos + pos] = PROGRESS_QUARTER;   // Left quarter block
-            break;
-        case 1:
-            screen_mem[base_pos + pos] = PROGRESS_HALF;      // Left half block
-            break;
-        case 2:
-            screen_mem[base_pos + pos] = PROGRESS_THREE_Q;   // Left three-quarter block
-            break;
-        case 3:
-            screen_mem[base_pos + pos] = PROGRESS_FULL;      // Full block
-            break;
+    // Show current position character
+    if (pos < 20) {
+        unsigned char progress_char = PROGRESS_QUARTER;
+        if (phase_char == 1) progress_char = PROGRESS_HALF;
+        else if (phase_char == 2) progress_char = PROGRESS_THREE_Q;
+        else if (phase_char == 3) progress_char = PROGRESS_FULL;
+        
+        screen_mem[base_pos + pos] = progress_char;
     }
 }
 

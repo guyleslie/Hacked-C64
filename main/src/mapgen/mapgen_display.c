@@ -61,10 +61,8 @@ void initialize_camera(void) {
         update_camera();
     }
     
-    // Finalization: fill remaining progress to 100%
-    for (unsigned char fill = 0; fill < 10; fill++) {
-        update_progress_step();
-    }
+    // Phase 4: Finalization progress
+    update_progress_step(4, 1, 1);
     
     // NOTE: render_map_viewport() moved out - will be called after progress bar finishes
 }

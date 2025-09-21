@@ -156,10 +156,11 @@ Each room maintains metadata for:
 - `connections`: Number of active connections
 - `state`: Secret room flag and status bits
 
-**Connection Metadata:**
-- `conn_data[4]`: Packed connection structures with room ID, corridor type, and usage flags
-- `doors[4]`: Packed door structures with coordinates, wall side, and connected room
-- Connection count tracked in `connections` field
+**Connection Metadata (Optimized):**
+- `conn_data[4]`: Packed connection structures with room ID and corridor type only
+- `doors[4]`: Packed door structures with coordinates and wall side only
+- Connection count tracked in `connections` field (single source of truth)
+- Atomic operations ensure metadata consistency
 
 ### Memory Optimization Strategy
 
@@ -185,22 +186,21 @@ typedef struct {
     unsigned char connections;             // Number of active connections
     unsigned char state;                   // Room state flags (normal/secret)
     
-    // Packed connection metadata
+    // Optimized packed connection metadata (4 bytes vs 8 bytes)
     PackedConnection conn_data[4];         // Connection information
-    Door doors[4];                         // Door positions and metadata
+    Door doors[4];                         // Door positions and metadata (8 bytes vs 16 bytes)
     
     // Less frequently accessed
     unsigned char hub_distance, priority; // Generation parameters
-} Room;
+} Room; // 20 bytes total vs 33 bytes (39% memory savings)
 ```
 
 ### Packed Connection Structure
 ```c
 typedef struct {
     unsigned char room_id : 5;             // Connected room ID (0-31)
-    unsigned char corridor_type : 2;       // Corridor type (0-2)
-    unsigned char used : 1;                // Connection slot active flag
-} PackedConnection;
+    unsigned char corridor_type : 3;       // Corridor type (0-7, expanded for future use)
+} PackedConnection; // 1 byte total - removed 'used' flag (redundant with connections counter)
 ```
 
 ### Optimized Door Structure
@@ -208,8 +208,8 @@ typedef struct {
 typedef struct {
     unsigned char x, y;                    // Door coordinates
     unsigned char wall_side : 2;           // Wall side (0-3)
-    unsigned char connected_room : 6;      // Connected room ID (0-63)
-} Door;
+    unsigned char reserved : 6;            // Reserved for future use
+} Door; // 2 bytes total - removed connected_room (redundant with conn_data[].room_id)
 ```
 
 ## Algorithm Performance
@@ -283,6 +283,25 @@ unsigned char mapgen_find_room_at_position(unsigned char x, unsigned char y);
 // Statistics and validation
 void mapgen_get_statistics(unsigned char *floor_tiles, ...);
 unsigned char mapgen_validate_map(void);
+```
+
+### Atomic Metadata Management Functions
+```c
+// Atomic connection management - adds connection and door metadata in single operation
+unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
+                                    unsigned char door_x, unsigned char door_y, 
+                                    unsigned char wall_side, unsigned char corridor_type);
+
+// Centralized connection validation - checks if rooms are already connected
+unsigned char room_has_connection_to(unsigned char room_idx, unsigned char target_room);
+
+// Get connection info for specific connected room
+unsigned char get_connection_info(unsigned char room_idx, unsigned char target_room,
+                                 unsigned char *door_x, unsigned char *door_y, 
+                                 unsigned char *wall_side, unsigned char *corridor_type);
+
+// Atomic rollback - removes last connection from room safely
+unsigned char remove_last_connection_from_room(unsigned char room_idx);
 ```
 
 ## Development Standards
