@@ -88,7 +88,7 @@ The secret room system provides a special gameplay mechanic:
 
 **Secret Room Criteria:**
 - Only rooms with exactly 1 connection are eligible
-- 15% probability of conversion to secret status
+- 30% probability of conversion to secret status
 - Room `state` field receives `ROOM_SECRET` flag marking
 
 **Secret Pathway Conversion:**

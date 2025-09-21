@@ -56,7 +56,7 @@ Final dungeon map:
 
 - **Procedural Generation**: Grid-based room placement with MST connectivity ensures all rooms are reachable
 - **Interactive Navigation**: Explore generated dungeons with WASD keys and viewport scrolling
-- **Secret Rooms**: Hidden areas accessible through secret passages (15% of single-connection rooms)
+- **Secret Rooms**: Hidden areas accessible through secret passages (30% of single-connection rooms)
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections for varied layouts
 - **Map Export**: Save generated maps to disk for later use
 - **Memory Efficient**: 3-bit tile encoding optimized for C64 constraints
@@ -87,7 +87,7 @@ The generation process displays real-time progress with a centered progress bar 
 
 1. **Building Rooms**: 4×4 grid with Fisher-Yates shuffle prevents patterns, walls built around each room
 2. **Connecting Rooms**: Minimum Spanning Tree links all rooms optimally with corridors
-3. **Creating Secret Areas**: Single-connection rooms become hidden passages (15% chance)
+3. **Creating Secret Areas**: Single-connection rooms become hidden passages (30% chance)
 4. **Placing Stairs**: Priority-based stair placement in room centers
 5. **Finalizing**: Camera initialization and map preparation
 6. **Generation Success**: Completion message with 3-second display delay
