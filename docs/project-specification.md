@@ -71,9 +71,9 @@ Room interconnection uses Prim's algorithm to guarantee that all rooms remain re
 - Creates a corridor connecting the two rooms
 
 **Corridor Types and Geometry:**
-- **Straight Corridors:** Direct connection between two rooms
-- **L-shaped Corridors:** Two perpendicular segments (horizontal-then-vertical or vice versa)
-- **Z-shaped Corridors:** Three segments for complex navigation around obstacles
+- **Straight Corridors:** Direct connection between aligned rooms (70% probability, with door conflict validation)
+- **L-shaped Corridors:** Two perpendicular segments for diagonal room pairs
+- **Z-shaped Corridors:** Three segments - used as fallback for door conflicts or non-aligned rooms
 - **Wall Building:** Walls are constructed around each corridor tile as it's placed
 
 **Door Placement Logic:**
@@ -88,7 +88,8 @@ The secret room system provides a special gameplay mechanic:
 
 **Secret Room Criteria:**
 - Only rooms with exactly 1 connection are eligible
-- 30% probability of conversion to secret status
+- Connected room must not have other doors on the same wall (prevents corridor deletion)
+- 50% probability of conversion to secret status
 - Room `state` field receives `ROOM_SECRET` flag marking
 
 **Secret Pathway Conversion:**

@@ -72,14 +72,14 @@ void add_stairs(void) {
     unsigned char up_x, up_y;
     get_room_center(start_room, &up_x, &up_y);
     if (coords_in_bounds(up_x, up_y)) {
-        set_tile_raw(up_x, up_y, TILE_UP);
+        set_compact_tile(up_x, up_y, TILE_UP);
     }
     
     // Place down stairs in ending room
     unsigned char down_x, down_y;
     get_room_center(end_room, &down_x, &down_y);
     if (coords_in_bounds(down_x, down_y)) {
-        set_tile_raw(down_x, down_y, TILE_DOWN);
+        set_compact_tile(down_x, down_y, TILE_DOWN);
     }
     // Stairs placed - no extra step needed
 }

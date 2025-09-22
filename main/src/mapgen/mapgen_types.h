@@ -68,7 +68,7 @@ enum MapConstants {
 #define ROOM_SECRET 0x01
 
 // Secret room system constants
-#define SECRET_ROOM_PERCENTAGE 30  // Percentage of single-connection rooms to mark as secret
+#define SECRET_ROOM_PERCENTAGE 50  // Percentage of single-connection rooms to mark as secret
 
 // Corridor and connection parameters
 #define MAX_PATH_LENGTH 20

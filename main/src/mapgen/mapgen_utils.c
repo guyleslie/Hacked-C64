@@ -117,38 +117,10 @@ unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
     }
 }
 
-inline unsigned char get_tile_raw(unsigned char x, unsigned char y) {
-    return get_compact_tile(x, y);
-}
-
-inline void set_tile_raw(unsigned char x, unsigned char y, unsigned char tile) {
-    set_compact_tile(x, y, tile);
-}
-
-inline unsigned char tile_is_floor(unsigned char x, unsigned char y) {
-    return get_compact_tile(x, y) == TILE_FLOOR;
-}
-
-inline unsigned char tile_is_wall(unsigned char x, unsigned char y) {
-    return get_compact_tile(x, y) == TILE_WALL;
-}
-
-inline unsigned char tile_is_door(unsigned char x, unsigned char y) {
-    return get_compact_tile(x, y) == TILE_DOOR;
-}
-
-inline unsigned char tile_is_secret_path(unsigned char x, unsigned char y) {
-    return get_compact_tile(x, y) == TILE_SECRET_PATH;
-}
-
-inline unsigned char tile_is_any_door(unsigned char x, unsigned char y) {
-    unsigned char tile = get_compact_tile(x, y);
-    return (tile == TILE_DOOR || tile == TILE_SECRET_PATH);
-}
-
-inline unsigned char tile_is_empty(unsigned char x, unsigned char y) {
-    return get_compact_tile(x, y) == TILE_EMPTY;
-}
+// Inline wrappers removed for size optimization - use direct calls:
+// get_tile_raw() -> get_compact_tile()
+// set_compact_tile() -> set_compact_tile()
+// tile_is_*() -> get_compact_tile() == TILE_*
 
 void clear_map(void) {
     // OSCAR64 Optimized: Use 8-bit operations instead of 16-bit loop
@@ -283,7 +255,7 @@ unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char mi
     
     for (unsigned char iy = start_y; iy <= end_y; iy++) {
         for (unsigned char ix = start_x; ix <= end_x; ix++) {
-            if (tile_is_door(ix, iy)) {
+            if (get_compact_tile(ix, iy) == TILE_DOOR) {
                 return 1;
             }
         }
@@ -594,16 +566,13 @@ void show_phase_name(const char* phase_name) {
     
     // Clear previous phase name line
     gotoxy(0, progress_y + 2);
-    print_text("                                        ");  // Clear full line (40 chars)
+    // Clear full line (40 chars) - using single character for size optimization
+    for (unsigned char i = 0; i < 40; i++) putchar(' ');
     gotoxy(phase_x, progress_y + 2);
     print_text(phase_name);
 }
 
-// Clear phase name area
-void clear_phase_name(void) {
-    gotoxy(0, progress_y + 2);
-    print_text("                                        ");  // Clear full line (40 chars)
-}
+// clear_phase_name() removed - unused function
 
 // Simplified progress system - direct calls, no unnecessary wrappers
 void init_generation_progress(void) {
@@ -618,21 +587,21 @@ void init_generation_progress(void) {
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     // Top and bottom walls (including corners)
     for (unsigned char ix = x - 1; ix <= x + w; ix++) {
-        if (coords_in_bounds(ix, y - 1) && tile_is_empty(ix, y - 1)) {
-            set_tile_raw(ix, y - 1, TILE_WALL); // Top wall
+        if (coords_in_bounds(ix, y - 1) && get_compact_tile(ix, y - 1) == TILE_EMPTY) {
+            set_compact_tile(ix, y - 1, TILE_WALL); // Top wall
         }
-        if (coords_in_bounds(ix, y + h) && tile_is_empty(ix, y + h)) {
-            set_tile_raw(ix, y + h, TILE_WALL); // Bottom wall
+        if (coords_in_bounds(ix, y + h) && get_compact_tile(ix, y + h) == TILE_EMPTY) {
+            set_compact_tile(ix, y + h, TILE_WALL); // Bottom wall
         }
     }
     
     // Left and right walls (excluding corners already done)
     for (unsigned char iy = y; iy < y + h; iy++) {
-        if (coords_in_bounds(x - 1, iy) && tile_is_empty(x - 1, iy)) {
-            set_tile_raw(x - 1, iy, TILE_WALL); // Left wall
+        if (coords_in_bounds(x - 1, iy) && get_compact_tile(x - 1, iy) == TILE_EMPTY) {
+            set_compact_tile(x - 1, iy, TILE_WALL); // Left wall
         }
-        if (coords_in_bounds(x + w, iy) && tile_is_empty(x + w, iy)) {
-            set_tile_raw(x + w, iy, TILE_WALL); // Right wall
+        if (coords_in_bounds(x + w, iy) && get_compact_tile(x + w, iy) == TILE_EMPTY) {
+            set_compact_tile(x + w, iy, TILE_WALL); // Right wall
         }
     }
 }
@@ -647,8 +616,8 @@ void place_walls_around_corridor_tile(unsigned char x, unsigned char y) {
             unsigned char wall_x = x + dx;
             unsigned char wall_y = y + dy;
             
-            if (coords_in_bounds(wall_x, wall_y) && tile_is_empty(wall_x, wall_y)) {
-                set_tile_raw(wall_x, wall_y, TILE_WALL);
+            if (coords_in_bounds(wall_x, wall_y) && get_compact_tile(wall_x, wall_y) == TILE_EMPTY) {
+                set_compact_tile(wall_x, wall_y, TILE_WALL);
             }
         }
     }
@@ -662,7 +631,7 @@ void place_walls_around_corridor_tile(unsigned char x, unsigned char y) {
 void place_door(unsigned char x, unsigned char y) {
     // Only place door if position is not already a door
     if (coords_in_bounds(x, y) && get_compact_tile(x, y) != TILE_DOOR) {
-        set_tile_raw(x, y, TILE_DOOR);
+        set_compact_tile(x, y, TILE_DOOR);
     }
 }
 

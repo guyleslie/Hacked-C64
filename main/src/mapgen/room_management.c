@@ -147,7 +147,7 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
     // Fill room area with floor tiles
     for (unsigned char iy = y; iy < y + h; iy++) {
         for (unsigned char ix = x; ix < x + w; ix++) {
-            set_tile_raw(ix, iy, TILE_FLOOR);
+            set_compact_tile(ix, iy, TILE_FLOOR);
         }
     }
     

@@ -15,20 +15,16 @@ void init_progress_bar_simple(const char* title);
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total);
 void finish_progress_bar_simple(void);
 void show_phase_name(const char* phase_name);
-void clear_phase_name(void);
+// clear_phase_name() removed - unused function
 void init_generation_progress(void);
 
 // Tile access and manipulation (optimized for C64 performance)
 unsigned char get_compact_tile(unsigned char x, unsigned char y);
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile);
-unsigned char get_tile_raw(unsigned char x, unsigned char y);
-void set_tile_raw(unsigned char x, unsigned char y, unsigned char tile);
-unsigned char tile_is_floor(unsigned char x, unsigned char y);
-unsigned char tile_is_wall(unsigned char x, unsigned char y);
-unsigned char tile_is_door(unsigned char x, unsigned char y);
-unsigned char tile_is_secret_path(unsigned char x, unsigned char y);
-unsigned char tile_is_any_door(unsigned char x, unsigned char y);
-unsigned char tile_is_empty(unsigned char x, unsigned char y);
+// Inline wrappers removed - use direct calls:
+// get_tile_raw() -> get_compact_tile()
+// set_tile_raw() -> set_compact_tile() 
+// tile_is_*() -> get_compact_tile() == TILE_*
 void clear_map(void);
 
 // Centralized PETSCII conversion for all display modules

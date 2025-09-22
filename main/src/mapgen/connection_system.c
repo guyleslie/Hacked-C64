@@ -20,41 +20,33 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y) {
     if (x >= MAP_W || y >= MAP_H) return 0;
     
     // OSCAR64 optimization: Help compiler with range analysis
-    __assume(room_count <= MAX_ROOMS);  // room_count <= 20
+    __assume(room_count <= MAX_ROOMS);
     
-    // Check all rooms - avoid only room interiors, not the immediate perimeter
+    // Check all rooms - avoid only room interiors
     for (unsigned char i = 0; i < room_count; i++) {
         Room *room = &rooms[i];
-        
-        // Rule 1: Cannot place corridor inside room
         if (x >= room->x && x < room->x + room->w && 
             y >= room->y && y < room->y + room->h) {
             return 0;
         }
     }
     
-    return 1; // Position is safe for corridor
+    return 1;
 }
 
-// Safety check for room connections
+// Safety check for room connections - OSCAR64 optimized
 unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2) {
-    if (room1 >= room_count || room2 >= room_count || room1 == room2) {
-        return 0;
-    }
+    // OSCAR64 optimization: Early exit conditions and bit operations
+    if (room1 == room2 || room1 >= room_count || room2 >= room_count) return 0;
     
-    unsigned char distance = calculate_room_distance(room1, room2);
-    unsigned char max_distance = (room_count <= 8) ? 80 : 30;
-    
-    return (distance <= max_distance);
+    // Use bitwise comparison: room_count <= 8 means bit 3+ are zero
+    unsigned char max_distance = (room_count & 0xF8) ? 30 : 80; // bits 3-7 zero = <= 8
+    return calculate_room_distance(room1, room2) <= max_distance;
 }
 
 
 // Wrapper functions removed - using direct inline access for OSCAR64 efficiency
-
-// Check if rooms are already connected using optimized validation
-unsigned char rooms_are_connected(unsigned char room1, unsigned char room2) {
-    return room_has_connection_to(room1, room2);
-}
+// rooms_are_connected() eliminated - use room_has_connection_to() directly
 
 // =============================================================================
 // CORRIDOR DRAWING FUNCTIONS
@@ -62,14 +54,14 @@ unsigned char rooms_are_connected(unsigned char room1, unsigned char room2) {
 
 // Draw straight corridor connecting two doors with walls
 static void draw_straight_path(unsigned char door1_x, unsigned char door1_y, unsigned char door2_x, unsigned char door2_y, unsigned char is_secret) {
-    signed char x = door1_x, y = door1_y;
+    unsigned char x = door1_x, y = door1_y;
     unsigned char tile_type = is_secret ? TILE_SECRET_PATH : TILE_FLOOR;
     
     // Draw corridor from door to door, skipping positions inside rooms
     while (x != door2_x || y != door2_y) {
         // Place corridor tiles, avoiding only room interiors
         if (can_place_corridor(x, y)) {
-            set_tile_raw(x, y, tile_type);
+            set_compact_tile(x, y, tile_type);
             // Place walls around this corridor tile
             place_walls_around_corridor_tile(x, y);
         }
@@ -84,23 +76,20 @@ static void draw_straight_path(unsigned char door1_x, unsigned char door1_y, uns
 }
 
 // Draw L-shaped corridor connecting two doors with perpendicular segments and walls
-static void draw_l_path(unsigned char door1_x, unsigned char door1_y, unsigned char door2_x, unsigned char door2_y, unsigned char wall_side, unsigned char is_secret) {
-    signed char pivot_x = door1_x, pivot_y = door1_y; // Initialize to avoid warnings
+static void draw_l_path(unsigned char door1_x, unsigned char door1_y, unsigned char door2_x, unsigned char door2_y, unsigned char wall1_side, unsigned char wall2_side, unsigned char is_secret) {
+    unsigned char pivot_x, pivot_y;
     
-    // Calculate L-bend point based on wall direction
-    switch (wall_side) {
-        case 0: case 1: // Vertical walls -> horizontal then vertical
-            pivot_x = door2_x;
-            pivot_y = door1_y;
-            break;
-        case 2: case 3: // Horizontal walls -> vertical then horizontal
-            pivot_x = door1_x;
-            pivot_y = door2_y;
-            break;
-        default: // Fallback
-            pivot_x = door1_x;
-            pivot_y = door1_y;
-            break;
+    // Calculate L-bend point using BOTH wall orientations for proper perpendicular connection
+    // OSCAR64 optimization: Use bitwise test instead of comparison
+    // wall_side: 0=Left, 1=Right, 2=Top, 3=Bottom
+    if ((wall1_side & 0x02) == 0) {
+        // Vertical wall (Left/Right: bit 1 = 0) -> go horizontal first, then vertical
+        pivot_x = door2_x;
+        pivot_y = door1_y;
+    } else {
+        // Horizontal wall (Top/Bottom: bit 1 = 1) -> go vertical first, then horizontal
+        pivot_x = door1_x;
+        pivot_y = door2_y;
     }
     
     // Draw L-path: door1 -> pivot -> door2
@@ -111,14 +100,15 @@ static void draw_l_path(unsigned char door1_x, unsigned char door1_y, unsigned c
 // Draw Z-shaped corridor connecting two doors with three segments and walls
 static void draw_z_path(unsigned char door1_x, unsigned char door1_y, unsigned char door2_x, unsigned char door2_y, unsigned char wall_side, unsigned char is_secret) {
     // Calculate Z-corridor segment endpoints
-    signed char seg1_end_x = door1_x, seg1_end_y = door1_y; // Initialize to avoid warnings
-    signed char seg2_end_x = door1_x, seg2_end_y = door1_y; // Initialize to avoid warnings
+    unsigned char seg1_end_x = door1_x, seg1_end_y = door1_y;
+    unsigned char seg2_end_x = door1_x, seg2_end_y = door1_y;
     
     unsigned char dx = abs_diff(door2_x, door1_x);
     unsigned char dy = abs_diff(door2_y, door1_y);
     
     // Z-corridor: 3 segments with 2 direction changes
-    if (wall_side == 0 || wall_side == 1) { // Vertical walls -> start horizontal
+    // OSCAR64 optimization: Use bitwise test
+    if ((wall_side & 0x02) == 0) { // Vertical walls -> start horizontal
         unsigned char leg_length = dx / 3;
         seg1_end_x = (door2_x > door1_x) ? door1_x + leg_length : door1_x - leg_length;
         seg1_end_y = door1_y;
@@ -141,14 +131,14 @@ static void draw_z_path(unsigned char door1_x, unsigned char door1_y, unsigned c
 // Draw corridor using stored corridor type
 static void draw_corridor_from_door(unsigned char exit1_x, unsigned char exit1_y, 
                                    unsigned char wall1_side, unsigned char exit2_x, unsigned char exit2_y,
-                                   unsigned char corridor_type, unsigned char is_secret) {
+                                   unsigned char wall2_side, unsigned char corridor_type, unsigned char is_secret) {
     switch (corridor_type) {
         case 0: // Straight corridor
             draw_straight_path(exit1_x, exit1_y, exit2_x, exit2_y, is_secret);
             break;
             
         case 1: // L-shaped corridor
-            draw_l_path(exit1_x, exit1_y, exit2_x, exit2_y, wall1_side, is_secret);
+            draw_l_path(exit1_x, exit1_y, exit2_x, exit2_y, wall1_side, wall2_side, is_secret);
             break;
             
         case 2: // Z-shaped corridor  
@@ -228,8 +218,8 @@ static void calculate_exit_from_target(unsigned char room_idx, unsigned char tar
     *door_y = ideal_y;
 }
 
-// Calculate door positions for aligned rooms using straight corridors (NO door reuse)
-// Simplified implementation eliminates corner door bugs and multiple door issues
+
+// Calculate door positions for aligned rooms using straight corridors
 static void calculate_straight_exits(unsigned char room1, unsigned char room2, unsigned char horizontal_aligned,
                                    unsigned char *exit1_x, unsigned char *exit1_y,
                                    unsigned char *exit2_x, unsigned char *exit2_y) {
@@ -239,17 +229,17 @@ static void calculate_straight_exits(unsigned char room1, unsigned char room2, u
     if (horizontal_aligned) {
         // Horizontally aligned - use vertical walls
         unsigned char overlap_start = (r1->y > r2->y) ? r1->y : r2->y;
-        unsigned char overlap_end = ((r1->y + r1->h) < (r2->y + r2->h)) ? (r1->y + r1->h) : (r2->y + r2->h);
+        unsigned char overlap_end = ((r1->y + r1->h) < (r2->y + r2->h)) ? r1->y + r1->h : r2->y + r2->h;
         unsigned char center_y = overlap_start + (overlap_end - overlap_start) / 2;
         
         if (r1->x + r1->w < r2->x) {
-            // Room1 left, Room2 right - direct center-to-center placement
+            // Room1 left, Room2 right
             *exit1_x = r1->x + r1->w;    // Right wall of room1
             *exit1_y = center_y;         // Overlap center
             *exit2_x = r2->x - 1;        // Left wall of room2  
             *exit2_y = center_y;         // Same Y position
         } else {
-            // Room2 left, Room1 right - direct center-to-center placement
+            // Room2 left, Room1 right
             *exit1_x = r1->x - 1;        // Left wall of room1
             *exit1_y = center_y;         // Overlap center
             *exit2_x = r2->x + r2->w;    // Right wall of room2
@@ -258,17 +248,17 @@ static void calculate_straight_exits(unsigned char room1, unsigned char room2, u
     } else {
         // Vertically aligned - use horizontal walls
         unsigned char overlap_start = (r1->x > r2->x) ? r1->x : r2->x;
-        unsigned char overlap_end = ((r1->x + r1->w) < (r2->x + r2->w)) ? (r1->x + r1->w) : (r2->x + r2->w);
+        unsigned char overlap_end = ((r1->x + r1->w) < (r2->x + r2->w)) ? r1->x + r1->w : r2->x + r2->w;
         unsigned char center_x = overlap_start + (overlap_end - overlap_start) / 2;
         
         if (r1->y + r1->h < r2->y) {
-            // Room1 top, Room2 bottom - direct center-to-center placement
+            // Room1 top, Room2 bottom
             *exit1_x = center_x;         // Overlap center
             *exit1_y = r1->y + r1->h;    // Bottom wall of room1
             *exit2_x = center_x;         // Same X position
             *exit2_y = r2->y - 1;        // Top wall of room2
         } else {
-            // Room2 top, Room1 bottom - direct center-to-center placement
+            // Room2 top, Room1 bottom
             *exit1_x = center_x;         // Overlap center
             *exit1_y = r1->y - 1;        // Top wall of room1
             *exit2_x = center_x;         // Same X position
@@ -277,6 +267,18 @@ static void calculate_straight_exits(unsigned char room1, unsigned char room2, u
     }
 }
 
+// Get wall side from door position - OSCAR64 optimized
+static unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y) {
+    Room *room = &rooms[room_idx];
+    
+    // OSCAR64 optimization: Reduce branches with early returns
+    if (exit_x < room->x) return 0; // Left
+    if (exit_x >= room->x + room->w) return 1; // Right  
+    if (exit_y < room->y) return 2; // Top
+    return 3; // Bottom (default case)
+}
+
+
 // Calculate door positions for diagonal rooms using L-shaped corridors
 static void calculate_l_exits(unsigned char room1, unsigned char room2,
                             unsigned char *exit1_x, unsigned char *exit1_y,
@@ -284,7 +286,6 @@ static void calculate_l_exits(unsigned char room1, unsigned char room2,
     Room *r1 = &rooms[room1];
     Room *r2 = &rooms[room2];
     
-    // L-corridor logic: diagonal rooms use perpendicular walls
     unsigned char r1_center_x = r1->x + r1->w / 2;
     unsigned char r1_center_y = r1->y + r1->h / 2;
     unsigned char r2_center_x = r2->x + r2->w / 2;
@@ -292,33 +293,24 @@ static void calculate_l_exits(unsigned char room1, unsigned char room2,
     
     // Choose complementary sides for L-shaped connection - doors ON the wall (outside room)
     if (r2_center_x > r1_center_x && r2_center_y > r1_center_y) {
-        // Room2 bottom-right of Room1
+        // Room2 bottom-right of Room1: Room1 right wall, Room2 top wall
         *exit1_x = r1->x + r1->w; *exit1_y = r1->y + r1->h / 2; // Right wall (outside)
         *exit2_x = r2->x + r2->w / 2; *exit2_y = r2->y - 1; // Top wall (outside)
     } else if (r2_center_x < r1_center_x && r2_center_y > r1_center_y) {
-        // Room2 bottom-left of Room1
+        // Room2 bottom-left of Room1: Room1 bottom wall, Room2 right wall
         *exit1_x = r1->x + r1->w / 2; *exit1_y = r1->y + r1->h; // Bottom wall (outside)
         *exit2_x = r2->x + r2->w; *exit2_y = r2->y + r2->h / 2; // Right wall (outside)
     } else if (r2_center_x > r1_center_x && r2_center_y < r1_center_y) {
-        // Room2 top-right of Room1
+        // Room2 top-right of Room1: Room1 top wall, Room2 left wall
         *exit1_x = r1->x + r1->w / 2; *exit1_y = r1->y - 1; // Top wall (outside)
         *exit2_x = r2->x - 1; *exit2_y = r2->y + r2->h / 2; // Left wall (outside)
     } else {
-        // Room2 top-left of Room1
+        // Room2 top-left of Room1: Room1 left wall, Room2 bottom wall
         *exit1_x = r1->x - 1; *exit1_y = r1->y + r1->h / 2; // Left wall (outside)
         *exit2_x = r2->x + r2->w / 2; *exit2_y = r2->y + r2->h; // Bottom wall (outside)
     }
 }
 
-// Get wall side from door position
-static unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y) {
-    Room *room = &rooms[room_idx];
-    
-    if (exit_x < room->x) return 0; // Left
-    else if (exit_x >= room->x + room->w) return 1; // Right
-    else if (exit_y < room->y) return 2; // Top
-    else return 3; // Bottom
-}
 
 // Path safety check - avoid room intersections
 static unsigned char path_is_safe(unsigned char start_x, unsigned char start_y, 
@@ -356,8 +348,8 @@ static unsigned char path_is_safe(unsigned char start_x, unsigned char start_y,
 
 // Connect two rooms with corridor and store connection metadata
 unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, unsigned char is_secret) {
-    // Check if already connected
-    if (rooms_are_connected(room1, room2)) {
+    // Check if already connected - direct call for OSCAR64 efficiency
+    if (room_has_connection_to(room1, room2)) {
         return 1;
     }
     
@@ -387,10 +379,10 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
     // Corridor type selection based on room alignment
     unsigned char corridor_type;
     if (has_horizontal_overlap || has_vertical_overlap) {
-        // ALIGNED ROOMS: 70% straight, 30% Z-shaped (NEVER L-shaped)
+        // ALIGNED ROOMS: 70% straight, 30% Z-shaped
         if (rnd(100) < 70) {
             corridor_type = 0; // Straight
-            // Recalculate exits for straight corridors (clean center-to-center calculation)
+            // Recalculate exits for straight corridors using overlap-based positioning
             calculate_straight_exits(room1, room2, has_horizontal_overlap, 
                                    &exit1_x, &exit1_y, &exit2_x, &exit2_y);
         } else {
@@ -418,12 +410,12 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
     unsigned char wall1 = get_wall_side_from_exit(room1, exit1_x, exit1_y);
     unsigned char wall2 = get_wall_side_from_exit(room2, exit2_x, exit2_y);
     
-    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret);
+    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, wall2, corridor_type, is_secret);
     
     // Place doors at calculated positions (secret passages use TILE_SECRET_PATH)
     if (is_secret) {
-        set_tile_raw(exit1_x, exit1_y, TILE_SECRET_PATH);
-        set_tile_raw(exit2_x, exit2_y, TILE_SECRET_PATH);
+        set_compact_tile(exit1_x, exit1_y, TILE_SECRET_PATH);
+        set_compact_tile(exit2_x, exit2_y, TILE_SECRET_PATH);
     } else {
         place_door(exit1_x, exit1_y);
         place_door(exit2_x, exit2_y);
@@ -460,10 +452,8 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
 void connect_rooms(void) {
     static unsigned char connected[MAX_ROOMS];
     
-    // Room connection phase - progress handled by main generation loop
-    
     // OSCAR64 optimization: Help compiler with range analysis
-    __assume(room_count <= MAX_ROOMS);  // room_count <= 20
+    __assume(room_count <= MAX_ROOMS);
     
     // Initialize - only first room is connected
     for (unsigned char i = 0; i < room_count; i++) {
@@ -493,18 +483,17 @@ void connect_rooms(void) {
             }
         }
         
-        // Connect the best pair with normal corridors first
-        if (best_room1 != 255 && best_room2 != 255) {
+        // Connect the best pair
+        if (best_room1 != 255) {
             if (connect_rooms_directly(best_room1, best_room2, 0)) {
                 connected[best_room2] = 1;
                 connections_made++;
-                // Phase 1: Connection progress
                 update_progress_step(1, connections_made, room_count - 1);
             } else {
-                break; // Connection failed
+                break;
             }
         } else {
-            break; // No more connections possible
+            break;
         }
     }
 }
@@ -521,6 +510,22 @@ void convert_secret_corridors(void) {
     for (unsigned char i = 0; i < room_count; i++) {
         // Only rooms with exactly one connection can be secret
         if (rooms[i].connections == 1 && rnd(100) < SECRET_ROOM_PERCENTAGE) {
+            unsigned char connected_room = rooms[i].conn_data[0].room_id;
+            
+            // Get the wall side where connected room connects to this room
+            unsigned char connected_wall_side = 0;
+            get_connection_info(connected_room, i, 0, 0, &connected_wall_side, 0);
+            
+            // Count doors on the same wall in connected room
+            unsigned char doors_on_wall = 0;
+            for (unsigned char j = 0; j < rooms[connected_room].connections; j++) {
+                if (rooms[connected_room].doors[j].wall_side == connected_wall_side) {
+                    doors_on_wall++;
+                }
+            }
+            // If more than 1 door on this wall, skip (would delete existing corridor)
+            unsigned char wall_has_other_doors = (doors_on_wall > 1);
+            if (wall_has_other_doors) continue;
             rooms[i].state |= ROOM_SECRET;
             
             if (rooms[i].connections > 0) {
@@ -539,12 +544,13 @@ void convert_secret_corridors(void) {
                     // In MST, secret rooms were always "room2" (unconnected), connected rooms were "room1" 
                     // Original call: connect_rooms_directly(connected_room, secret_room, 0)
                     // So we need: draw_corridor_from_door(room1_door, room1_wall, room2_door, ...)
+                    unsigned char secret_wall_side = secret_door->wall_side;
                     draw_corridor_from_door(normal_door_x, normal_door_y, normal_wall_side,
-                                          secret_door->x, secret_door->y, corridor_type, 1);
+                                          secret_door->x, secret_door->y, secret_wall_side, corridor_type, 1);
                     
                     // Convert doors to secret passages
-                    set_tile_raw(secret_door->x, secret_door->y, TILE_SECRET_PATH);
-                    set_tile_raw(normal_door_x, normal_door_y, TILE_SECRET_PATH);
+                    set_compact_tile(secret_door->x, secret_door->y, TILE_SECRET_PATH);
+                    set_compact_tile(normal_door_x, normal_door_y, TILE_SECRET_PATH);
                     secrets_made++;
                     // Phase 2: Secret room progress
                     update_progress_step(2, secrets_made, room_count);
