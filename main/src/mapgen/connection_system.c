@@ -118,7 +118,7 @@ static void draw_z_path(unsigned char door1_x, unsigned char door1_y, unsigned c
 // Draw corridor using stored corridor type
 static void draw_corridor_from_door(unsigned char exit1_x, unsigned char exit1_y, 
                                    unsigned char wall1_side, unsigned char exit2_x, unsigned char exit2_y,
-                                   unsigned char wall2_side, unsigned char corridor_type, unsigned char is_secret) {
+                                   unsigned char corridor_type, unsigned char is_secret) {
     switch (corridor_type) {
         case 0: // Straight corridor
             draw_straight_path(exit1_x, exit1_y, exit2_x, exit2_y, is_secret);
@@ -381,7 +381,7 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
     unsigned char wall1 = get_wall_side_from_exit(room1, exit1_x, exit1_y);
     unsigned char wall2 = get_wall_side_from_exit(room2, exit2_x, exit2_y);
     
-    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, wall2, corridor_type, is_secret);
+    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret);
     
     // Place doors at calculated positions (secret passages use TILE_SECRET_PATH)
     if (is_secret) {
