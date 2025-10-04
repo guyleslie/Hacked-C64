@@ -519,10 +519,9 @@ void convert_secret_rooms_doors(void) {
                 unsigned char normal_door_y = connected_door_y;
                 
                 // Only convert the normal room door to secret passage
-                // The corridor remains normal. Convert the secret room door to floor 
+                // The corridor and secret room door remain normal
                 // This creates a hidden entrance to the secret room
                 set_compact_tile(normal_door_x, normal_door_y, TILE_SECRET_PATH);
-                set_compact_tile(secret_door->x, secret_door->y, TILE_FLOOR);
                 
                 // Mark the door as secret in metadata - find the door index in connected room
                 for (unsigned char door_idx = 0; door_idx < room_list[connected_room].connections; door_idx++) {
@@ -545,19 +544,170 @@ void convert_secret_rooms_doors(void) {
 // SECRET TREASURE PLACEMENT SYSTEM
 // =============================================================================
 
-// Check if a wall side has any doors (using existing pattern from convert_secret_corridors)
+// Check if a wall side has any doors (normal doors + false corridor doors)
 unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
     Room *room = &room_list[room_idx];
     
-    // Count doors on this wall side
-    unsigned char doors_on_wall = 0;
+    // Check normal doors on this wall side
     for (unsigned char i = 0; i < room->connections; i++) {
         if (room->doors[i].wall_side == wall_side) {
-            doors_on_wall++;
+            return 1; // Found normal door on this wall
         }
     }
     
-    return (doors_on_wall > 0); // Return true if any doors exist on this wall
+    // Check false corridor door on this wall side
+    if (room->state & ROOM_HAS_FALSE_CORRIDOR) {
+        unsigned char room_center_x = room->x + room->w / 2;
+        unsigned char room_center_y = room->y + room->h / 2;
+        unsigned char wall_center_x, wall_center_y;
+        
+        switch (wall_side) {
+            case 0: wall_center_x = room->x - 1; wall_center_y = room_center_y; break;
+            case 1: wall_center_x = room->x + room->w; wall_center_y = room_center_y; break;
+            case 2: wall_center_x = room_center_x; wall_center_y = room->y - 1; break;
+            case 3: wall_center_x = room_center_x; wall_center_y = room->y + room->h; break;
+            default: return 0;
+        }
+        
+        if (room->false_corridor_door_x == wall_center_x && 
+            room->false_corridor_door_y == wall_center_y) {
+            return 1; // Found false corridor door on this wall
+        }
+    }
+    
+    return 0; // No doors found on this wall
+}
+
+// =============================================================================
+// FALSE CORRIDOR SYSTEM
+// =============================================================================
+
+// Create a simple false corridor (dead-end) from room wall
+static unsigned char create_simple_false_corridor(unsigned char room_idx, unsigned char wall_side) {
+    Room *room = &room_list[room_idx];
+    
+    // Skip secret rooms
+    if (room->state & ROOM_SECRET) return 0;
+    
+    // Skip walls that have doors
+    if (wall_has_doors(room_idx, wall_side)) return 0;
+    
+    // Simple approach: try to place corridor, check later
+    unsigned char room_center_x = room->x + room->w / 2;
+    unsigned char room_center_y = room->y + room->h / 2;
+    
+    // Calculate door and end positions directly
+    unsigned char door_x, door_y, target_x, target_y;
+    unsigned char corridor_length = 5 + rnd(8); // 5-12 tiles
+    
+    switch (wall_side) {
+        case 0: // Left wall
+            door_x = room->x - 1; door_y = room_center_y;
+            target_x = door_x - corridor_length; target_y = door_y;
+            break;
+        case 1: // Right wall  
+            door_x = room->x + room->w; door_y = room_center_y;
+            target_x = door_x + corridor_length; target_y = door_y;
+            break;
+        case 2: // Top wall
+            door_x = room_center_x; door_y = room->y - 1;
+            target_x = door_x; target_y = door_y - corridor_length;
+            break;
+        case 3: // Bottom wall
+            door_x = room_center_x; door_y = room->y + room->h;
+            target_x = door_x; target_y = door_y + corridor_length;
+            break;
+        default:
+            return 0;
+    }
+    
+    // Simple boundary check - reject if too close to edge
+    if (target_x < 1 || target_x >= MAP_W-1 || target_y < 1 || target_y >= MAP_H-1) {
+        return 0;
+    }
+    
+    // Simple room collision check - reject if too close to any room
+    for (unsigned char i = 0; i < room_count; i++) {
+        if (i == room_idx) continue;
+        Room *check_room = &room_list[i];
+        if (target_x >= check_room->x - 2 && target_x <= check_room->x + check_room->w + 1 &&
+            target_y >= check_room->y - 2 && target_y <= check_room->y + check_room->h + 1) {
+            return 0; // Too close to room
+        }
+    }
+    
+    // Optional L-shaped deviation - simple approach
+    unsigned char final_x = target_x, final_y = target_y;
+    if (rnd(100) < 50) {
+        unsigned char offset = 2 + rnd(4); // 2-5 tiles
+        
+        // Add perpendicular offset and check if still valid
+        unsigned char test_x = target_x, test_y = target_y;
+        if (wall_side <= 1) { // Horizontal corridors - add vertical offset
+            test_y = target_y + (rnd(2) ? offset : -offset);
+        } else { // Vertical corridors - add horizontal offset
+            test_x = target_x + (rnd(2) ? offset : -offset);
+        }
+        
+        // Quick validation - if safe, use L-shape, otherwise stay straight
+        if (test_x >= 1 && test_x < MAP_W-1 && test_y >= 1 && test_y < MAP_H-1) {
+            unsigned char safe = 1;
+            for (unsigned char i = 0; i < room_count && safe; i++) {
+                if (i == room_idx) continue;
+                Room *check_room = &room_list[i];
+                if (test_x >= check_room->x - 2 && test_x <= check_room->x + check_room->w + 1 &&
+                    test_y >= check_room->y - 2 && test_y <= check_room->y + check_room->h + 1) {
+                    safe = 0;
+                }
+            }
+            if (safe) {
+                final_x = test_x;
+                final_y = test_y;
+            }
+        }
+    }
+    
+    // Draw corridor segments
+    if (final_x == target_x && final_y == target_y) {
+        // Straight corridor
+        draw_straight_path(door_x, door_y, final_x, final_y, 0);
+    } else {
+        // L-shaped corridor
+        draw_straight_path(door_x, door_y, target_x, target_y, 0);
+        draw_straight_path(target_x, target_y, final_x, final_y, 0);
+    }
+    
+    // Place door at entrance
+    place_door(door_x, door_y);
+    
+    // Store false corridor metadata
+    room->state |= ROOM_HAS_FALSE_CORRIDOR;
+    room->false_corridor_door_x = door_x;
+    room->false_corridor_door_y = door_y;
+    room->false_corridor_end_x = final_x;
+    room->false_corridor_end_y = final_y;
+    
+    return 1; // Success
+}
+
+// Place false corridors across the map - keep trying until target reached
+void place_false_corridors(unsigned char corridor_count) {
+    if (room_count == 0 || corridor_count == 0) return;
+    
+    unsigned char corridors_placed = 0;
+    unsigned char attempts = 0;
+    unsigned char max_attempts = room_count * 20; // More attempts to reach target
+    
+    // Keep trying random positions until we reach target or max attempts
+    while (corridors_placed < corridor_count && attempts < max_attempts) {
+        unsigned char room_idx = rnd(room_count);
+        unsigned char wall_side = rnd(4);
+        
+        if (create_simple_false_corridor(room_idx, wall_side)) {
+            corridors_placed++;
+        }
+        attempts++;
+    }
 }
 
 // Place a single secret treasure for a room
@@ -571,7 +721,7 @@ unsigned char place_treasure_for_room(unsigned char room_idx) {
     
     // Try each wall side to find walls without doors
     for (unsigned char wall_side = 0; wall_side < 4; wall_side++) {
-        // Skip walls that have doors (using existing helper pattern)
+        // Skip walls that have doors (checks both normal doors and false corridor doors)
         if (wall_has_doors(room_idx, wall_side)) {
             continue; // This wall has doors, skip it
         }

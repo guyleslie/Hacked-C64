@@ -24,6 +24,9 @@ void convert_secret_rooms_doors(void);
 // Secret treasure management
 void place_secret_treasures(unsigned char treasure_count);
 
+// False corridor management
+void place_false_corridors(unsigned char corridor_count);
+
 // Corridor breakpoint management
 void calculate_and_store_breakpoints(unsigned char room_idx, unsigned char connection_idx);
 

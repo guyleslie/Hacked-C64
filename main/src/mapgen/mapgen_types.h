@@ -66,6 +66,7 @@ const unsigned char CHECK_FLOORS_AND_DOORS = 3;
 // Room state flags
 #define ROOM_SECRET 0x01
 #define ROOM_HAS_TREASURE 0x02
+#define ROOM_HAS_FALSE_CORRIDOR 0x04
 
 // Secret room system constants
 const unsigned char SECRET_ROOM_PERCENTAGE = 50;  // Percentage of single-connection rooms to mark as secret
@@ -93,7 +94,7 @@ typedef struct {
     unsigned char x, y;                    // 2 bytes - breakpoint coordinates
 } CorridorBreakpoint; // 2 bytes total - compact coordinate storage
 
-// Room structure (42 bytes total, optimized layout)
+// Room structure (46 bytes total, optimized layout)
 typedef struct {
     // Most frequently accessed during generation (ordered by access frequency)
     unsigned char x, y, w, h;              // 4 bytes - room position and size
@@ -113,10 +114,16 @@ typedef struct {
     unsigned char treasure_wall_x;        // 1 byte - secret wall X coordinate (255 = no treasure)
     unsigned char treasure_wall_y;        // 1 byte - secret wall Y coordinate
     
+    // False corridor metadata (4 bytes) - dead-end corridor information
+    unsigned char false_corridor_door_x;  // 1 byte - false corridor door X coordinate (255 = no false corridor)
+    unsigned char false_corridor_door_y;  // 1 byte - false corridor door Y coordinate  
+    unsigned char false_corridor_end_x;   // 1 byte - false corridor end X coordinate
+    unsigned char false_corridor_end_y;   // 1 byte - false corridor end Y coordinate
+    
     // Less frequently accessed (moved to end for better cache behavior)
     unsigned char hub_distance;           // 1 byte - distance from hub room
     unsigned char priority;               // 1 byte - generation priority
-} Room; // 42 bytes total (optimized from larger structures - 4+4+12+16+2+2 bytes)
+} Room; // 46 bytes total (optimized from larger structures - 4+1+1+4+12+16+2+4+2 bytes)
 
 // Viewport structure
 typedef struct {

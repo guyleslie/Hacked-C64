@@ -117,6 +117,10 @@ unsigned char generate_level(void) {
     show_phase_name("Placing Secret Treasures");
     place_secret_treasures(3); // Place 3 secret treasures
     
+    // Phase 2.7: Place false corridors
+    show_phase_name("Placing False Corridors");
+    place_false_corridors(2); // Place 2 false corridors per map
+    
     // Phase 3: Place stairs for level navigation
     show_phase_name("Placing Stairs");
     add_stairs();

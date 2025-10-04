@@ -426,6 +426,10 @@ void reset_all_generation_data(void) {
     for (unsigned char i = 0; i < MAX_ROOMS; i++) {
         room_list[i].connections = 0;
         room_list[i].state = 0;
+        room_list[i].false_corridor_door_x = 255; // Mark as no false corridor
+        room_list[i].false_corridor_door_y = 255;
+        room_list[i].false_corridor_end_x = 255;
+        room_list[i].false_corridor_end_y = 255;
     }
     
     room_count = 0;
