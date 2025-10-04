@@ -21,7 +21,6 @@ static const unsigned char END_ROOM_PRIORITY = 8;
 static const unsigned char PRIORITY_VARIATION = 3;
 static const unsigned char RECTANGLE_CHANCE = 6;
 static const unsigned char RECTANGLE_TOTAL = 10;
-static const unsigned char SHUFFLE_PASSES = 2;
 
 // =============================================================================
 // UTILITY FUNCTIONS
@@ -323,17 +322,6 @@ void create_rooms(void) {
         unsigned char temp = grid_positions[i];
         grid_positions[i] = grid_positions[j];
         grid_positions[j] = temp;
-    }
-    
-    // Additional shuffle passes
-    for (unsigned char pass = 0; pass < SHUFFLE_PASSES; pass++) {
-        for (unsigned char i = 0; i < grid_count - 1; i++) {
-            if (rnd(2)) {  // 50% chance to swap adjacent pairs
-                unsigned char temp = grid_positions[i];
-                grid_positions[i] = grid_positions[i + 1];
-                grid_positions[i + 1] = temp;
-            }
-        }
     }
 
     // Generate rooms at shuffled grid positions
