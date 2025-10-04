@@ -25,29 +25,45 @@ set(SRC_FILES
     ${CMAKE_SOURCE_DIR}/main/src/main.c
 )
 
-# Output directory and file
+# Output directory and files
 set(BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
 file(MAKE_DIRECTORY ${BUILD_DIR})
-set(PROJECT_NAME_OUT "Hacked C64")
-set(OUTPUT_PRG "${BUILD_DIR}/${PROJECT_NAME_OUT}.prg")
+set(OUTPUT_PRG_DEV "${BUILD_DIR}/Hacked C64-dev.prg")
+set(OUTPUT_PRG_RELEASE "${BUILD_DIR}/Hacked C64.prg")
 
-# Include directories (matching build.bat exactly)
+# Include directories (matching build scripts exactly)
 set(OSCAR64_INCLUDES
     -i=${OSCAR64_INCLUDE}
     -i=${OSCAR64_INCLUDE_C64}
     -i=${CMAKE_SOURCE_DIR}/main/src/mapgen
 )
 
-# Add custom command to build with Oscar64 (matching build.bat parameters exactly)
+# Development build command (matching build-dev.bat exactly)
 add_custom_command(
-    OUTPUT ${OUTPUT_PRG}
-    COMMAND ${OSCAR64_BIN} -o="${OUTPUT_PRG}" -n -tf=prg -Os -dNOLONG -dNOFLOAT -psci -tm=c64 -dDEBUG -d__oscar64__ ${OSCAR64_INCLUDES} ${SRC_FILES}
+    OUTPUT ${OUTPUT_PRG_DEV}
+    COMMAND ${OSCAR64_BIN} -o="${OUTPUT_PRG_DEV}" -O0 -g -n -dDEBUG -d__oscar64__ -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci ${OSCAR64_INCLUDES} ${SRC_FILES}
     DEPENDS ${SRC_FILES}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Building with Oscar64 cross-assembler (matching build.bat)"
+    COMMENT "Building development version with Oscar64 (matching build-dev.bat)"
 )
 
-add_custom_target(oscar64_build ALL DEPENDS ${OUTPUT_PRG})
+# Release build command (matching build-release.bat exactly) 
+add_custom_command(
+    OUTPUT ${OUTPUT_PRG_RELEASE}
+    COMMAND ${OSCAR64_BIN} -o="${OUTPUT_PRG_RELEASE}" -Os -Oo -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci ${OSCAR64_INCLUDES} ${SRC_FILES}
+    DEPENDS ${SRC_FILES}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Building release version with Oscar64 (matching build-release.bat)"
+)
+
+# Development build target (default for GitHub Actions)
+add_custom_target(oscar64_build ALL DEPENDS ${OUTPUT_PRG_DEV})
+
+# Release build target 
+add_custom_target(oscar64_build_release DEPENDS ${OUTPUT_PRG_RELEASE})
+
+# Combined build target (builds both)
+add_custom_target(oscar64_build_all DEPENDS ${OUTPUT_PRG_DEV} ${OUTPUT_PRG_RELEASE})
 
 # Clean target for build directory
 add_custom_target(oscar64_clean
