@@ -90,6 +90,7 @@ Final dungeon map:
 - **Interactive Navigation**: Explore generated dungeons with continuous WASD scrolling and 40×25 viewport
 - **Secret Rooms**: Hidden areas accessible through secret passages (50% chance for single-connection rooms)
 - **Secret Treasures**: Hidden treasure chambers placed on walls without doors (3 per map)
+- **False Corridors**: Misleading dead-end passages from room walls (2 per map, Nethack-style)
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
 - **Map Export**: Save generated maps to disk in binary format
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
@@ -116,7 +117,7 @@ Final dungeon map:
 - **Executable Size**: Release build optimized for size (significantly smaller than development build)
 - **Memory Management**: Static allocation only, no dynamic memory allocation
 - **Map Storage**: 3888 bytes (3-bit packed tile encoding for 72×72 map)
-- **Room Data**: 42 bytes per room (optimized packed structures)
+- **Room Data**: 46 bytes per room (optimized packed structures with false corridor metadata)
 - **Debug Information**: Development builds include .map, .asm, .lbl, .dbj files for analysis
 
 ## Generation Process
@@ -127,8 +128,9 @@ The generation process displays real-time progress with a centered progress bar 
 2. **Connecting Rooms**: Minimum Spanning Tree algorithm ensures all rooms are reachable with optimal corridor placement
 3. **Creating Secret Areas**: Single-connection rooms converted to secret areas (50% probability)
 4. **Placing Secret Treasures**: Hidden treasure chambers placed on walls without doors (3 treasures per map)
-5. **Placing Stairs**: Priority-based stair placement in room centers for level navigation
-6. **Finalizing**: Camera initialization and viewport setup for interactive exploration
+5. **Placing False Corridors**: Misleading dead-end passages from room wall centers (2 per map, straight/L-shaped)
+6. **Placing Stairs**: Priority-based stair placement in room centers for level navigation
+7. **Finalizing**: Camera initialization and viewport setup for interactive exploration
 
 ## Documentation
 

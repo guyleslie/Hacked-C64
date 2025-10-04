@@ -210,11 +210,11 @@ The secret treasure system creates hidden treasure chambers accessible through w
 
 **Secret Treasure Criteria:**
 - Places 3 secret treasures randomly across available rooms
-- Only places treasures on walls that have no doors
+- Only places treasures on walls that have no doors (normal doors + false corridor doors)
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
 - Prevents duplicate treasures per room using `ROOM_HAS_TREASURE` flag
 - Excludes corners to prevent placement conflicts
-- Uses `wall_has_doors()` validation to ensure wall availability
+- Uses enhanced `wall_has_doors()` validation to ensure wall availability
 
 **Treasure Chamber Construction:**
 - Wall position becomes `TILE_SECRET_PATH` (secret passage through wall)
@@ -225,10 +225,36 @@ The secret treasure system creates hidden treasure chambers accessible through w
 **Wall Selection Algorithm:**
 - Early return if room has `ROOM_SECRET` or `ROOM_HAS_TREASURE` flags
 - Iterates through all 4 wall sides per room
-- Skips walls containing any doors using existing helper pattern
+- Skips walls containing any doors (normal connections + false corridors) using enhanced helper pattern
 - Randomly selects position within wall boundaries (excluding corners)
 - Validates bounds before placement to prevent map edge conflicts
 - Sets `ROOM_HAS_TREASURE` flag upon successful placement
+
+### Phase 3.7: Placing False Corridors
+
+The false corridor system creates Nethack-style misleading dead-end passages:
+
+**False Corridor Criteria:**
+- Places 2 false corridors randomly across available rooms
+- Retry logic continues until target reached or maximum attempts exceeded
+- Only places on walls that have no doors (normal doors + existing false corridors)
+- Excludes secret rooms (rooms with `ROOM_SECRET` flag)
+- Maintains 1 tile distance from room walls (2 tiles from room interiors)
+
+**False Corridor Construction:**
+- Door placed at wall center using room center calculations
+- Corridor extends 5-12 tiles in perpendicular direction from wall
+- 50% chance for L-shaped deviation with 2-5 tile perpendicular offset
+- Uses existing `draw_straight_path()` for corridor segments
+- All corridors maintain 1 tile margin from map edges
+
+**Placement Algorithm:**
+- Random room and wall side selection with collision avoidance
+- Boundary validation ensures 1 tile margin from map edges  
+- Room collision detection prevents overlap with existing rooms
+- L-shaped deviation includes additional safety validation
+- Metadata storage in Room structure for treasure system integration
+- Sets `ROOM_HAS_FALSE_CORRIDOR` flag and stores door/end coordinates
 
 ### Phase 4: Placing Stairs
 
@@ -380,13 +406,20 @@ typedef struct {
 **Room State Flags:**
 - `ROOM_SECRET`: Marks rooms converted to secret status (prevents treasure placement)
 - `ROOM_HAS_TREASURE`: Prevents duplicate treasure placement per room
+- `ROOM_HAS_FALSE_CORRIDOR`: Marks rooms with false corridor attachments
 - State flags stored in room `state` field using bitwise operations
 
 **Secret Treasure System:**
 - `treasure_wall_x, treasure_wall_y`: Coordinates of secret wall passage
 - Invalid coordinates (255, 255) indicate no treasure
-- `wall_has_doors()`: Validates wall availability before treasure placement
+- Enhanced `wall_has_doors()`: Validates wall availability (normal + false corridor doors)
 - `place_secret_treasures()`: Places exactly 3 treasures across available rooms
+
+**False Corridor System:**
+- `false_corridor_door_x, false_corridor_door_y`: Coordinates of corridor entrance door
+- `false_corridor_end_x, false_corridor_end_y`: Coordinates of corridor dead-end
+- Invalid coordinates (255, 255) indicate no false corridor
+- `place_false_corridors()`: Places exactly 2 false corridors with retry logic
 
 ## Algorithm Performance
 

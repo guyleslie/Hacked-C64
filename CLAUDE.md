@@ -112,7 +112,8 @@ dir build\"Hacked C64.prg"
 2. **Connection**: Minimum spanning tree for corridor generation with walls built during creation
 3. **Secret Rooms**: Single-connection rooms converted to secret areas
 4. **Secret Treasures**: Hidden treasure chambers placed on walls without doors (excludes secret rooms, max 1 per room)
-5. **Stair Placement**: Priority-based placement in room centers
+5. **False Corridors**: Dead-end corridors from room wall centers (2 per map, straight/L-shaped, 1 tile margin)
+6. **Stair Placement**: Priority-based placement in room centers
 
 ## Code Style & Conventions
 
@@ -166,12 +167,19 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx);
 // - Validates connection constraints and marks doors with is_secret_door flag
 
 // Secret treasure system functions
-// - wall_has_doors: Checks if wall_side has any doors (prevents treasure placement)
+// - wall_has_doors: Checks if wall_side has any doors (normal + false corridor doors)
 // - place_treasure_for_room: Places treasure in room if eligible (not secret, no existing treasure)
 // - place_secret_treasures: Main function placing N treasures across available rooms
 unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);
 unsigned char place_treasure_for_room(unsigned char room_idx);
 void place_secret_treasures(unsigned char treasure_count);
+
+// False corridor system functions  
+// - create_simple_false_corridor: Creates dead-end corridor from room wall center
+// - place_false_corridors: Places N false corridors across map with retry logic
+// - Generates straight or L-shaped dead-ends with 1 tile margin from map edge
+// - Maintains 1 tile distance from room walls (2 tiles from room interiors)
+void place_false_corridors(unsigned char corridor_count);
 ```
 
 ## Core Files & Architecture
@@ -213,12 +221,12 @@ OSCAR64 generates detailed build information for optimization:
 
 ### Data Types
 ```c
-// Optimized Room structure (42 bytes total, optimized layout)
+// Optimized Room structure (46 bytes total, optimized layout)
 typedef struct {
     // Most frequently accessed during generation
     unsigned char x, y, w, h;              // Room position and size (4 bytes)
     unsigned char connections;             // Number of active connections (1 byte)
-    unsigned char state;                   // Room state flags (ROOM_SECRET=0x01, ROOM_HAS_TREASURE=0x02) (1 byte)
+    unsigned char state;                   // Room state flags (ROOM_SECRET=0x01, ROOM_HAS_TREASURE=0x02, ROOM_HAS_FALSE_CORRIDOR=0x04) (1 byte)
     
     // Packed connection metadata (4 bytes)
     PackedConnection conn_data[4];         // Connection info (room_id, corridor_type)
@@ -233,9 +241,15 @@ typedef struct {
     unsigned char treasure_wall_x;        // Secret wall X coordinate (255 = no treasure)
     unsigned char treasure_wall_y;        // Secret wall Y coordinate
     
+    // False corridor metadata (4 bytes) - dead-end corridor information
+    unsigned char false_corridor_door_x;  // False corridor door X coordinate (255 = no false corridor)
+    unsigned char false_corridor_door_y;  // False corridor door Y coordinate  
+    unsigned char false_corridor_end_x;   // False corridor end X coordinate
+    unsigned char false_corridor_end_y;   // False corridor end Y coordinate
+    
     // Less frequently accessed
     unsigned char hub_distance, priority; // Generation parameters (2 bytes)
-} Room; // 42 bytes total (4+1+1+4+12+16+2+2 bytes)
+} Room; // 46 bytes total (4+1+1+4+12+16+2+4+2 bytes)
 
 // Optimized connection structures
 typedef struct {
