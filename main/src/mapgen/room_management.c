@@ -1,0 +1,373 @@
+// =============================================================================
+// ROOM MANAGEMENT MODULE 
+// Room placement, validation, and connection management
+// =============================================================================
+
+// System headers
+#include <conio.h>
+// Project headers
+#include "mapgen_types.h"      // For Room, MAX_ROOMS, Viewport
+#include "mapgen_internal.h"   // For room placement/validation and global variable declarations
+#include "mapgen_utils.h"      // For utility functions
+
+// Local constants
+// Use const instead of #define for better code generation
+static const unsigned char MAP_BORDER = 1;
+static const unsigned char BORDER_PADDING = 1;
+static const unsigned char PLACEMENT_ATTEMPTS = 15;
+static const unsigned char DEFAULT_PRIORITY = 5;
+static const unsigned char START_ROOM_PRIORITY = 10;
+static const unsigned char END_ROOM_PRIORITY = 8;
+static const unsigned char PRIORITY_VARIATION = 3;
+static const unsigned char RECTANGLE_CHANCE = 6;
+static const unsigned char RECTANGLE_TOTAL = 10;
+static const unsigned char SHUFFLE_PASSES = 2;
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================="
+
+// get_grid_position() wrapper removed - inlined for OSCAR64 efficiency
+
+// =============================================================================
+// ROOM VALIDATION FUNCTIONS
+// =============================================================================
+
+/**
+ * @brief Validates if a room can be placed at the specified location
+ * @param x Room top-left X coordinate
+ * @param y Room top-left Y coordinate  
+ * @param w Room width in tiles
+ * @param h Room height in tiles
+ * @return 1 if placement is valid, 0 if placement conflicts
+ */
+unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
+    // Calculate safety margin boundaries with minimum room distance
+    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? x - MIN_ROOM_DISTANCE : BORDER_PADDING;
+    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? y - MIN_ROOM_DISTANCE : BORDER_PADDING;
+    unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
+    unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
+    
+    // Check map boundaries
+    if (buffer_x2 + BORDER_PADDING >= MAP_W || buffer_y2 + BORDER_PADDING >= MAP_H) {
+        return 0;
+    }
+    
+    // Clamp safety margin to map boundaries
+    if (buffer_x2 >= MAP_W) buffer_x2 = MAP_W - 1;
+    if (buffer_y2 >= MAP_H) buffer_y2 = MAP_H - 1;
+    
+    // Check if safety margin is clear
+    for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
+        for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
+            if (get_compact_tile(ix, iy) != TILE_EMPTY) {
+                return 0;
+            }
+        }
+    }
+    
+    return 1;
+}
+
+// =============================================================================
+// ROOM PLACEMENT FUNCTIONS
+// =============================================================================
+
+// Attempts to place room at specified grid position with simplified range calculation
+unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
+                                    unsigned char *result_x, unsigned char *result_y) {
+    // Get base grid position - inline for OSCAR64 efficiency
+    const unsigned char grid_x = grid_index % GRID_SIZE;
+    const unsigned char grid_y = grid_index / GRID_SIZE;
+    const unsigned char cell_w = (MAP_W - 8) / GRID_SIZE;  // Adjusted for 72x72: (72-8)/4 = 16
+    const unsigned char cell_h = (MAP_H - 8) / GRID_SIZE;  // More conservative border for larger map
+
+    // Calculate grid cell boundaries
+    const unsigned char cell_min_x = MAP_BORDER + grid_x * cell_w;
+    const unsigned char cell_min_y = MAP_BORDER + grid_y * cell_h;
+    const unsigned char cell_max_x = cell_min_x + cell_w - 1;
+    const unsigned char cell_max_y = cell_min_y + cell_h - 1;
+
+    // Expand placement boundaries with safety buffers for overlap
+    const unsigned char buffer = MIN_ROOM_DISTANCE;
+    unsigned char expanded_min_x = (cell_min_x > buffer) ? cell_min_x - buffer : MAP_BORDER;
+    unsigned char expanded_min_y = (cell_min_y > buffer) ? cell_min_y - buffer : MAP_BORDER;
+    unsigned char expanded_max_x = cell_max_x + buffer;
+    unsigned char expanded_max_y = cell_max_y + buffer;
+
+    // Clamp expanded boundaries to map limits
+    if (expanded_max_x >= MAP_W - MAP_BORDER) {
+        expanded_max_x = MAP_W - MAP_BORDER - 1;
+    }
+    if (expanded_max_y >= MAP_H - MAP_BORDER) {
+        expanded_max_y = MAP_H - MAP_BORDER - 1;
+    }
+
+    // Calculate valid placement range ensuring full room fits within boundaries
+    const unsigned char placement_min_x = expanded_min_x;
+    const unsigned char placement_min_y = expanded_min_y;
+    
+    // Room must fit entirely within expanded bounds
+    if (expanded_max_x + 1 < w || expanded_max_y + 1 < h) {
+        return 0; // Room too large for available space
+    }
+    
+    const unsigned char placement_max_x = expanded_max_x - (w - 1);
+    const unsigned char placement_max_y = expanded_max_y - (h - 1);
+    
+    // Validate that placement range is valid
+    if (placement_min_x > placement_max_x || placement_min_y > placement_max_y) {
+        return 0; // No valid placement area
+    }
+
+    const unsigned char range_x = placement_max_x - placement_min_x + 1;
+    const unsigned char range_y = placement_max_y - placement_min_y + 1;
+
+    if (range_x == 0 || range_y == 0) {
+        return 0; // Empty range
+    }
+
+    // Try multiple placement attempts within calculated range
+    unsigned char attempts = 0;
+    while (attempts < PLACEMENT_ATTEMPTS) {
+        const unsigned char x = placement_min_x + rnd(range_x);
+        const unsigned char y = placement_min_y + rnd(range_y);
+
+        // Test placement validity
+        if (can_place_room(x, y, w, h)) {
+            *result_x = x;
+            *result_y = y;
+            return 1; // Success
+        }
+
+        attempts++;
+    }
+
+    return 0; // Failed to place
+}
+
+// Creates room and adds it to the room list with walls
+void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
+    // Fill room area with floor tiles
+    for (unsigned char iy = y; iy < y + h; iy++) {
+        for (unsigned char ix = x; ix < x + w; ix++) {
+            set_compact_tile(ix, iy, TILE_FLOOR);
+        }
+    }
+    
+    // Place walls around the room immediately
+    place_walls_around_room(x, y, w, h);
+    
+    // Add room to list if capacity allows
+    if (room_count < MAX_ROOMS) {
+        rooms[room_count].x = x;
+        rooms[room_count].y = y;
+        rooms[room_count].w = w;
+        rooms[room_count].h = h;
+        rooms[room_count].priority = 0;    // Will be set by assign_room_priorities()
+        
+        room_count++;
+    }
+}
+
+// =============================================================================
+// ROOM PRIORITY SYSTEM
+// =============================================================================
+
+// Sets room priorities based on position and type
+void assign_room_priorities(void) {
+    for (unsigned char i = 0; i < room_count; i++) {
+        __assume(room_count <= MAX_ROOMS);
+        if (i == 0) {
+            rooms[i].priority = START_ROOM_PRIORITY; // Starting room
+        } else if (i == room_count - 1) {
+            rooms[i].priority = END_ROOM_PRIORITY;  // End room
+        } else {
+            // Random priority variation for other rooms
+            rooms[i].priority = DEFAULT_PRIORITY + rnd(PRIORITY_VARIATION);
+        }
+    }
+}
+
+// =============================================================================
+// DOOR MANAGEMENT FUNCTIONS
+// =============================================================================
+
+// Centralized connection validation - checks if rooms are already connected
+unsigned char room_has_connection_to(unsigned char room_idx, unsigned char target_room) {
+    if (room_idx >= room_count) return 0;
+    
+    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
+        if (rooms[room_idx].conn_data[i].room_id == target_room) {
+            return 1; // Connection exists
+        }
+    }
+    return 0; // No connection found
+}
+
+// Get connection info for specific connected room
+unsigned char get_connection_info(unsigned char room_idx, unsigned char target_room,
+                                 unsigned char *door_x, unsigned char *door_y, 
+                                 unsigned char *wall_side, unsigned char *corridor_type) {
+    if (room_idx >= room_count) return 0;
+    
+    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
+        if (rooms[room_idx].conn_data[i].room_id == target_room) {
+            *door_x = rooms[room_idx].doors[i].x;
+            *door_y = rooms[room_idx].doors[i].y;
+            *wall_side = rooms[room_idx].doors[i].wall_side;
+            *corridor_type = rooms[room_idx].conn_data[i].corridor_type;
+            return 1; // Found connection
+        }
+    }
+    return 0; // Connection not found
+}
+
+
+// Atomic connection management - adds connection metadata in single operation
+unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
+                                    unsigned char door_x, unsigned char door_y, 
+                                    unsigned char wall_side, unsigned char corridor_type) {
+    // Validate room capacity
+    if (room_idx >= room_count || rooms[room_idx].connections >= 4) {
+        return 0; // Failed - room full or invalid
+    }
+    
+    unsigned char idx = rooms[room_idx].connections;
+    
+    // Atomic update - all metadata synchronized in single operation
+    rooms[room_idx].conn_data[idx].room_id = connected_room;
+    rooms[room_idx].conn_data[idx].corridor_type = corridor_type;
+    
+    rooms[room_idx].doors[idx].x = door_x;
+    rooms[room_idx].doors[idx].y = door_y;
+    rooms[room_idx].doors[idx].wall_side = wall_side;
+    rooms[room_idx].doors[idx].reserved = 0; // Clear reserved bits
+    
+    rooms[room_idx].connections++; // Update counter last
+    return 1; // Success
+}
+
+// Atomic rollback - removes last connection from room safely
+unsigned char remove_last_connection_from_room(unsigned char room_idx) {
+    if (room_idx >= room_count || rooms[room_idx].connections == 0) {
+        return 0; // Nothing to remove or invalid room
+    }
+    
+    // Atomic rollback - simply decrement counter (connection data will be overwritten)
+    rooms[room_idx].connections--;
+    return 1; // Success
+}
+
+// Clean implementation - all metadata management through atomic operations
+
+// =============================================================================
+// ROOM GENERATION
+// =============================================================================
+
+// Initialize room data structures
+void init_rooms(void) {
+    for (unsigned char i = 0; i < MAX_ROOMS; i++) {
+        rooms[i].connections = 0;
+        rooms[i].state = 0;
+        rooms[i].hub_distance = 0;
+        rooms[i].priority = 0;
+        
+        // Initialize packed connection data
+        for (unsigned char j = 0; j < 4; j++) {
+            rooms[i].conn_data[j].room_id = 31; // Invalid room index (unused slot marker)
+            rooms[i].conn_data[j].corridor_type = 0;
+            
+            // Initialize doors
+            rooms[i].doors[j].x = 0;
+            rooms[i].doors[j].y = 0;
+            rooms[i].doors[j].wall_side = 0;
+            rooms[i].doors[j].is_secret_door = 0;
+            rooms[i].doors[j].has_treasure = 0;
+            rooms[i].doors[j].reserved = 0; // Clear reserved bits
+            
+            // Initialize corridor breakpoints (invalid coordinates)
+            rooms[i].breakpoints[j][0].x = 255; // Invalid marker
+            rooms[i].breakpoints[j][0].y = 255;
+            rooms[i].breakpoints[j][1].x = 255; // Invalid marker  
+            rooms[i].breakpoints[j][1].y = 255;
+        }
+        
+        // Initialize treasure wall position (no treasure by default)
+        rooms[i].treasure_wall_x = 255; // Invalid marker
+        rooms[i].treasure_wall_y = 255;
+    }
+    room_count = 0;
+}
+
+// Generates all rooms using grid-based placement
+void create_rooms(void) {
+    unsigned char placed_rooms = 0;
+    unsigned char grid_positions[16]; // Maximum 4x4 grid
+    unsigned char grid_count = 0;
+
+    // Initialize room structures
+    init_rooms();
+    
+    // Room creation phase - progress handled by main generation loop
+    
+    // Initialize grid position array
+    for (unsigned char i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+        grid_positions[i] = i;
+        grid_count++;
+    }
+    
+    // Shuffle grid positions using Fisher-Yates algorithm
+    for (unsigned char i = grid_count - 1; i > 0; i--) {
+        unsigned char j = rnd(i + 1);
+        unsigned char temp = grid_positions[i];
+        grid_positions[i] = grid_positions[j];
+        grid_positions[j] = temp;
+    }
+    
+    // Additional shuffle passes
+    for (unsigned char pass = 0; pass < SHUFFLE_PASSES; pass++) {
+        for (unsigned char i = 0; i < grid_count - 1; i++) {
+            if (rnd(2)) {  // 50% chance to swap adjacent pairs
+                unsigned char temp = grid_positions[i];
+                grid_positions[i] = grid_positions[i + 1];
+                grid_positions[i + 1] = temp;
+            }
+        }
+    }
+
+    // Generate rooms at shuffled grid positions
+    for (unsigned char i = 0; i < MAX_ROOMS && placed_rooms < MAX_ROOMS && i < grid_count; i++) {
+        unsigned char w, h, x, y;
+        
+        // Generate room size with bias toward rectangles
+        if (rnd(RECTANGLE_TOTAL) < RECTANGLE_CHANCE) {
+            // 60% chance for rectangular rooms
+            if (rnd(2)) {
+                // Wider than tall
+                w = MIN_SIZE + 1 + rnd(MAX_SIZE - MIN_SIZE);     // 5-8 wide
+                h = MIN_SIZE + rnd(MAX_SIZE - MIN_SIZE - 1);     // 4-6 high
+            } else {
+                // Taller than wide
+                w = MIN_SIZE + rnd(MAX_SIZE - MIN_SIZE - 1);     // 4-6 wide
+                h = MIN_SIZE + 1 + rnd(MAX_SIZE - MIN_SIZE);     // 5-8 high
+            }
+        } else {
+            // 40% chance for square-ish rooms
+            w = MIN_SIZE + rnd(MAX_SIZE - MIN_SIZE + 1);         // 4-8 wide
+            h = MIN_SIZE + rnd(MAX_SIZE - MIN_SIZE + 1);         // 4-8 high
+        }
+        
+        // Attempt to place room at grid position
+        if (try_place_room_at_grid(grid_positions[i], w, h, &x, &y)) {
+            place_room(x, y, w, h);
+            placed_rooms++;
+            // Phase 0: Room placement progress
+            update_progress_step(0, placed_rooms, MAX_ROOMS);
+        }
+    }
+    
+    // Finalize room generation
+    room_count = placed_rooms;
+    assign_room_priorities();
+}

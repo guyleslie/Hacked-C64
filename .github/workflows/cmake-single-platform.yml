@@ -1,0 +1,163 @@
+
+# This workflow uses the CMake Single Platform Oscar64 Build workflow to generate the build result and artifact info section at the end of the build log.
+# CMake single-platform workflow for Oscar64-based C64 project
+# This workflow assumes Windows runner and local Oscar64 toolchain
+
+name: CMake Single Platform Oscar64 Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Download Oscar64 latest release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $oscarDir = Join-Path $env:GITHUB_WORKSPACE 'oscar64_temp'
+          New-Item -ItemType Directory -Force -Path $oscarDir | Out-Null
+          $headers = @{ Authorization = "token $env:GH_TOKEN" }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/drmortalwombat/oscar64/releases/latest" -Headers $headers
+          $asset = $release.assets | Where-Object { $_.name -eq "oscar64.zip" }
+          if (-not $asset) {
+            Write-Error "No oscar64.zip asset found in latest release."
+            exit 1
+          }
+          Write-Host "Downloading oscar64.zip..."
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "oscar64.zip"
+          Write-Host "Extracting oscar64.zip..."
+          Expand-Archive -Path "oscar64.zip" -DestinationPath $oscarDir
+          Write-Host "Oscar64 ready."
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          $oscarDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
+          cmake -S . -B build -DOSCAR64_PATH="$oscarDir"
+
+      - name: Build with CMake
+        run: |
+          cmake --build build --target oscar64_build
+        shell: cmd
+
+      - name: Download and extract VICE emulator
+        if: success()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $viceDir = Join-Path $env:GITHUB_WORKSPACE 'vice'
+          $tempDir = Join-Path $env:GITHUB_WORKSPACE 'vice_temp'
+          New-Item -ItemType Directory -Force -Path $viceDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+          
+          # Get latest VICE release
+          $headers = @{ Authorization = "token $env:GH_TOKEN" }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/VICE-Team/svn-mirror/releases/latest" -Headers $headers
+          $asset = $release.assets | Where-Object { $_.name -like "*win64*" -and $_.name -like "*.zip" } | Select-Object -First 1
+          
+          if (-not $asset) {
+            Write-Error "No Windows 64-bit VICE release found."
+            exit 1
+          }
+          
+          $zipPath = Join-Path $tempDir $asset.name
+          Write-Host "Downloading VICE emulator: $($asset.name)..."
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipPath
+          
+          Write-Host "Extracting VICE emulator..."
+          Expand-Archive -Path $zipPath -DestinationPath $tempDir
+          
+          # Find the extracted folder and move its contents to the target directory
+          $extractedFolder = Get-ChildItem -Path $tempDir -Directory | Where-Object { $_.Name -like "*vice*" } | Select-Object -First 1
+          if ($extractedFolder) {
+            Write-Host "Moving contents from $($extractedFolder.FullName) to $viceDir"
+            Get-ChildItem -Path $extractedFolder.FullName -Recurse | Move-Item -Destination $viceDir -Force
+          }
+          
+          Write-Host "VICE emulator ready."
+          # Clean up temporary directory
+          Remove-Item -Recurse -Force $tempDir
+
+      - name: Copy Oscar64 for artifact
+        if: success()
+        shell: pwsh
+        run: |
+          $oscarTempDir = "$env:GITHUB_WORKSPACE/oscar64_temp"
+          $oscarArtifactDir = "$env:GITHUB_WORKSPACE/oscar64"
+          Write-Host "Copying Oscar64 to artifact directory..."
+          # Find the extracted oscar64 folder and copy its contents
+          $extractedOscarFolder = Get-ChildItem -Path $oscarTempDir -Directory | Where-Object { $_.Name -eq "oscar64" } | Select-Object -First 1
+          if ($extractedOscarFolder) {
+            Write-Host "Found oscar64 folder in temp, copying contents..."
+            New-Item -ItemType Directory -Force -Path $oscarArtifactDir | Out-Null
+            Copy-Item -Path "$($extractedOscarFolder.FullName)\*" -Destination $oscarArtifactDir -Recurse -Force
+          } else {
+            Write-Host "No oscar64 subfolder found, copying all contents..."
+            New-Item -ItemType Directory -Force -Path $oscarArtifactDir | Out-Null
+            Copy-Item -Path "$oscarTempDir\*" -Destination $oscarArtifactDir -Recurse -Force
+          }
+          Write-Host "Oscar64 copied to oscar64 directory for artifact."
+
+      - name: Cleanup Oscar64 temp
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force "$env:GITHUB_WORKSPACE/oscar64_temp"
+
+      - name: Upload build output as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            build/*.prg
+            build/*.map
+            build/*.lbl
+            build/*.asm
+            main/**/*.c
+            main/**/*.h
+            oscar64/**
+            vice/**
+            run_vice.bat
+            build.bat
+      - name: List build output
+        run: |
+          dir build
+        shell: cmd
+
+  # Build summary job, runs after build job completes
+      - name: Build result and artifact info
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host ""
+          $orange = "`e[38;5;214m"
+          $green = "`e[32m"
+          $red = "`e[31m"
+          $reset = "`e[0m"
+          if ("${{ job.status }}" -eq "success") {
+            Write-Host ("${orange}=======================================================================================${reset}")
+            Write-Host ("${green}BUILD SUCCESSFUL!${reset}")
+            Write-Host "Latest build files:"
+            Write-Host ("https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}")
+            Write-Host ("${red}ARTIFACT DOWNLOAD URL IS ABOVE IN UPLOAD BUILD OUTPUT AS ARTIFACT SECTION${reset}")
+            Write-Host ("VICE emulator downloaded to vice directory")
+            Write-Host ("${orange}=======================================================================================${reset}")
+          } else {
+            Write-Host ("${orange}=======================================================================================${reset}")
+            Write-Host ("${red}BUILD FAILED!${reset}")
+            Write-Host ("${orange}=======================================================================================${reset}")
+          }
