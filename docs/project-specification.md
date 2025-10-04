@@ -108,8 +108,8 @@ if (r1_cx == r2_cx) {
 
 **Geometric Requirements:**
 - Diagonally positioned rooms
-- Pivot point must be outside both rooms
-- Both segments must step "outward" from room doors
+- Horizontal and vertical gaps between room boundaries must both be > 0
+- Used when rooms don't overlap and have sufficient space for L-corridor path
 
 **Door Placement Logic:**
 - **Vertical walls (left/right):** FIRST horizontal, THEN vertical
@@ -163,7 +163,7 @@ if ((wall_side & 0x02) == 0) { // Vertical walls -> horizontal start
 ## Corridor Type Selection Priority
 
 1. **First Priority:** Straight corridor (when rooms are aligned and facing)
-2. **Second Priority:** L-shaped corridor (when geometric validation passes)
+2. **Second Priority:** L-shaped corridor (when both horizontal and vertical gaps > 0)
 3. **Third Priority:** Z-shaped corridor (default fallback)
 
 ## Wall Side Encoding

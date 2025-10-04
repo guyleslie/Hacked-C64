@@ -140,11 +140,11 @@ dir build\"Hacked C64.prg"
 // Room connection with corridor type selection
 unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, unsigned char is_secret);
 
-// Corridor type determination with geometric validation:
-// Priority: Straight > Z-shaped > L-shaped
+// Corridor type determination:
+// Priority: Straight > L-shaped > Z-shaped
 // - Straight: Room centers aligned AND rooms face each other (not overlapping)
-// - L-shaped: Both segments step outward from doors, pivot point outside rooms
-// - Z-shaped: Primary choice for diagonal room connections
+// - L-shaped: Horizontal and vertical gaps between room boundaries > 0
+// - Z-shaped: Default fallback for diagonal room connections
 
 // Atomic connection management - single operation for all metadata
 unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,

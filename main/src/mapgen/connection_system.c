@@ -286,6 +286,47 @@ static void calculate_l_exits(unsigned char room1, unsigned char room2,
     }
 }
 
+// Try to calculate L-corridor with gap validation - returns 1 if successful, 0 if not viable
+static unsigned char try_calculate_l_corridor(unsigned char room1, unsigned char room2,
+                                            unsigned char *exit1_x, unsigned char *exit1_y,
+                                            unsigned char *exit2_x, unsigned char *exit2_y) {
+    Room *r1 = &rooms[room1];
+    Room *r2 = &rooms[room2];
+    
+    // Calculate horizontal and vertical gaps between room boundaries
+    short horizontal_gap, vertical_gap;
+    
+    if (r1->x + r1->w <= r2->x) {
+        // Room1 is to the left of room2
+        horizontal_gap = r2->x - (r1->x + r1->w);
+    } else if (r2->x + r2->w <= r1->x) {
+        // Room2 is to the left of room1
+        horizontal_gap = r1->x - (r2->x + r2->w);
+    } else {
+        // Rooms overlap horizontally
+        horizontal_gap = -1;
+    }
+    
+    if (r1->y + r1->h <= r2->y) {
+        // Room1 is above room2
+        vertical_gap = r2->y - (r1->y + r1->h);
+    } else if (r2->y + r2->h <= r1->y) {
+        // Room2 is above room1
+        vertical_gap = r1->y - (r2->y + r2->h);
+    } else {
+        // Rooms overlap vertically
+        vertical_gap = -1;
+    }
+    
+    // If either gap is <= 0, L-corridor is not viable
+    if (horizontal_gap <= 0 || vertical_gap <= 0) {
+        return 0;
+    }
+    
+    // Calculate L-exits using existing logic
+    calculate_l_exits(room1, room2, exit1_x, exit1_y, exit2_x, exit2_y);
+    return 1;
+}
 
 
 // =============================================================================
@@ -322,46 +363,10 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
         corridor_type = 0;
         calculate_straight_exits(room1, room2, &exit1_x, &exit1_y, &exit2_x, &exit2_y);
     } else {
-        // Try L-shaped if rooms are diagonally positioned with enough space
-        unsigned char l_exit1_x, l_exit1_y, l_exit2_x, l_exit2_y;
-        calculate_l_exits(room1, room2, &l_exit1_x, &l_exit1_y, &l_exit2_x, &l_exit2_y);
-        
-        // Check if L-corridor steps outward from room1 (not toward room interior)
-        unsigned char wall1_side = get_wall_side_from_exit(room1, l_exit1_x, l_exit1_y);
-        unsigned char pivot_x, pivot_y;
-        
-        // Calculate pivot point (same logic as draw_l_path)
-        if ((wall1_side & 0x02) == 0) {
-            // Vertical wall -> go horizontal first
-            pivot_x = l_exit2_x; pivot_y = l_exit1_y;
-        } else {
-            // Horizontal wall -> go vertical first  
-            pivot_x = l_exit1_x; pivot_y = l_exit2_y;
-        }
-        
-        // Check if both segments step outward from their respective doors
-        unsigned char pivot_outside_rooms = can_place_corridor(pivot_x, pivot_y);
-        
-        // Check if first segment steps outward from room1 door
-        unsigned char first_seg_outward = 0;
-        if (wall1_side == 0 && pivot_x < l_exit1_x) first_seg_outward = 1; // Left wall, step left
-        if (wall1_side == 1 && pivot_x > l_exit1_x) first_seg_outward = 1; // Right wall, step right
-        if (wall1_side == 2 && pivot_y < l_exit1_y) first_seg_outward = 1; // Top wall, step up
-        if (wall1_side == 3 && pivot_y > l_exit1_y) first_seg_outward = 1; // Bottom wall, step down
-        
-        // Check if second segment steps outward from room2 door
-        unsigned char wall2_side = get_wall_side_from_exit(room2, l_exit2_x, l_exit2_y);
-        unsigned char second_seg_outward = 0;
-        if (wall2_side == 0 && pivot_x < l_exit2_x) second_seg_outward = 1; // Left wall, step left
-        if (wall2_side == 1 && pivot_x > l_exit2_x) second_seg_outward = 1; // Right wall, step right
-        if (wall2_side == 2 && pivot_y < l_exit2_y) second_seg_outward = 1; // Top wall, step up
-        if (wall2_side == 3 && pivot_y > l_exit2_y) second_seg_outward = 1; // Bottom wall, step down
-        
-        if (pivot_outside_rooms && first_seg_outward && second_seg_outward) {
-            // Use L-shaped if sufficient space and safe
+        // Try L-shaped corridor with simplified gap validation
+        if (try_calculate_l_corridor(room1, room2, &exit1_x, &exit1_y, &exit2_x, &exit2_y)) {
+            // Use L-shaped corridor
             corridor_type = 1;
-            exit1_x = l_exit1_x; exit1_y = l_exit1_y;
-            exit2_x = l_exit2_x; exit2_y = l_exit2_y;
         } else {
             // Fallback to Z-shaped
             corridor_type = 2;
