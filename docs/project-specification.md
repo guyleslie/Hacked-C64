@@ -46,7 +46,6 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - The map is divided into 16 equal cells (4×4 grid)
 - Each cell represents a potential room position
 - Cell order is randomized using Fisher-Yates shuffle algorithm
-- Additional shuffle passes break grid alignment patterns
 
 **Room Sizes and Types:**
 - Base size ranges from 4×4 to 8×8 tiles
