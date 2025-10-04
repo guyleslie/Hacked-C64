@@ -127,12 +127,14 @@ jobs:
             build/*.map
             build/*.lbl
             build/*.asm
+            build/*.dbj
             main/**/*.c
             main/**/*.h
             oscar64/**
             vice/**
             run_vice.bat
-            build.bat
+            build-dev.bat
+            build-release.bat
       - name: List build output
         run: |
           dir build
