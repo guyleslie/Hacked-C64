@@ -200,7 +200,7 @@ The secret room system provides a special gameplay mechanic:
 
 **Secret Door Conversion:**
 - Only the entrance door in the normal room becomes `TILE_SECRET_PATH`
-- The corridor and secret room door remain normal tiles
+- The corridor remains normal, but the secret room door is converted to `TILE_FLOOR`
 - This creates a hidden entrance mechanism to the secret room
 - Visual representation uses special character (`░` symbol) only at entrance
 

@@ -162,6 +162,7 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx);
 
 // Secret room system functions
 // - convert_secret_rooms_doors: Converts single-connection rooms to secret with entrance-only secret doors
+// - Secret room door is converted to floor, normal room door becomes TILE_SECRET_PATH
 // - Validates connection constraints and marks doors with is_secret_door flag
 
 // Secret treasure system functions

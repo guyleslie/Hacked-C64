@@ -519,9 +519,10 @@ void convert_secret_rooms_doors(void) {
                 unsigned char normal_door_y = connected_door_y;
                 
                 // Only convert the normal room door to secret passage
-                // The corridor and secret room door remain normal
+                // The corridor remains normal. Convert the secret room door to floor 
                 // This creates a hidden entrance to the secret room
                 set_compact_tile(normal_door_x, normal_door_y, TILE_SECRET_PATH);
+                set_compact_tile(secret_door->x, secret_door->y, TILE_FLOOR);
                 
                 // Mark the door as secret in metadata - find the door index in connected room
                 for (unsigned char door_idx = 0; door_idx < room_list[connected_room].connections; door_idx++) {
