@@ -4,7 +4,7 @@
 #include "mapgen_utils.h"
 #include "mapgen_internal.h"
 unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
-Room rooms[MAX_ROOMS];
+Room room_list[MAX_ROOMS];
 __zeropage unsigned char mst_best_room1;
 __zeropage unsigned char mst_best_room2;
 __zeropage unsigned char mst_best_distance;
@@ -152,7 +152,7 @@ void clamp_to_bounds(unsigned char *x, unsigned char *y) {
 unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room_id) {
     if (room_id >= room_count) return 0;
     
-    Room *room = &rooms[room_id];
+    Room *room = &room_list[room_id];
     return (x >= room->x && x < room->x + room->w &&
             y >= room->y && y < room->y + room->h);
 }
@@ -161,7 +161,7 @@ unsigned char is_inside_any_room(unsigned char x, unsigned char y) {
     // Inline bounds check to avoid wrapper overhead
     for (unsigned char i = 0; i < room_count; i++) {
         __assume(room_count <= MAX_ROOMS);
-        Room *room = &rooms[i];
+        Room *room = &room_list[i];
         if (x >= room->x && x < room->x + room->w &&
             y >= room->y && y < room->y + room->h) {
             return 1;
@@ -175,10 +175,10 @@ unsigned char point_in_any_room(unsigned char x, unsigned char y, unsigned char 
     
     for (i = 0; i < room_count; i++) {
         __assume(room_count <= MAX_ROOMS);
-        unsigned char rx = rooms[i].x;
-        unsigned char ry = rooms[i].y;
-        unsigned char rw = rooms[i].w;
-        unsigned char rh = rooms[i].h;
+        unsigned char rx = room_list[i].x;
+        unsigned char ry = room_list[i].y;
+        unsigned char rw = room_list[i].w;
+        unsigned char rh = room_list[i].h;
         
         if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) {
             if (room_id) *room_id = i;
@@ -215,7 +215,7 @@ static unsigned char calculate_optimal_exit_position(unsigned char room_dim, uns
 void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
                    unsigned char *exit_x, unsigned char *exit_y) {
     unsigned char room_center_x, room_center_y;
-    unsigned char room_id = room - rooms;
+    unsigned char room_id = room - room_list;
     get_room_center(room_id, &room_center_x, &room_center_y);
     
     unsigned char dx = abs_diff(target_x, room_center_x);
@@ -264,10 +264,10 @@ unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
     unsigned char i;
     for (i = 0; i < room_count; i++) {
         __assume(room_count <= MAX_ROOMS);
-        unsigned char room_x = rooms[i].x;
-        unsigned char room_y = rooms[i].y;
-        unsigned char room_w = rooms[i].w;
-        unsigned char room_h = rooms[i].h;
+        unsigned char room_x = room_list[i].x;
+        unsigned char room_y = room_list[i].y;
+        unsigned char room_w = room_list[i].w;
+        unsigned char room_h = room_list[i].h;
         unsigned char right_edge = room_x + room_w - 1;
         unsigned char bottom_edge = room_y + room_h - 1;
         
@@ -314,8 +314,8 @@ inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsi
         *center_x = *center_y = 0;
         return;
     }
-    *center_x = rooms[room_id].x + rooms[room_id].w / 2;
-    *center_y = rooms[room_id].y + rooms[room_id].h / 2;
+    *center_x = room_list[room_id].x + room_list[room_id].w / 2;
+    *center_y = room_list[room_id].y + room_list[room_id].h / 2;
 }
 
 // Helper for Room pointer - used in connection_system.c
@@ -424,8 +424,8 @@ void reset_all_generation_data(void) {
     clear_map();
     
     for (unsigned char i = 0; i < MAX_ROOMS; i++) {
-        rooms[i].connections = 0;
-        rooms[i].state = 0;
+        room_list[i].connections = 0;
+        room_list[i].state = 0;
     }
     
     room_count = 0;

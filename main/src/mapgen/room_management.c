@@ -159,11 +159,11 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
     
     // Add room to list if capacity allows
     if (room_count < MAX_ROOMS) {
-        rooms[room_count].x = x;
-        rooms[room_count].y = y;
-        rooms[room_count].w = w;
-        rooms[room_count].h = h;
-        rooms[room_count].priority = 0;    // Will be set by assign_room_priorities()
+        room_list[room_count].x = x;
+        room_list[room_count].y = y;
+        room_list[room_count].w = w;
+        room_list[room_count].h = h;
+        room_list[room_count].priority = 0;    // Will be set by assign_room_priorities()
         
         room_count++;
     }
@@ -178,12 +178,12 @@ void assign_room_priorities(void) {
     for (unsigned char i = 0; i < room_count; i++) {
         __assume(room_count <= MAX_ROOMS);
         if (i == 0) {
-            rooms[i].priority = START_ROOM_PRIORITY; // Starting room
+            room_list[i].priority = START_ROOM_PRIORITY; // Starting room
         } else if (i == room_count - 1) {
-            rooms[i].priority = END_ROOM_PRIORITY;  // End room
+            room_list[i].priority = END_ROOM_PRIORITY;  // End room
         } else {
             // Random priority variation for other rooms
-            rooms[i].priority = DEFAULT_PRIORITY + rnd(PRIORITY_VARIATION);
+            room_list[i].priority = DEFAULT_PRIORITY + rnd(PRIORITY_VARIATION);
         }
     }
 }
@@ -196,8 +196,8 @@ void assign_room_priorities(void) {
 unsigned char room_has_connection_to(unsigned char room_idx, unsigned char target_room) {
     if (room_idx >= room_count) return 0;
     
-    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
-        if (rooms[room_idx].conn_data[i].room_id == target_room) {
+    for (unsigned char i = 0; i < room_list[room_idx].connections; i++) {
+        if (room_list[room_idx].conn_data[i].room_id == target_room) {
             return 1; // Connection exists
         }
     }
@@ -210,12 +210,12 @@ unsigned char get_connection_info(unsigned char room_idx, unsigned char target_r
                                  unsigned char *wall_side, unsigned char *corridor_type) {
     if (room_idx >= room_count) return 0;
     
-    for (unsigned char i = 0; i < rooms[room_idx].connections; i++) {
-        if (rooms[room_idx].conn_data[i].room_id == target_room) {
-            *door_x = rooms[room_idx].doors[i].x;
-            *door_y = rooms[room_idx].doors[i].y;
-            *wall_side = rooms[room_idx].doors[i].wall_side;
-            *corridor_type = rooms[room_idx].conn_data[i].corridor_type;
+    for (unsigned char i = 0; i < room_list[room_idx].connections; i++) {
+        if (room_list[room_idx].conn_data[i].room_id == target_room) {
+            *door_x = room_list[room_idx].doors[i].x;
+            *door_y = room_list[room_idx].doors[i].y;
+            *wall_side = room_list[room_idx].doors[i].wall_side;
+            *corridor_type = room_list[room_idx].conn_data[i].corridor_type;
             return 1; // Found connection
         }
     }
@@ -228,33 +228,33 @@ unsigned char add_connection_to_room(unsigned char room_idx, unsigned char conne
                                     unsigned char door_x, unsigned char door_y, 
                                     unsigned char wall_side, unsigned char corridor_type) {
     // Validate room capacity
-    if (room_idx >= room_count || rooms[room_idx].connections >= 4) {
+    if (room_idx >= room_count || room_list[room_idx].connections >= 4) {
         return 0; // Failed - room full or invalid
     }
     
-    unsigned char idx = rooms[room_idx].connections;
+    unsigned char idx = room_list[room_idx].connections;
     
     // Atomic update - all metadata synchronized in single operation
-    rooms[room_idx].conn_data[idx].room_id = connected_room;
-    rooms[room_idx].conn_data[idx].corridor_type = corridor_type;
+    room_list[room_idx].conn_data[idx].room_id = connected_room;
+    room_list[room_idx].conn_data[idx].corridor_type = corridor_type;
     
-    rooms[room_idx].doors[idx].x = door_x;
-    rooms[room_idx].doors[idx].y = door_y;
-    rooms[room_idx].doors[idx].wall_side = wall_side;
-    rooms[room_idx].doors[idx].reserved = 0; // Clear reserved bits
+    room_list[room_idx].doors[idx].x = door_x;
+    room_list[room_idx].doors[idx].y = door_y;
+    room_list[room_idx].doors[idx].wall_side = wall_side;
+    room_list[room_idx].doors[idx].reserved = 0; // Clear reserved bits
     
-    rooms[room_idx].connections++; // Update counter last
+    room_list[room_idx].connections++; // Update counter last
     return 1; // Success
 }
 
 // Atomic rollback - removes last connection from room safely
 unsigned char remove_last_connection_from_room(unsigned char room_idx) {
-    if (room_idx >= room_count || rooms[room_idx].connections == 0) {
+    if (room_idx >= room_count || room_list[room_idx].connections == 0) {
         return 0; // Nothing to remove or invalid room
     }
     
     // Atomic rollback - simply decrement counter (connection data will be overwritten)
-    rooms[room_idx].connections--;
+    room_list[room_idx].connections--;
     return 1; // Success
 }
 
@@ -267,34 +267,34 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx) {
 // Initialize room data structures
 void init_rooms(void) {
     for (unsigned char i = 0; i < MAX_ROOMS; i++) {
-        rooms[i].connections = 0;
-        rooms[i].state = 0;
-        rooms[i].hub_distance = 0;
-        rooms[i].priority = 0;
+        room_list[i].connections = 0;
+        room_list[i].state = 0;
+        room_list[i].hub_distance = 0;
+        room_list[i].priority = 0;
         
         // Initialize packed connection data
         for (unsigned char j = 0; j < 4; j++) {
-            rooms[i].conn_data[j].room_id = 31; // Invalid room index (unused slot marker)
-            rooms[i].conn_data[j].corridor_type = 0;
+            room_list[i].conn_data[j].room_id = 31; // Invalid room index (unused slot marker)
+            room_list[i].conn_data[j].corridor_type = 0;
             
             // Initialize doors
-            rooms[i].doors[j].x = 0;
-            rooms[i].doors[j].y = 0;
-            rooms[i].doors[j].wall_side = 0;
-            rooms[i].doors[j].is_secret_door = 0;
-            rooms[i].doors[j].has_treasure = 0;
-            rooms[i].doors[j].reserved = 0; // Clear reserved bits
+            room_list[i].doors[j].x = 0;
+            room_list[i].doors[j].y = 0;
+            room_list[i].doors[j].wall_side = 0;
+            room_list[i].doors[j].is_secret_door = 0;
+            room_list[i].doors[j].has_treasure = 0;
+            room_list[i].doors[j].reserved = 0; // Clear reserved bits
             
             // Initialize corridor breakpoints (invalid coordinates)
-            rooms[i].breakpoints[j][0].x = 255; // Invalid marker
-            rooms[i].breakpoints[j][0].y = 255;
-            rooms[i].breakpoints[j][1].x = 255; // Invalid marker  
-            rooms[i].breakpoints[j][1].y = 255;
+            room_list[i].breakpoints[j][0].x = 255; // Invalid marker
+            room_list[i].breakpoints[j][0].y = 255;
+            room_list[i].breakpoints[j][1].x = 255; // Invalid marker  
+            room_list[i].breakpoints[j][1].y = 255;
         }
         
         // Initialize treasure wall position (no treasure by default)
-        rooms[i].treasure_wall_x = 255; // Invalid marker
-        rooms[i].treasure_wall_y = 255;
+        room_list[i].treasure_wall_x = 255; // Invalid marker
+        room_list[i].treasure_wall_y = 255;
     }
     room_count = 0;
 }

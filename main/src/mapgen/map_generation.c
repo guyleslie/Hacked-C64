@@ -48,8 +48,8 @@ void add_stairs(void) {
     unsigned char highest_priority = 0;
     for (unsigned char i = 0; i < room_count; i++) {
         __assume(room_count <= MAX_ROOMS);
-        if (rooms[i].priority > highest_priority) {
-            highest_priority = rooms[i].priority;
+        if (room_list[i].priority > highest_priority) {
+            highest_priority = room_list[i].priority;
             start_room = i;
         }
     }
@@ -60,10 +60,10 @@ void add_stairs(void) {
     unsigned char second_highest = 0;
     for (unsigned char i = 0; i < room_count; i++) {
         __assume(room_count <= MAX_ROOMS);
-        if (i != start_room && rooms[i].priority > second_highest) {
+        if (i != start_room && room_list[i].priority > second_highest) {
             unsigned char distance = calculate_room_distance(start_room, i);
             if (distance >= min_stair_distance) { // Check minimum distance
-                second_highest = rooms[i].priority;
+                second_highest = room_list[i].priority;
                 end_room = i;
             }
         }

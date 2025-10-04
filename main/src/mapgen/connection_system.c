@@ -143,8 +143,8 @@ static void draw_corridor_from_door(unsigned char exit1_x, unsigned char exit1_y
 static void calculate_straight_exits(unsigned char room1, unsigned char room2,
                                     unsigned char *exit1_x, unsigned char *exit1_y,
                                     unsigned char *exit2_x, unsigned char *exit2_y) {
-    Room *r1 = &rooms[room1];
-    Room *r2 = &rooms[room2];
+    Room *r1 = &room_list[room1];
+    Room *r2 = &room_list[room2];
     
     unsigned char r1_cx, r1_cy, r2_cx, r2_cy;
     get_room_center_ptr(r1, &r1_cx, &r1_cy);
@@ -172,7 +172,7 @@ static void calculate_straight_exits(unsigned char room1, unsigned char room2,
 // Calculate door position on room wall facing target
 static void calculate_exit_from_target(unsigned char room_idx, unsigned char target_x, unsigned char target_y,
                                      unsigned char *door_x, unsigned char *door_y) {
-    Room *room = &rooms[room_idx];
+    Room *room = &room_list[room_idx];
     unsigned char room_center_x, room_center_y;
     get_room_center_ptr(room, &room_center_x, &room_center_y);
     
@@ -205,7 +205,7 @@ static void calculate_exit_from_target(unsigned char room_idx, unsigned char tar
 
 // Get wall side from door position
 static unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y) {
-    Room *room = &rooms[room_idx];
+    Room *room = &room_list[room_idx];
     
     // Reduce branches with early returns
     if (exit_x < room->x) return 0; // Left
@@ -216,8 +216,8 @@ static unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned ch
 
 // Check for valid straight corridor: centers aligned AND walls face each other
 static unsigned char can_use_straight_corridor(unsigned char room1, unsigned char room2) {
-    Room *r1 = &rooms[room1];
-    Room *r2 = &rooms[room2];
+    Room *r1 = &room_list[room1];
+    Room *r2 = &room_list[room2];
     
     unsigned char r1_cx, r1_cy, r2_cx, r2_cy;
     get_room_center_ptr(r1, &r1_cx, &r1_cy);
@@ -242,8 +242,8 @@ static unsigned char can_use_straight_corridor(unsigned char room1, unsigned cha
 static void calculate_l_exits(unsigned char room1, unsigned char room2,
                             unsigned char *exit1_x, unsigned char *exit1_y,
                             unsigned char *exit2_x, unsigned char *exit2_y) {
-    Room *r1 = &rooms[room1];
-    Room *r2 = &rooms[room2];
+    Room *r1 = &room_list[room1];
+    Room *r2 = &room_list[room2];
     
     unsigned char r1_center_x, r1_center_y, r2_center_x, r2_center_y;
     get_room_center_ptr(r1, &r1_center_x, &r1_center_y);
@@ -290,8 +290,8 @@ static void calculate_l_exits(unsigned char room1, unsigned char room2,
 static unsigned char try_calculate_l_corridor(unsigned char room1, unsigned char room2,
                                             unsigned char *exit1_x, unsigned char *exit1_y,
                                             unsigned char *exit2_x, unsigned char *exit2_y) {
-    Room *r1 = &rooms[room1];
-    Room *r2 = &rooms[room2];
+    Room *r1 = &room_list[room1];
+    Room *r2 = &room_list[room2];
     
     // Calculate horizontal and vertical gaps between room boundaries
     short horizontal_gap, vertical_gap;
@@ -345,8 +345,8 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
         return 0;
     }
     
-    Room *r1 = &rooms[room1];
-    Room *r2 = &rooms[room2];
+    Room *r1 = &room_list[room1];
+    Room *r2 = &room_list[room2];
     
     // Calculate room centers for door positioning
     unsigned char r1_center_x, r1_center_y, r2_center_x, r2_center_y;
@@ -394,8 +394,8 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
     
     // Mark secret rooms in their state
     if (is_secret) {
-        rooms[room1].state |= ROOM_SECRET;
-        rooms[room2].state |= ROOM_SECRET;
+        room_list[room1].state |= ROOM_SECRET;
+        room_list[room2].state |= ROOM_SECRET;
     }
     
     // Store connection data atomically using optimized metadata management
@@ -411,8 +411,8 @@ unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, u
     }
     
     // Calculate and store breakpoints for both rooms
-    calculate_and_store_breakpoints(room1, rooms[room1].connections - 1);
-    calculate_and_store_breakpoints(room2, rooms[room2].connections - 1);
+    calculate_and_store_breakpoints(room1, room_list[room1].connections - 1);
+    calculate_and_store_breakpoints(room2, room_list[room2].connections - 1);
     
     return 1;
 }
@@ -491,8 +491,8 @@ void convert_secret_rooms_doors(void) {
     for (unsigned char i = 0; i < room_count; i++) {
         __assume(room_count <= MAX_ROOMS);
         // Only rooms with exactly one connection can be secret
-        if (rooms[i].connections == 1 && rnd(100) < SECRET_ROOM_PERCENTAGE) {
-            unsigned char connected_room = rooms[i].conn_data[0].room_id;
+        if (room_list[i].connections == 1 && rnd(100) < SECRET_ROOM_PERCENTAGE) {
+            unsigned char connected_room = room_list[i].conn_data[0].room_id;
             
             // Get the connected room's door position for this connection
             unsigned char connected_door_x, connected_door_y, connected_wall_side, temp_corridor_type;
@@ -502,17 +502,17 @@ void convert_secret_rooms_doors(void) {
             
             // Count how many doors are on this specific wall in connected room
             unsigned char doors_on_wall = 0;
-            for (unsigned char j = 0; j < rooms[connected_room].connections; j++) {
-                if (rooms[connected_room].doors[j].wall_side == connected_wall_side) {
+            for (unsigned char j = 0; j < room_list[connected_room].connections; j++) {
+                if (room_list[connected_room].doors[j].wall_side == connected_wall_side) {
                     doors_on_wall++;
                 }
             }
             // If more than 1 door on this wall, skip (would delete existing corridor)
             if (doors_on_wall > 1) continue;
-            rooms[i].state |= ROOM_SECRET;
+            room_list[i].state |= ROOM_SECRET;
             
-            if (rooms[i].connections > 0) {
-                Door *secret_door = &rooms[i].doors[0];
+            if (room_list[i].connections > 0) {
+                Door *secret_door = &room_list[i].doors[0];
                 
                 // Use the door coordinates we already retrieved above
                 unsigned char normal_door_x = connected_door_x;
@@ -524,10 +524,10 @@ void convert_secret_rooms_doors(void) {
                 set_compact_tile(normal_door_x, normal_door_y, TILE_SECRET_PATH);
                 
                 // Mark the door as secret in metadata - find the door index in connected room
-                for (unsigned char door_idx = 0; door_idx < rooms[connected_room].connections; door_idx++) {
-                    if (rooms[connected_room].doors[door_idx].x == normal_door_x && 
-                        rooms[connected_room].doors[door_idx].y == normal_door_y) {
-                        rooms[connected_room].doors[door_idx].is_secret_door = 1;
+                for (unsigned char door_idx = 0; door_idx < room_list[connected_room].connections; door_idx++) {
+                    if (room_list[connected_room].doors[door_idx].x == normal_door_x && 
+                        room_list[connected_room].doors[door_idx].y == normal_door_y) {
+                        room_list[connected_room].doors[door_idx].is_secret_door = 1;
                         break;
                     }
                 }
@@ -546,7 +546,7 @@ void convert_secret_rooms_doors(void) {
 
 // Check if a wall side has any doors (using existing pattern from convert_secret_corridors)
 unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
-    Room *room = &rooms[room_idx];
+    Room *room = &room_list[room_idx];
     
     // Count doors on this wall side
     unsigned char doors_on_wall = 0;
@@ -561,7 +561,7 @@ unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
 
 // Place a single secret treasure for a room
 unsigned char place_treasure_for_room(unsigned char room_idx) {
-    Room *room = &rooms[room_idx];
+    Room *room = &room_list[room_idx];
     
     // Skip rooms that already have treasure or are secret rooms
     if (room->state & (ROOM_HAS_TREASURE | ROOM_SECRET)) {
@@ -658,7 +658,7 @@ void place_secret_treasures(unsigned char treasure_count) {
 
 // Calculate and store corridor breakpoints based on corridor type and door positions
 void calculate_and_store_breakpoints(unsigned char room_idx, unsigned char connection_idx) {
-    Room *room = &rooms[room_idx];
+    Room *room = &room_list[room_idx];
     
     // Validate indices
     if (room_idx >= room_count || connection_idx >= room->connections) {
