@@ -544,6 +544,31 @@ void convert_secret_rooms_doors(void) {
 // SECRET TREASURE PLACEMENT SYSTEM
 // =============================================================================
 
+// Helper function to calculate door position for false corridor on given wall
+static void calculate_false_corridor_door(unsigned char room_idx, unsigned char wall_side, 
+                                         unsigned char *door_x, unsigned char *door_y) {
+    Room *room = &room_list[room_idx];
+    
+    // Generate direction vector based on wall side
+    signed char dx = 0, dy = 0;
+    switch (wall_side) {
+        case 0: dx = -1; dy = 0; break; // Left wall
+        case 1: dx = 1; dy = 0; break;  // Right wall
+        case 2: dx = 0; dy = -1; break; // Top wall
+        case 3: dx = 0; dy = 1; break;  // Bottom wall
+        default: *door_x = 255; *door_y = 255; return;
+    }
+    
+    // Calculate target point far in the chosen direction
+    unsigned char room_center_x, room_center_y;
+    get_room_center_ptr(room, &room_center_x, &room_center_y);
+    unsigned char target_x = room_center_x + dx * 10; // Fixed distance for door calculation
+    unsigned char target_y = room_center_y + dy * 10;
+    
+    // Calculate door position using existing helper
+    calculate_exit_from_target(room_idx, target_x, target_y, door_x, door_y);
+}
+
 // Check if a wall side has any doors (normal doors + false corridor doors)
 unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
     Room *room = &room_list[room_idx];
@@ -557,20 +582,11 @@ unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
     
     // Check false corridor door on this wall side
     if (room->state & ROOM_HAS_FALSE_CORRIDOR) {
-        unsigned char room_center_x = room->x + room->w / 2;
-        unsigned char room_center_y = room->y + room->h / 2;
-        unsigned char wall_center_x, wall_center_y;
+        unsigned char expected_door_x, expected_door_y;
+        calculate_false_corridor_door(room_idx, wall_side, &expected_door_x, &expected_door_y);
         
-        switch (wall_side) {
-            case 0: wall_center_x = room->x - 1; wall_center_y = room_center_y; break;
-            case 1: wall_center_x = room->x + room->w; wall_center_y = room_center_y; break;
-            case 2: wall_center_x = room_center_x; wall_center_y = room->y - 1; break;
-            case 3: wall_center_x = room_center_x; wall_center_y = room->y + room->h; break;
-            default: return 0;
-        }
-        
-        if (room->false_corridor_door_x == wall_center_x && 
-            room->false_corridor_door_y == wall_center_y) {
+        if (room->false_corridor_door_x == expected_door_x && 
+            room->false_corridor_door_y == expected_door_y) {
             return 1; // Found false corridor door on this wall
         }
     }
@@ -592,54 +608,44 @@ static unsigned char create_simple_false_corridor(unsigned char room_idx, unsign
     // Skip walls that have doors
     if (wall_has_doors(room_idx, wall_side)) return 0;
     
-    // Simple approach: try to place corridor, check later
-    unsigned char room_center_x = room->x + room->w / 2;
-    unsigned char room_center_y = room->y + room->h / 2;
+    // Calculate door position using shared helper
+    unsigned char door_x, door_y;
+    calculate_false_corridor_door(room_idx, wall_side, &door_x, &door_y);
     
-    // Calculate door and end positions directly
-    unsigned char door_x, door_y, target_x, target_y;
+    // Generate direction vector for target calculation
+    signed char dx = 0, dy = 0;
     unsigned char corridor_length = 5 + rnd(8); // 5-12 tiles
     
     switch (wall_side) {
-        case 0: // Left wall
-            door_x = room->x - 1; door_y = room_center_y;
-            target_x = door_x - corridor_length; target_y = door_y;
-            break;
-        case 1: // Right wall  
-            door_x = room->x + room->w; door_y = room_center_y;
-            target_x = door_x + corridor_length; target_y = door_y;
-            break;
-        case 2: // Top wall
-            door_x = room_center_x; door_y = room->y - 1;
-            target_x = door_x; target_y = door_y - corridor_length;
-            break;
-        case 3: // Bottom wall
-            door_x = room_center_x; door_y = room->y + room->h;
-            target_x = door_x; target_y = door_y + corridor_length;
-            break;
-        default:
-            return 0;
+        case 0: dx = -1; dy = 0; break; // Left wall
+        case 1: dx = 1; dy = 0; break;  // Right wall
+        case 2: dx = 0; dy = -1; break; // Top wall
+        case 3: dx = 0; dy = 1; break;  // Bottom wall
+        default: return 0;
     }
     
-    // Simple boundary check - reject if too close to edge
-    if (target_x < 1 || target_x >= MAP_W-1 || target_y < 1 || target_y >= MAP_H-1) {
+    // Calculate actual target based on door position
+    unsigned char target_x = door_x + dx * corridor_length;
+    unsigned char target_y = door_y + dy * corridor_length;
+    
+    // Check bounds with 2-tile margin from map edges
+    if (target_x < 2 || target_x >= MAP_W-2 || target_y < 2 || target_y >= MAP_H-2) {
         return 0;
     }
     
-    // Simple room collision check - reject if too close to any room
-    for (unsigned char i = 0; i < room_count; i++) {
-        if (i == room_idx) continue;
-        Room *check_room = &room_list[i];
-        if (target_x >= check_room->x - 2 && target_x <= check_room->x + check_room->w + 1 &&
-            target_y >= check_room->y - 2 && target_y <= check_room->y + check_room->h + 1) {
-            return 0; // Too close to room
-        }
+    // Check room collision using existing helper
+    unsigned char collision_room;
+    if (point_in_any_room(target_x, target_y, &collision_room)) {
+        return 0; // Too close to room
     }
     
-    // Optional L-shaped deviation - simple approach
+    // Optional L-shaped or Z-shaped deviation - simple approach
     unsigned char final_x = target_x, final_y = target_y;
+    unsigned char corridor_type = 0; // Default to straight
+    
     if (rnd(100) < 50) {
         unsigned char offset = 2 + rnd(4); // 2-5 tiles
+        unsigned char shape_choice = rnd(100); // Random choice between L and Z
         
         // Add perpendicular offset and check if still valid
         unsigned char test_x = target_x, test_y = target_y;
@@ -649,33 +655,19 @@ static unsigned char create_simple_false_corridor(unsigned char room_idx, unsign
             test_x = target_x + (rnd(2) ? offset : -offset);
         }
         
-        // Quick validation - if safe, use L-shape, otherwise stay straight
-        if (test_x >= 1 && test_x < MAP_W-1 && test_y >= 1 && test_y < MAP_H-1) {
-            unsigned char safe = 1;
-            for (unsigned char i = 0; i < room_count && safe; i++) {
-                if (i == room_idx) continue;
-                Room *check_room = &room_list[i];
-                if (test_x >= check_room->x - 2 && test_x <= check_room->x + check_room->w + 1 &&
-                    test_y >= check_room->y - 2 && test_y <= check_room->y + check_room->h + 1) {
-                    safe = 0;
-                }
-            }
-            if (safe) {
+        // Quick validation with 2-tile margin from edges
+        if (coords_in_bounds(test_x, test_y) && test_x >= 2 && test_x < MAP_W-2 && test_y >= 2 && test_y < MAP_H-2) {
+            unsigned char collision_room;
+            if (!point_in_any_room(test_x, test_y, &collision_room)) {
                 final_x = test_x;
                 final_y = test_y;
+                corridor_type = (shape_choice < 70) ? 1 : 2; // 70% L-shaped, 30% Z-shaped
             }
         }
     }
     
-    // Draw corridor segments
-    if (final_x == target_x && final_y == target_y) {
-        // Straight corridor
-        draw_straight_path(door_x, door_y, final_x, final_y, 0);
-    } else {
-        // L-shaped corridor
-        draw_straight_path(door_x, door_y, target_x, target_y, 0);
-        draw_straight_path(target_x, target_y, final_x, final_y, 0);
-    }
+    // Draw corridor using existing corridor drawing function
+    draw_corridor_from_door(door_x, door_y, wall_side, final_x, final_y, corridor_type, 0);
     
     // Place door at entrance
     place_door(door_x, door_y);

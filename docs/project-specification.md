@@ -239,20 +239,23 @@ The false corridor system creates Nethack-style misleading dead-end passages:
 - Retry logic continues until target reached or maximum attempts exceeded
 - Only places on walls that have no doors (normal doors + existing false corridors)
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
-- Maintains 1 tile distance from room walls (2 tiles from room interiors)
+- Maintains 2 tile distance from map edges
 
 **False Corridor Construction:**
-- Door placed at wall center using room center calculations
+- Door placed using shared `calculate_false_corridor_door()` helper for consistent positioning
+- Helper combines direction vectors, `get_room_center_ptr()`, and `calculate_exit_from_target()`
 - Corridor extends 5-12 tiles in perpendicular direction from wall
-- 50% chance for L-shaped deviation with 2-5 tile perpendicular offset
-- Uses existing `draw_straight_path()` for corridor segments
-- All corridors maintain 1 tile margin from map edges
+- 50% chance for deviation: 70% L-shaped, 30% Z-shaped with 2-5 tile perpendicular offset
+- Uses existing `draw_corridor_from_door()` with corridor type selection (0=straight, 1=L, 2=Z)
+- All corridors maintain 2 tile margin from map edges
 
 **Placement Algorithm:**
 - Random room and wall side selection with collision avoidance
-- Boundary validation ensures 1 tile margin from map edges  
+- Uses `coords_in_bounds()` and `point_in_any_room()` for validation
+- Boundary validation ensures 2 tile margin from map edges  
 - Room collision detection prevents overlap with existing rooms
-- L-shaped deviation includes additional safety validation
+- L/Z-shaped deviation includes safety validation using existing helper functions
+- Enhanced `wall_has_doors()` uses shared `calculate_false_corridor_door()` helper for consistency
 - Metadata storage in Room structure for treasure system integration
 - Sets `ROOM_HAS_FALSE_CORRIDOR` flag and stores door/end coordinates
 

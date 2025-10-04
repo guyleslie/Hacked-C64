@@ -112,7 +112,7 @@ dir build\"Hacked C64.prg"
 2. **Connection**: Minimum spanning tree for corridor generation with walls built during creation
 3. **Secret Rooms**: Single-connection rooms converted to secret areas
 4. **Secret Treasures**: Hidden treasure chambers placed on walls without doors (excludes secret rooms, max 1 per room)
-5. **False Corridors**: Dead-end corridors from room wall centers (2 per map, straight/L-shaped, 1 tile margin)
+5. **False Corridors**: Dead-end corridors from room wall centers (2 per map, straight/L-shaped/Z-shaped, 2 tile margin)
 6. **Stair Placement**: Priority-based placement in room centers
 
 ## Code Style & Conventions
@@ -175,10 +175,12 @@ unsigned char place_treasure_for_room(unsigned char room_idx);
 void place_secret_treasures(unsigned char treasure_count);
 
 // False corridor system functions  
-// - create_simple_false_corridor: Creates dead-end corridor from room wall center
+// - calculate_false_corridor_door: Shared helper for consistent door position calculation (uses get_room_center_ptr, calculate_exit_from_target)
+// - create_simple_false_corridor: Creates dead-end corridor using calculate_false_corridor_door() and draw_corridor_from_door()
 // - place_false_corridors: Places N false corridors across map with retry logic
-// - Generates straight or L-shaped dead-ends with 1 tile margin from map edge
-// - Maintains 1 tile distance from room walls (2 tiles from room interiors)
+// - Generates straight (50%), L-shaped (35%), or Z-shaped (15%) dead-ends with 2 tile margin from map edge
+// - Uses existing helper functions: coords_in_bounds(), point_in_any_room(), get_room_center_ptr()
+// - wall_has_doors() prevents conflicts with existing doors and false corridor doors (uses shared helper)
 void place_false_corridors(unsigned char corridor_count);
 ```
 
