@@ -7,6 +7,9 @@
 #include "mapgen_internal.h"
 #include "mapgen_utils.h"
 
+// External reference to current generation parameters
+extern MapParameters current_params;
+
 typedef struct {
     unsigned char count;
     unsigned char x[2];
@@ -502,8 +505,9 @@ void build_room_network(void) {
 void convert_secret_rooms_doors(void) {
     // Secret room conversion phase - progress handled by main generation loop
     unsigned char secrets_made = 0;
-    
-    for (unsigned char i = 0; i < room_count; i++) {
+    unsigned char target_secret_count = current_params.secret_room_count;
+
+    for (unsigned char i = 0; i < room_count && secrets_made < target_secret_count; i++) {
         __assume(room_count <= MAX_ROOMS);
         // Only rooms with exactly one connection can be secret
         if (room_list[i].connections == 1 && rnd(100) < SECRET_ROOM_PERCENTAGE) {
