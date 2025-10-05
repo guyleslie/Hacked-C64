@@ -183,10 +183,11 @@ return 3; // Bottom wall
 
 ## Corridor Construction Process
 
-**Wall Building:** Walls are constructed around each corridor tile as it's placed
-**Atomic Operations:** All corridor metadata stored atomically to prevent inconsistent states
-**Geometric Validation:** Each corridor type validates path safety before construction
-**System Integration:** Door metadata includes position, wall direction, and corridor type
+**Two-pass Walker:** `process_corridor_path()` drives both validation and drawing using shared breakpoints for straight, L, and Z paths.
+**Wall Building:** Walls are constructed around each corridor tile as it's placed.
+**Atomic Operations:** All corridor metadata stored atomically to prevent inconsistent states.
+**Geometric Validation:** Each corridor type validates path safety before construction.
+**System Integration:** Door metadata includes position, wall direction, and corridor type.
 
 ### Phase 3: Creating Secret Areas
 
@@ -210,7 +211,7 @@ The secret treasure system creates hidden treasure chambers accessible through w
 
 **Secret Treasure Criteria:**
 - Places 3 secret treasures randomly across available rooms
-- Only places treasures on walls that have no doors (normal doors + false corridor doors)
+- Only places treasures on walls without doors, false corridor entrances, or treasure metadata
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
 - Prevents duplicate treasures per room using `ROOM_HAS_TREASURE` flag
 - Excludes corners to prevent placement conflicts
@@ -232,32 +233,28 @@ The secret treasure system creates hidden treasure chambers accessible through w
 
 ### Phase 3.7: Placing False Corridors
 
-The false corridor system creates Nethack-style misleading dead-end passages:
+The false corridor system creates Nethack-style misleading dead-end passages using the same walker infrastructure as primary corridors:
 
 **False Corridor Criteria:**
-- Places 2 false corridors randomly across available rooms
+- Places 5 false corridors randomly across available rooms
 - Retry logic continues until target reached or maximum attempts exceeded
-- Only places on walls that have no doors (normal doors + existing false corridors)
+- Only places on walls with no doors, treasure entrances, or recorded false corridor metadata
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
-- Maintains 2 tile distance from map edges
+- Maintains a 2-tile safety margin from map edges
 
 **False Corridor Construction:**
-- Door placed using shared `calculate_false_corridor_door()` helper for consistent positioning
-- Helper combines direction vectors, `get_room_center_ptr()`, and `calculate_exit_from_target()`
-- Corridor extends 5-12 tiles in perpendicular direction from wall
-- 50% chance for deviation: 70% L-shaped, 30% Z-shaped with 2-5 tile perpendicular offset
-- Uses existing `draw_corridor_from_door()` with corridor type selection (0=straight, 1=L, 2=Z)
-- All corridors maintain 2 tile margin from map edges
+- Door coordinates derived inline from the chosen wall segment (no helper function)
+- Direction vectors: left wall→left (-1,0), right wall→right (1,0), top wall→up (0,-1), bottom wall→down (0,1)
+- Base length of 4-9 tiles with optional ±1-4 tile offsets in orthogonal directions
+- Target coordinates calculated in signed 8-bit space, then clamped before casting back to unsigned map positions
+- `process_corridor_path()` runs first in `CORRIDOR_MODE_CHECK` and then in `CORRIDOR_MODE_DRAW`, guaranteeing validated geometry before tiles are written
+- Corridor type selection (straight/L/Z) reuses the main connection system heuristics
 
 **Placement Algorithm:**
-- Random room and wall side selection with collision avoidance
-- Uses `coords_in_bounds()` and `point_in_any_room()` for validation
-- Boundary validation ensures 2 tile margin from map edges  
-- Room collision detection prevents overlap with existing rooms
-- L/Z-shaped deviation includes safety validation using existing helper functions
-- Enhanced `wall_has_doors()` uses shared `calculate_false_corridor_door()` helper for consistency
-- Metadata storage in Room structure for treasure system integration
-- Sets `ROOM_HAS_FALSE_CORRIDOR` flag and stores door/end coordinates
+- Random room/wall selection with early exits for secret rooms or occupied walls
+- `point_in_any_room()` ensures endpoints do not overlap existing rooms
+- Bounds validation keeps corridors inside the playable area
+- Successful placements record entrance and endpoint metadata and set `ROOM_HAS_FALSE_CORRIDOR`
 
 ### Phase 4: Placing Stairs
 
@@ -422,7 +419,7 @@ typedef struct {
 - `false_corridor_door_x, false_corridor_door_y`: Coordinates of corridor entrance door
 - `false_corridor_end_x, false_corridor_end_y`: Coordinates of corridor dead-end
 - Invalid coordinates (255, 255) indicate no false corridor
-- `place_false_corridors()`: Places exactly 2 false corridors with retry logic
+- `place_false_corridors()`: Places exactly 5 false corridors with retry logic and two-pass walker validation
 
 ## Algorithm Performance
 
