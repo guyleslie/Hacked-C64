@@ -87,12 +87,13 @@ dir build\"Hacked C64.prg"
 ## Architecture
 
 ### Core Components
-- **main/src/main.c**: Entry point, VIC-II setup, user input handling
+- **main/src/main.c**: Entry point, VIC-II setup, joystick 2 input handling
 - **main/src/mapgen/**: Complete dungeon generation system
   - `mapgen_api.h`: Public interface for map operations
   - `mapgen_types.h`: Core data structures and constants
   - `mapgen_internal.h`: Internal module definitions
-  - `map_generation.c`: Main generation pipeline
+  - `mapgen_config.c/.h`: Pre-generation configuration system with joystick 2 menu
+  - `map_generation.c`: Main generation pipeline with dynamic parameters
   - `room_management.c`: Room placement algorithms
   - `connection_system.c`: Minimum spanning tree corridors
   - `mapgen_display.c/.h`: Viewport rendering and camera
@@ -100,8 +101,9 @@ dir build\"Hacked C64.prg"
   - `map_export.c/.h`: File I/O operations
 
 ### Memory Architecture
-- **Map Size**: Fixed 72×72 tile grid (3-bit packed encoding)
+- **Map Size**: Configurable (Small: 48×48, Medium: 72×72, Large: 96×96) with 3-bit packed encoding
 - **Room System**: Up to 20 rooms on 4×4 placement grid (46 bytes each, optimized structure)
+- **Configuration System**: Dynamic parameter selection before generation
 - **Memory Usage**: Static allocation with optimized data structures
 - **Display**: Character-mode rendering with custom tiles (40×25 viewport)
 - **Connection Management**: Single source of truth prevents data inconsistency
