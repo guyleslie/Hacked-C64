@@ -412,8 +412,9 @@ typedef struct {
 **Secret Treasure System:**
 - `treasure_wall_x, treasure_wall_y`: Coordinates of secret wall passage
 - Invalid coordinates (255, 255) indicate no treasure
-- Enhanced `wall_has_doors()`: Validates wall availability (normal + false corridor doors)
-- `place_secret_treasures()`: Places exactly 3 treasures across available rooms
+- `wall_has_doors()` (mapgen_utils.c): Validates wall availability (normal + false corridor doors)
+- `get_wall_side_from_exit()` (mapgen_utils.c): Determines wall side from door position
+- `place_secret_treasures()` (connection_system.c): Places exactly 3 treasures across available rooms
 
 **False Corridor System:**
 - `false_corridor_door_x, false_corridor_door_y`: Coordinates of corridor entrance door
