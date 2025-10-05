@@ -354,21 +354,6 @@ static void calculate_exit_from_target(unsigned char room_idx, unsigned char tar
     }
 }
 
-
-
-// Get wall side from door position
-static unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y) {
-    Room *room = &room_list[room_idx];
-    
-    // Reduce branches with early returns
-    if (exit_x < room->x) return 0; // Left
-    if (exit_x >= room->x + room->w) return 1; // Right  
-    if (exit_y < room->y) return 2; // Top
-    return 3; // Bottom (default case)
-}
-
-
-
 // =============================================================================
 // ROOM CONNECTION LOGIC
 // =============================================================================
@@ -573,30 +558,6 @@ void convert_secret_rooms_doors(void) {
 // =============================================================================
 // SECRET TREASURE PLACEMENT SYSTEM
 // =============================================================================
-
-
-// Check if a wall side has any doors (normal or cached false corridors)
-unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
-    Room *room = &room_list[room_idx];
-
-    for (unsigned char i = 0; i < room->connections; i++) {
-        if (room->doors[i].wall_side == wall_side) {
-            return 1;
-        }
-    }
-
-    if ((room->state & ROOM_HAS_FALSE_CORRIDOR) &&
-        room->false_corridor_door_x != 255 && room->false_corridor_door_y != 255) {
-        unsigned char recorded_wall = get_wall_side_from_exit(room_idx,
-                                                              room->false_corridor_door_x,
-                                                              room->false_corridor_door_y);
-        if (recorded_wall == wall_side) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
 
 
 // =============================================================================
