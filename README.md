@@ -14,7 +14,7 @@ Generation progress display:
 
 Final dungeon map:
 
-<img width="1423" height="1072" alt="image" src="https://github.com/user-attachments/assets/c0d031b5-9433-4ecf-9b4d-a50ddce54899" />
+<img width="1422" height="1072" alt="image" src="https://github.com/user-attachments/assets/2e2f7c23-ab12-4c35-9b7f-206c04f1a4e3" />
 
 ## Setup and Installation
 
