@@ -65,12 +65,27 @@ Final dungeon map:
 
 ## Controls
 
+### Joystick 2 (Primary Control)
+
+| Control | Action |
+|---------|---------|
+| **Joystick Directions** | Navigate map (supports diagonal movement) |
+| **Fire Button** | Open configuration menu / Generate new dungeon |
+
+### Keyboard (Secondary)
+
 | Key | Action |
 |-----|---------|
-| **W/A/S/D** | Navigate map (continuous scrolling) |
-| **SPACE** | Generate new dungeon |
-| **M** | Export map to disk |
 | **Q** | Quit program |
+| **M** | Export map to disk |
+
+### Configuration Menu (Joystick 2)
+
+| Control | Action |
+|---------|---------|
+| **Up/Down** | Navigate menu options |
+| **Left/Right** | Adjust values (Small/Medium/Large) |
+| **Fire Button** | Start generation with current settings |
 
 ## Map Elements
 
@@ -86,16 +101,23 @@ Final dungeon map:
 
 ## Features
 
+- **Pre-Generation Configuration**: Customize map parameters before generation (map size, room count, secret features)
 - **Real-time Procedural Generation**: Grid-based room placement with MST connectivity ensures all rooms are reachable
-- **Interactive Navigation**: Explore generated dungeons with continuous WASD scrolling and 40×25 viewport
-- **Secret Rooms**: Hidden areas accessible through secret passages (50% chance for single-connection rooms)
-- **Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances (3 per map)
-- **False Corridors**: Misleading dead-end passages validated by a two-pass corridor walker; doors are wall-specific and never share a wall with treasure alcoves (5 per map)
+- **Joystick Control**: Full joystick 2 support with diagonal movement and intuitive menu navigation
+- **Interactive Navigation**: Explore generated dungeons with responsive joystick control and 40×25 viewport
+- **Configurable Parameters**:
+  - Map Size (Small: 48×48, Medium: 72×72, Large: 96×96)
+  - Room Count (Small: 8, Medium: 12, Large: 16)
+  - Secret Rooms (10%/20%/30% of max rooms)
+  - False Corridors (3/5/8)
+  - Secret Treasures (2/4/6)
+- **Secret Rooms**: Hidden areas accessible through secret passages (configurable percentage of single-connection rooms)
+- **Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances
+- **False Corridors**: Misleading dead-end passages validated by a two-pass corridor walker; doors are wall-specific and never share a wall with treasure alcoves
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
 - **Map Export**: Save generated maps to disk in binary format
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
 - **Progress Display**: Real-time generation progress with phase indicators
-- **CIA Keyboard Matrix**: Direct hardware access for responsive continuous movement
 
 ## Technical Specifications
 
@@ -122,13 +144,22 @@ Final dungeon map:
 
 ## Generation Process
 
+### Configuration Phase (Joystick 2)
+
+Before generation, configure map parameters using joystick 2:
+- Navigate options with Up/Down
+- Adjust values (Small/Medium/Large) with Left/Right
+- Confirm with Fire Button
+
+### Generation Phase
+
 The generation process displays real-time progress with a centered progress bar and phase indicators:
 
-1. **Building Rooms**: Grid-based placement on 4×4 layout with Fisher-Yates shuffle, immediate wall construction
+1. **Building Rooms**: Grid-based placement on 4×4 layout with Fisher-Yates shuffle, immediate wall construction (count varies by configuration)
 2. **Connecting Rooms**: Minimum Spanning Tree algorithm ensures all rooms are reachable with optimal corridor placement
-3. **Creating Secret Areas**: Single-connection rooms converted to secret areas (50% probability)
-4. **Placing Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances (3 treasures per map)
-5. **Placing False Corridors**: Walker-driven straight/L/Z paths with per-wall door selection; treasure-bearing walls and existing doors are skipped (5 per map)
+3. **Creating Secret Areas**: Single-connection rooms converted to secret areas (percentage based on configuration)
+4. **Placing Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances (count varies by configuration)
+5. **Placing False Corridors**: Walker-driven straight/L/Z paths with per-wall door selection; treasure-bearing walls and existing doors are skipped (count varies by configuration)
 6. **Placing Stairs**: Priority-based stair placement in room centers for level navigation
 7. **Finalizing**: Camera initialization and viewport setup for interactive exploration
 
