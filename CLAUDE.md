@@ -112,7 +112,7 @@ dir build\"Hacked C64.prg"
 2. **Connection**: Minimum spanning tree for corridor generation with walls built during creation
 3. **Secret Rooms**: Single-connection rooms converted to secret areas
 4. **Secret Treasures**: Hidden treasure chambers placed on walls without doors (excludes secret rooms, max 1 per room)
-5. **False Corridors**: Dead-end corridors from room wall centers (2 per map, straight/L-shaped/Z-shaped, 2 tile margin)
+5. **False Corridors**: Dead-end corridors from room wall centers (5 per map, straight/L-shaped/Z-shaped, 2 tile margin)
 6. **Stair Placement**: Priority-based placement in room centers
 
 ## Code Style & Conventions
@@ -138,14 +138,14 @@ dir build\"Hacked C64.prg"
 
 ### Corridor Logic and Connection Functions
 ```c
-// Room connection with corridor type selection
-unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, unsigned char is_secret);
+// Simplified room connection system - optimized for OSCAR64
+unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned char is_secret);
 
-// Corridor type determination:
-// Priority: Straight > L-shaped > Z-shaped
-// - Straight: Room centers aligned AND rooms face each other (not overlapping)
-// - L-shaped: Horizontal and vertical gaps between room boundaries > 0
-// - Z-shaped: Default fallback for diagonal room connections
+// Corridor type determination (simplified logic):
+// Priority: Straight > L-shaped > Z-shaped  
+// - Straight: Direct path possible between room exits
+// - L-shaped: Single turn required for connection
+// - Z-shaped: Two turns required for complex connections
 
 // Atomic connection management - single operation for all metadata
 unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
@@ -174,13 +174,13 @@ unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);
 unsigned char place_treasure_for_room(unsigned char room_idx);
 void place_secret_treasures(unsigned char treasure_count);
 
-// False corridor system functions  
-// - calculate_false_corridor_door: Shared helper for consistent door position calculation (uses get_room_center_ptr, calculate_exit_from_target)
-// - create_simple_false_corridor: Creates dead-end corridor using calculate_false_corridor_door() and draw_corridor_from_door()
-// - place_false_corridors: Places N false corridors across map with retry logic
-// - Generates straight (50%), L-shaped (35%), or Z-shaped (15%) dead-ends with 2 tile margin from map edge
-// - Uses existing helper functions: coords_in_bounds(), point_in_any_room(), get_room_center_ptr()
-// - wall_has_doors() prevents conflicts with existing doors and false corridor doors (uses shared helper)
+// False corridor system functions (simplified and optimized)
+// - calculate_false_corridor_door: Calculates door position on room wall
+// - create_false_corridor: Creates dead-end corridor from door position outward
+// - place_false_corridors: Places N false corridors (currently 5) across map with retry logic
+// - Generates straight, L-shaped, or Z-shaped dead-ends with proper direction from doors
+// - Uses simplified collision detection and existing corridor drawing functions
+// - Prevents conflicts with existing doors through wall_has_doors() validation
 void place_false_corridors(unsigned char corridor_count);
 ```
 
@@ -308,9 +308,11 @@ unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 ### Applied Optimizations
 
 **Code-level optimizations:**
-- Removed redundant safety checks (geometric impossibility leveraged)
-- Eliminated redundant functions (`path_is_safe()`, etc.)
-- Simplified collision detection (bounds-only checks)
+- Removed redundant safety checks and validation layers
+- Eliminated complex path validation functions (`validate_corridor_path()`, `path_is_safe()`)
+- Simplified false corridor logic using existing corridor drawing functions
+- Restored proven geometric algorithms while removing wrapper complexity
+- Maintained atomic connection management for data consistency
 - Batched progress updates (50% frequency reduction)
 - Inline function optimizations for hot paths
 
