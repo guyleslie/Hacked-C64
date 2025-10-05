@@ -10,7 +10,7 @@ This program implements real-time procedural dungeon generation on Commodore 64 
 
 Generation progress display:
 
-<img width="1425" height="1074" alt="image" src="https://github.com/user-attachments/assets/ac772bbf-b4da-40a8-8805-424325d687d2" />
+<img width="1419" height="1075" alt="image" src="https://github.com/user-attachments/assets/3d8d02fe-e6c1-4308-9513-e360d8619bb7" />
 
 Final dungeon map:
 
