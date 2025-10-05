@@ -569,7 +569,7 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx);
 - **Executable Size**: Optimized for C64 constraints (release build significantly smaller than debug)
 - **Memory Management**: Static allocation only, no dynamic memory
 - **Map Storage**: 3072 bytes (3-bit packed tile encoding)
-- **Room Data**: 42 bytes per room (optimized packed structures)
+- **Room Data**: 48 bytes per room (optimized packed structures with center cache)
 - **Code Quality**: Optimized for 6502 architecture with substantial size improvements
 
 ### Optimization Results

@@ -139,7 +139,7 @@ Final dungeon map:
 - **Executable Size**: Release build optimized for size (significantly smaller than development build)
 - **Memory Management**: Static allocation only, no dynamic memory allocation
 - **Map Storage**: 3888 bytes (3-bit packed tile encoding for 72×72 map)
-- **Room Data**: 46 bytes per room (optimized packed structures with false corridor metadata)
+- **Room Data**: 48 bytes per room (optimized packed structures with center cache)
 - **Debug Information**: Development builds include .map, .asm, .lbl, .dbj files for analysis
 
 ## Generation Process

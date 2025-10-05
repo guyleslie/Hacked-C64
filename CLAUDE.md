@@ -102,7 +102,7 @@ dir build\"Hacked C64.prg"
 
 ### Memory Architecture
 - **Map Size**: Configurable (Small: 48×48, Medium: 72×72, Large: 96×96) with 3-bit packed encoding
-- **Room System**: Up to 20 rooms on 4×4 placement grid (46 bytes each, optimized structure)
+- **Room System**: Up to 20 rooms on 4×4 placement grid (48 bytes each, optimized structure with center cache)
 - **Configuration System**: Dynamic parameter selection before generation
 - **Memory Usage**: Static allocation with optimized data structures
 - **Display**: Character-mode rendering with custom tiles (40×25 viewport)
@@ -229,35 +229,36 @@ OSCAR64 generates detailed build information for optimization:
 
 ### Data Types
 ```c
-// Optimized Room structure (46 bytes total, optimized layout)
+// Optimized Room structure (48 bytes total, optimized layout)
 typedef struct {
-    // Most frequently accessed during generation
+    // Most frequently accessed during generation (ordered by access frequency)
     unsigned char x, y, w, h;              // Room position and size (4 bytes)
+    unsigned char center_x, center_y;      // Cached room center (2 bytes) - calculated as x+(w-1)/2, y+(h-1)/2
     unsigned char connections;             // Number of active connections (1 byte)
     unsigned char state;                   // Room state flags (ROOM_SECRET=0x01, ROOM_HAS_TREASURE=0x02, ROOM_HAS_FALSE_CORRIDOR=0x04) (1 byte)
-    
+
     // Packed connection metadata (4 bytes)
     PackedConnection conn_data[4];         // Connection info (room_id, corridor_type)
-    
+
     // Door metadata (12 bytes)
     Door doors[4];                         // Door positions
-    
+
     // Corridor breakpoint metadata (16 bytes)
     CorridorBreakpoint breakpoints[4][2];  // Corridor turn points
-    
-    // Secret treasure metadata (2 bytes) - wall position where treasure is accessible
-    unsigned char treasure_wall_x;        // Secret wall X coordinate (255 = no treasure)
-    unsigned char treasure_wall_y;        // Secret wall Y coordinate
-    
-    // False corridor metadata (4 bytes) - dead-end corridor information
-    unsigned char false_corridor_door_x;  // False corridor door X coordinate (255 = no false corridor)
-    unsigned char false_corridor_door_y;  // False corridor door Y coordinate  
-    unsigned char false_corridor_end_x;   // False corridor end X coordinate
-    unsigned char false_corridor_end_y;   // False corridor end Y coordinate
-    
+
+    // Secret treasure metadata (2 bytes) - wall entry point (target calculated on-demand)
+    unsigned char treasure_wall_x;         // Secret wall X coordinate (255 = no treasure)
+    unsigned char treasure_wall_y;         // Secret wall Y coordinate
+
+    // False corridor metadata (4 bytes) - endpoints only (type calculated on-demand from coordinates)
+    unsigned char false_corridor_door_x;   // False corridor door X coordinate (255 = no false corridor)
+    unsigned char false_corridor_door_y;   // False corridor door Y coordinate
+    unsigned char false_corridor_end_x;    // False corridor end X coordinate
+    unsigned char false_corridor_end_y;    // False corridor end Y coordinate
+
     // Less frequently accessed
-    unsigned char hub_distance, priority; // Generation parameters (2 bytes)
-} Room; // 46 bytes total (4+1+1+4+12+16+2+4+2 bytes)
+    unsigned char hub_distance, priority;  // Generation parameters (2 bytes)
+} Room; // 48 bytes total (4+2+1+1+4+12+16+2+4+2 bytes)
 
 // Optimized connection structures
 typedef struct {
