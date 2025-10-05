@@ -206,11 +206,11 @@ static void calculate_straight_exits(unsigned char room1, unsigned char room2,
                                     unsigned char *exit2_x, unsigned char *exit2_y) {
     Room *r1 = &room_list[room1];
     Room *r2 = &room_list[room2];
-    
+
     unsigned char r1_cx, r1_cy, r2_cx, r2_cy;
-    get_room_center_ptr(r1, &r1_cx, &r1_cy);
-    get_room_center_ptr(r2, &r2_cx, &r2_cy);
-    
+    get_room_center_ptr_inline(r1, &r1_cx, &r1_cy);
+    get_room_center_ptr_inline(r2, &r2_cx, &r2_cy);
+
     if (r1_cx == r2_cx) {
         // Vertical alignment
         *exit1_x = r1_cx; *exit2_x = r2_cx;
@@ -234,11 +234,11 @@ static void calculate_straight_exits(unsigned char room1, unsigned char room2,
 static unsigned char can_use_straight_corridor(unsigned char room1, unsigned char room2) {
     Room *r1 = &room_list[room1];
     Room *r2 = &room_list[room2];
-    
+
     unsigned char r1_cx, r1_cy, r2_cx, r2_cy;
-    get_room_center_ptr(r1, &r1_cx, &r1_cy);
-    get_room_center_ptr(r2, &r2_cx, &r2_cy);
-    
+    get_room_center_ptr_inline(r1, &r1_cx, &r1_cy);
+    get_room_center_ptr_inline(r2, &r2_cx, &r2_cy);
+
     if (r1_cx == r2_cx) {
         // Vertical alignment - check facing
         return (r1_cy < r2_cy) ? (r1->y + r1->h <= r2->y) : (r2->y + r2->h <= r1->y);
@@ -256,14 +256,14 @@ static void calculate_l_exits(unsigned char room1, unsigned char room2,
                             unsigned char *exit2_x, unsigned char *exit2_y) {
     Room *r1 = &room_list[room1];
     Room *r2 = &room_list[room2];
-    
+
     unsigned char r1_center_x, r1_center_y, r2_center_x, r2_center_y;
-    get_room_center_ptr(r1, &r1_center_x, &r1_center_y);
-    get_room_center_ptr(r2, &r2_center_x, &r2_center_y);
-    
+    get_room_center_ptr_inline(r1, &r1_center_x, &r1_center_y);
+    get_room_center_ptr_inline(r2, &r2_center_x, &r2_center_y);
+
     unsigned char dx = abs_diff_inline(r2_center_x, r1_center_x);
     unsigned char dy = abs_diff_inline(r2_center_y, r1_center_y);
-    
+
     if (dx > dy) {
         // Horizontal distance greater - use vertical walls
         if (r2_center_x > r1_center_x) {
@@ -329,12 +329,13 @@ static unsigned char try_calculate_l_corridor(unsigned char room1, unsigned char
 static void calculate_exit_from_target(unsigned char room_idx, unsigned char target_x, unsigned char target_y,
                                      unsigned char *door_x, unsigned char *door_y) {
     Room *room = &room_list[room_idx];
+
     unsigned char room_center_x, room_center_y;
-    get_room_center_ptr(room, &room_center_x, &room_center_y);
-    
+    get_room_center_ptr_inline(room, &room_center_x, &room_center_y);
+
     unsigned char dx = abs_diff_inline(target_x, room_center_x);
     unsigned char dy = abs_diff_inline(target_y, room_center_y);
-    
+
     // Position door on room wall closest to target
     if (dx > dy) {
         // Horizontal movement preferred
@@ -367,24 +368,24 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
     if (room_has_connection_to(room1, room2)) {
         return 1;
     }
-    
+
     // Safety check
     if (!can_connect_rooms_safely(room1, room2)) {
         return 0;
     }
-    
+
     Room *r1 = &room_list[room1];
     Room *r2 = &room_list[room2];
-    
-    // Calculate room centers
+
+    // Calculate room centers using static inline helper
     unsigned char r1_center_x, r1_center_y, r2_center_x, r2_center_y;
-    get_room_center_ptr(r1, &r1_center_x, &r1_center_y);
-    get_room_center_ptr(r2, &r2_center_x, &r2_center_y);
-    
+    get_room_center_ptr_inline(r1, &r1_center_x, &r1_center_y);
+    get_room_center_ptr_inline(r2, &r2_center_x, &r2_center_y);
+
     // Corridor type selection with original working logic
     unsigned char corridor_type = 2; // Default to Z-shaped
     unsigned char exit1_x, exit1_y, exit2_x, exit2_y;
-    
+
     // Priority: Straight > L-shaped > Z-shaped
     if (can_use_straight_corridor(room1, room2)) {
         corridor_type = 0;
@@ -396,13 +397,13 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
         calculate_exit_from_target(room1, r2_center_x, r2_center_y, &exit1_x, &exit1_y);
         calculate_exit_from_target(room2, r1_center_x, r1_center_y, &exit2_x, &exit2_y);
     }
-    
+
     // Draw corridor using original working algorithm
     unsigned char wall1 = get_wall_side_from_exit(room1, exit1_x, exit1_y);
     unsigned char wall2 = get_wall_side_from_exit(room2, exit2_x, exit2_y);
 
     draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret);
-    
+
     // Place doors
     if (is_secret) {
         set_compact_tile(exit1_x, exit1_y, TILE_SECRET_PATH);
@@ -411,27 +412,27 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
         place_door(exit1_x, exit1_y);
         place_door(exit2_x, exit2_y);
     }
-    
+
     // Mark secret rooms
     if (is_secret) {
         room_list[room1].state |= ROOM_SECRET;
         room_list[room2].state |= ROOM_SECRET;
     }
-    
+
     // Store connection metadata
     if (!add_connection_to_room(room1, room2, exit1_x, exit1_y, wall1, corridor_type)) {
         return 0;
     }
-    
+
     if (!add_connection_to_room(room2, room1, exit2_x, exit2_y, wall2, corridor_type)) {
         remove_last_connection_from_room(room1);
         return 0;
     }
-    
+
     // Calculate breakpoints
     calculate_and_store_breakpoints(room1, room_list[room1].connections - 1);
     calculate_and_store_breakpoints(room2, room_list[room2].connections - 1);
-    
+
     return 1;
 }
 
