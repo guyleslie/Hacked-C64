@@ -16,12 +16,13 @@ This project implements a highly optimized procedural dungeon generation algorit
 
 ```
 main/src/
-├── main.c                   # Entry point and VIC-II setup
+├── main.c                   # Entry point, VIC-II setup, joystick 2 input
 ├── mapgen/
 │   ├── mapgen_api.h         # Public interface definitions
 │   ├── mapgen_types.h       # Core data structures and constants
 │   ├── mapgen_internal.h    # Internal module definitions
-│   ├── map_generation.c     # Generation pipeline control
+│   ├── mapgen_config.c/.h   # Pre-generation configuration with joystick menu
+│   ├── map_generation.c     # Generation pipeline with dynamic parameters
 │   ├── room_management.c    # Room placement algorithms
 │   ├── connection_system.c  # MST and corridor generation (optimized)
 │   ├── mapgen_display.c/.h  # Viewport and rendering
@@ -33,6 +34,46 @@ build.bat                    # Interactive build selection
 run_vice.bat                 # VICE emulator launcher
 docs/                        # Comprehensive technical documentation
 ```
+
+## User Input System
+
+### Joystick 2 Control (Primary)
+
+The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC00):
+
+**Map Navigation:**
+- Reads joystick directions via CIA1 Port A register
+- Supports diagonal movement (multiple directions simultaneously)
+- Direct hardware access for responsive control
+- Bit mapping: UP(0), DOWN(1), LEFT(2), RIGHT(3), FIRE(4) - active low
+
+**Configuration Menu:**
+- Fire button opens configuration menu
+- Up/Down navigates menu options
+- Left/Right adjusts values (Small/Medium/Large)
+- Fire button confirms and starts generation
+- Debounce logic prevents repeated inputs
+
+### Keyboard Input (Secondary)
+
+Limited keyboard support for essential commands:
+- **Q key**: Quit program (via `getchx()`)
+- **M key**: Export map to disk (via `getchx()`)
+
+### Configuration System
+
+**Pre-Generation Parameters:**
+- **Map Size**: Small (48×48), Medium (72×72), Large (96×96)
+- **Room Count**: Small (8), Medium (12), Large (16)
+- **Secret Rooms**: 10%/20%/30% of max rooms
+- **False Corridors**: 3/5/8 dead-end passages
+- **Secret Treasures**: 2/4/6 hidden chambers
+
+**Implementation Details:**
+- Configuration stored in `MapConfig` structure
+- Values validated and converted to `MapParameters`
+- Dynamic parameter passing to generation pipeline
+- Real-time value updates in menu display
 
 ## Map Generation Logic
 
@@ -48,9 +89,9 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - Cell order is randomized using Fisher-Yates shuffle algorithm
 
 **Room Sizes and Types:**
-- Base size ranges from 4×4 to 8×8 tiles
-- 60% probability for rectangular rooms (wider or taller bias)
-- 40% probability for more square-shaped rooms
+- Fixed size range from 4×4 to 8×8 tiles (not user-configurable)
+- Random width and height generation within range
+- Room count varies based on configuration (8/12/16)
 - Each room maintains minimum 4-tile distance from others
 
 **Collision Detection System:**
