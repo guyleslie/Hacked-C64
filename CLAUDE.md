@@ -100,12 +100,12 @@ dir build\"Hacked C64.prg"
   - `map_export.c/.h`: File I/O operations
 
 ### Memory Architecture
-- **Map Size**: Fixed 72×72 tile grid (3-bit packed encoding: 3888 bytes)
-- **Room System**: Up to 20 rooms on 4×4 placement grid (38 bytes each, optimized structure)
+- **Map Size**: Fixed 72×72 tile grid (3-bit packed encoding)
+- **Room System**: Up to 20 rooms on 4×4 placement grid (46 bytes each, optimized structure)
 - **Memory Usage**: Static allocation with optimized data structures
 - **Display**: Character-mode rendering with custom tiles (40×25 viewport)
 - **Connection Management**: Single source of truth prevents data inconsistency
-- **Optimization**: Redundant safety checks removed (geometric impossibility leveraged)
+- **String Optimization**: Packed string table with offset indexing
 
 ### Generation Algorithm
 1. **Room Placement**: Fisher-Yates shuffle on 4×4 grid with immediate wall construction
@@ -166,13 +166,17 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx);
 // - Secret room door is converted to floor, normal room door becomes TILE_SECRET_PATH
 // - Validates connection constraints and marks doors with is_secret_door flag
 
-// Secret treasure system functions
-// - wall_has_doors: Checks if wall_side has any doors (normal + false corridor doors)
+// Secret treasure system functions (in connection_system.c)
 // - place_treasure_for_room: Places treasure in room if eligible (not secret, no existing treasure)
 // - place_secret_treasures: Main function placing N treasures across available rooms
-unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);
 unsigned char place_treasure_for_room(unsigned char room_idx);
 void place_secret_treasures(unsigned char treasure_count);
+
+// Wall validation utilities (in mapgen_utils.c)
+// - wall_has_doors: Checks if wall_side has any doors (normal + false corridor doors)
+// - get_wall_side_from_exit: Determines which wall side a door/exit is on
+unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);
+unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y);
 
 // False corridor system functions (simplified and optimized)
 // - calculate_false_corridor_door: Calculates door position on room wall
@@ -311,20 +315,27 @@ unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 - Removed redundant safety checks and validation layers
 - Eliminated complex path validation functions (`validate_corridor_path()`, `path_is_safe()`)
 - Simplified false corridor logic using existing corridor drawing functions
-- Restored proven geometric algorithms while removing wrapper complexity
 - Maintained atomic connection management for data consistency
 - Batched progress updates (50% frequency reduction)
 - Inline function optimizations for hot paths
+- Packed string table with 8-bit offset array (vs separate string literals)
+- Index-based phase display API (`show_phase(id)` vs `show_phase_name(string)`)
 
 **Compiler-level optimizations:**
 - Development builds: Full debug information (`-O0 -g -n -dDEBUG`)
 - Release builds: Size optimization (`-Os -Oo`) with debug overhead removal
 - Separated build workflows for development vs production
 
+**Data structure optimizations:**
+- Packed Room struct with bitfields (46 bytes per room)
+- 3-bit tile encoding for compact map storage
+- Offset-based string table instead of pointer arrays
+
 **Results:**
-- Substantial size reduction in release builds compared to mixed debug/optimization
+- Optimized release builds with no debug overhead
 - Maintained full functionality with improved performance
 - Clean development workflow with proper debug capabilities
+- Professional code organization with no unused functions
 
 ### Build Strategy
 
