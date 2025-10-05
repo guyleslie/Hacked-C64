@@ -7,6 +7,24 @@
 #include "mapgen_internal.h"   // For add_stairs, add_walls, etc. and global variable declarations
 #include "mapgen_utils.h"      // For get_room_center, coords_in_bounds, calculate_room_distance
 #include "mapgen_display.h"    // For initialize_camera
+#include "mapgen_config.h"     // For MapParameters
+
+// =============================================================================
+// DYNAMIC GENERATION PARAMETERS
+// =============================================================================
+
+// Current generation parameters (set via mapgen_set_parameters)
+// Non-static so other modules can access via extern declaration
+MapParameters current_params = {
+    72,  // map_width (default MEDIUM)
+    72,  // map_height
+    20,  // max_rooms
+    4,   // min_room_size
+    8,   // max_room_size
+    4,   // secret_room_count (20% of 20)
+    5,   // false_corridor_count
+    4    // treasure_count
+};
 
 // =============================================================================
 // PHASE 1: ROOM CREATION
@@ -104,11 +122,11 @@ unsigned char generate_level(void) {
 
     // Phase 2.6: Place secret treasures
     show_phase(3); // "Secret Treasures"
-    place_secret_treasures(3); // Place 3 secret treasures
+    place_secret_treasures(current_params.treasure_count);
 
     // Phase 2.7: Place false corridors
     show_phase(4); // "False Corridors"
-    place_false_corridors(5); // Place 5 false corridors per map
+    place_false_corridors(current_params.false_corridor_count);
 
     // Phase 3: Place stairs for level navigation
     show_phase(5); // "Placing Stairs"
@@ -139,4 +157,22 @@ unsigned char generate_level(void) {
     render_map_viewport(1);
     
     return 1; // Generation successful
+}
+
+// =============================================================================
+// PUBLIC API FUNCTIONS
+// =============================================================================
+
+// Set generation parameters from configuration
+void mapgen_set_parameters(const MapParameters *params) {
+    if (params) {
+        current_params = *params;
+    }
+}
+
+// Get current generation parameters (for testing/debugging)
+void mapgen_get_parameters(MapParameters *params) {
+    if (params) {
+        *params = current_params;
+    }
 }
