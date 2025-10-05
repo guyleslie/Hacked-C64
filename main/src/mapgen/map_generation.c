@@ -107,7 +107,7 @@ unsigned char generate_level(void) {
     
     // Phase 2: Room Connection System with corridor walls
     show_phase_name("Connecting Rooms");
-    connect_rooms();
+    build_room_network();
     
     // Phase 2.5: Convert single-connection rooms to secret rooms
     show_phase_name("Creating Secret Areas");
@@ -119,7 +119,7 @@ unsigned char generate_level(void) {
     
     // Phase 2.7: Place false corridors
     show_phase_name("Placing False Corridors");
-    place_false_corridors(2); // Place 2 false corridors per map
+    place_false_corridors(5); // Place 5 false corridors per map
     
     // Phase 3: Place stairs for level navigation
     show_phase_name("Placing Stairs");

@@ -9,7 +9,7 @@
 
 // Core map generation algorithm functions (internal only)
 void create_rooms(void);
-void connect_rooms(void);
+void build_room_network(void);
 void add_stairs(void);
 unsigned char generate_level(void);
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
@@ -52,8 +52,8 @@ extern unsigned char screen_buffer[VIEW_H][VIEW_W];
 extern unsigned char screen_dirty;
 extern unsigned char last_scroll_direction;
 
-// Connection functions (wrappers removed for OSCAR64 efficiency)
-unsigned char connect_rooms_directly(unsigned char room1, unsigned char room2, unsigned char is_secret);
+// Connection functions (optimized)
+unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned char is_secret);
 
 /**
  * @brief Checks if two rooms can be safely connected according to simplified rules.
@@ -74,7 +74,7 @@ unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2)
  * @param y The y coordinate.
  * @return 1 if placement is allowed, 0 otherwise.
  */
-unsigned char can_place_corridor(unsigned char x, unsigned char y);
+unsigned char can_place_corridor(unsigned char x, unsigned char y, unsigned char check_level);
 
 
 
