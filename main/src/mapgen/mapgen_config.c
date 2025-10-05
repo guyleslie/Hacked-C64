@@ -189,8 +189,8 @@ const unsigned char menu_rows[5] = {5, 7, 9, 11, 13};
 
 // Helper: Update cursor position only
 static void update_cursor(unsigned char old_cursor, unsigned char new_cursor) {
-    unsigned int old_offset = menu_rows[old_cursor] * 40 + 8;
-    unsigned int new_offset = menu_rows[new_cursor] * 40 + 8;
+    unsigned int old_offset = menu_rows[old_cursor] * 40 + 6;
+    unsigned int new_offset = menu_rows[new_cursor] * 40 + 6;
 
     // Clear old cursor
     SCREEN_RAM[old_offset] = ' ';
@@ -223,27 +223,28 @@ void show_config_menu(MapConfig *config) {
     print_at(12, 2, "map configuration");
     print_at(10, 3, "--------------------");
 
-    // Menu items - adjusted 2 left (lowercase for normal display)
-    print_at(9, 5, "map size:");
-    print_at(9, 7, "room count:");
-    print_at(9, 9, "secret rooms:");
-    print_at(9, 11, "false corridors:");
-    print_at(9, 13, "secret treasures:");
+    // Menu items - centered layout
+    // Cursor(1) + Space(1) + Label(~17) + Space(2) + Value(6) = ~27 chars
+    // Start at column (40-27)/2 = 6-7
+    print_at(7, 5, "map size");
+    print_at(7, 7, "room count");
+    print_at(7, 9, "secret rooms");
+    print_at(7, 11, "false corridors");
+    print_at(7, 13, "secret treasures");
 
-    // Initial values
+    // Initial values - positioned after labels (column 26)
     update_value(5, config->map_size);
     update_value(7, config->room_count);
     update_value(9, config->secret_rooms);
     update_value(11, config->false_corridors);
     update_value(13, config->secret_treasures);
 
-    // Instructions - better centered (lowercase for normal display)
-    print_at(11, 21, "joy2: up/down nav");
-    print_at(11, 22, "joy2: left/right");
-    print_at(13, 23, "fire: start");
+    // Instructions - centered
+    print_at(12, 21, "joy2: navigation");
+    print_at(15, 23, "fire: start");
 
-    // Initial cursor (first menu item at row 5, column 8)
-    SCREEN_RAM[5 * 40 + 8] = '>';
+    // Initial cursor (first menu item at row 5, column 6)
+    SCREEN_RAM[5 * 40 + 6] = '>';
 
     while (!done) {
         // Read joystick 2 from CIA1 Port A
