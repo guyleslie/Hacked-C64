@@ -48,9 +48,9 @@ unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsigned ch
 
 // Room center cache management
 void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y);
-void get_room_center_ptr(Room *room, unsigned char *center_x, unsigned char *center_y);
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2);
 unsigned char get_max_connection_distance(void);
+// get_room_center_ptr_inline() is static inline below for OSCAR64 optimization
 
 // Tile validation and adjacency checking
 unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsigned char type_flags);
@@ -96,6 +96,12 @@ static inline unsigned char get_room_center_x_inline(unsigned char room_id) {
 static inline unsigned char get_room_center_y_inline(unsigned char room_id) {
     if (room_id >= room_count) return 0;
     return room_list[room_id].center_y;
+}
+
+// Optimized Room pointer center access - static inline for best code generation
+static inline void get_room_center_ptr_inline(Room *room, unsigned char *center_x, unsigned char *center_y) {
+    *center_x = room->center_x;
+    *center_y = room->center_y;
 }
 
 #endif // MAPGEN_UTILITY_H
