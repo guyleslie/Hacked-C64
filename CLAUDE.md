@@ -136,7 +136,7 @@ dir build\"Hacked C64.prg"
 - Use `__zeropage` annotation for frequently accessed variables
 - **Atomic metadata operations** - prevent inconsistent states during connection management
 - **Inline optimizations** - Hot path functions optimized for performance
-- **Progress batching** - Reduced update frequency for better performance
+- **Dynamic progress tracking** - Runtime-calculated phase boundaries based on generation parameters
 
 ### Corridor Logic and Connection Functions
 ```c
@@ -188,6 +188,13 @@ unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit
 // - Uses simplified collision detection and existing corridor drawing functions
 // - Prevents conflicts with existing doors through wall_has_doors() validation
 void place_false_corridors(unsigned char corridor_count);
+
+// Progress tracking system functions (in mapgen_utils.c)
+// - init_progress_weights: Pre-calculates phase boundaries from current_params at generation start
+// - update_progress_step: Updates progress bar using dynamic phase weights
+// - Phase weights automatically scale to actual work done per configuration
+void init_progress_weights(void);
+void update_progress_step(unsigned char phase, unsigned char current, unsigned char total);
 ```
 
 ## Core Files & Architecture
@@ -319,7 +326,7 @@ unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 - Eliminated complex path validation functions (`validate_corridor_path()`, `path_is_safe()`)
 - Simplified false corridor logic using existing corridor drawing functions
 - Maintained atomic connection management for data consistency
-- Batched progress updates (50% frequency reduction)
+- Dynamic progress calculation with runtime-weighted phases based on current_params
 - Inline function optimizations for hot paths
 - Packed string table with 8-bit offset array (vs separate string literals)
 - Index-based phase display API (`show_phase(id)` vs `show_phase_name(string)`)
@@ -330,9 +337,10 @@ unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 - Separated build workflows for development vs production
 
 **Data structure optimizations:**
-- Packed Room struct with bitfields (46 bytes per room)
+- Packed Room struct with bitfields (48 bytes per room with center cache)
 - 3-bit tile encoding for compact map storage
 - Offset-based string table instead of pointer arrays
+- Pre-calculated phase boundaries array (8 bytes) replaces static phase tables (-1 byte net)
 
 **Results:**
 - Optimized release builds with no debug overhead

@@ -77,7 +77,7 @@ Limited keyboard support for essential commands:
 
 ## Map Generation Logic
 
-The generation process displays real-time progress with centered progress bar and phase indicators:
+The generation process displays real-time progress with centered progress bar and phase indicators. Progress boundaries are calculated dynamically at generation start based on current parameters, ensuring accurate progress representation regardless of configuration:
 
 ### Phase 1: Building Rooms
 
@@ -576,6 +576,6 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx);
 - **Code-level optimizations**: Redundant safety checks removed, inline functions for hot paths
 - **Compiler optimizations**: Size optimization (`-Os`), code outlining (`-Oo`), debug overhead elimination
 - **Build separation**: Development builds with full debug vs production builds with maximum optimization
-- **Performance improvements**: Reduced function call overhead, batched progress updates
+- **Performance improvements**: Reduced function call overhead, dynamic progress calculation with runtime-weighted phases
 
 This implementation leverages both 8-bit programming techniques and modern compiler optimization strategies, adapted specifically for the hardware constraints of the Commodore 64.

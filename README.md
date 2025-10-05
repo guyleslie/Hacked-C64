@@ -153,7 +153,7 @@ Before generation, configure map parameters using joystick 2:
 
 ### Generation Phase
 
-The generation process displays real-time progress with a centered progress bar and phase indicators:
+The generation process displays real-time progress with a centered progress bar and phase indicators. Progress calculation is dynamic, automatically scaling to the actual work done based on configuration parameters (room count, secret rooms, treasures, etc.):
 
 1. **Building Rooms**: Grid-based placement on 4×4 layout with Fisher-Yates shuffle, immediate wall construction (count varies by configuration)
 2. **Connecting Rooms**: Minimum Spanning Tree algorithm ensures all rooms are reachable with optimal corridor placement
