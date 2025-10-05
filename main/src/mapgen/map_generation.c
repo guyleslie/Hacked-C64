@@ -9,17 +9,6 @@
 #include "mapgen_display.h"    // For initialize_camera
 
 // =============================================================================
-// HELPER FUNCTIONS & UTILITIES
-// =============================================================================
-
-
-
-// Helper function: Check if tile is walkable (floor or door)
-unsigned char is_walkable_tile(unsigned char tile) {
-    return (tile == TILE_FLOOR || tile == TILE_DOOR || tile == TILE_SECRET_PATH);
-}
-
-// =============================================================================
 // PHASE 1: ROOM CREATION
 // =============================================================================
 // Note: create_rooms() function is implemented in room_management.c
@@ -97,41 +86,41 @@ unsigned char generate_level(void) {
     init_generation_progress();
     
     // Phase 1: Create rooms with walls using grid-based placement
-    show_phase_name("Building Rooms");
+    show_phase(0); // "Building Rooms"
     create_rooms();
     // Early exit if no rooms were created
     if (room_count == 0) {
         finish_progress_bar_simple();
         return 0; // Generation failed
     }
-    
+
     // Phase 2: Room Connection System with corridor walls
-    show_phase_name("Connecting Rooms");
+    show_phase(1); // "Connecting Rooms"
     build_room_network();
-    
+
     // Phase 2.5: Convert single-connection rooms to secret rooms
-    show_phase_name("Creating Secret Areas");
+    show_phase(2); // "Secret Areas"
     convert_secret_rooms_doors();
-    
+
     // Phase 2.6: Place secret treasures
-    show_phase_name("Placing Secret Treasures");
+    show_phase(3); // "Secret Treasures"
     place_secret_treasures(3); // Place 3 secret treasures
-    
+
     // Phase 2.7: Place false corridors
-    show_phase_name("Placing False Corridors");
+    show_phase(4); // "False Corridors"
     place_false_corridors(5); // Place 5 false corridors per map
-    
+
     // Phase 3: Place stairs for level navigation
-    show_phase_name("Placing Stairs");
+    show_phase(5); // "Placing Stairs"
     add_stairs();
-    
+
     // Phase 4: Initialize camera for new map
-    show_phase_name("Finalizing");
+    show_phase(6); // "Finalizing"
     initialize_camera();
-    
+
     // Finish progress bar and show completion message
     finish_progress_bar_simple();
-    show_phase_name("Generation Success !");
+    show_phase(7); // "Complete"
     
     // VIC-II raster-based delay (more reliable on C64)
     // Wait for multiple frame cycles for visible delay
