@@ -141,14 +141,6 @@ inline unsigned char coords_in_bounds(unsigned char x, unsigned char y) {
     return (x < MAP_W && y < MAP_H && x != UNDERFLOW_CHECK_VALUE && y != UNDERFLOW_CHECK_VALUE);
 }
 
-
-void clamp_to_bounds(unsigned char *x, unsigned char *y) {
-    if (*x >= MAP_W) *x = MAP_W - 1;
-    if (*y >= MAP_H) *y = MAP_H - 1;
-    if (*x == UNDERFLOW_CHECK_VALUE) *x = 0;
-    if (*y == UNDERFLOW_CHECK_VALUE) *y = 0;
-}
-
 unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room_id) {
     if (room_id >= room_count) return 0;
     
@@ -212,53 +204,6 @@ static unsigned char calculate_optimal_exit_position(unsigned char room_dim, uns
     return min_pos + offset;
 }
 
-void find_room_exit(Room *room, unsigned char target_x, unsigned char target_y, 
-                   unsigned char *exit_x, unsigned char *exit_y) {
-    unsigned char room_center_x, room_center_y;
-    unsigned char room_id = room - room_list;
-    get_room_center(room_id, &room_center_x, &room_center_y);
-    
-    unsigned char dx = abs_diff(target_x, room_center_x);
-    unsigned char dy = abs_diff(target_y, room_center_y);
-    
-    if (dx > dy) {
-        if (target_x > room_center_x) {
-            *exit_x = room->x + room->w + 1;
-            *exit_y = room->y + calculate_optimal_exit_position(room->h, target_y, room->y);
-        } else {
-            *exit_x = room->x - 2;
-            *exit_y = room->y + calculate_optimal_exit_position(room->h, target_y, room->y);
-        }
-    } else {
-        if (target_y > room_center_y) {
-            *exit_y = room->y + room->h + 1;
-            *exit_x = room->x + calculate_optimal_exit_position(room->w, target_x, room->x);
-        } else {
-            *exit_y = room->y - 2;
-            *exit_x = room->x + calculate_optimal_exit_position(room->w, target_x, room->x);
-        }
-    }
-}
-
-unsigned char has_door_nearby(unsigned char x, unsigned char y, unsigned char min_distance) {
-    unsigned char start_x = (x >= min_distance) ? x - min_distance : 0;
-    unsigned char start_y = (y >= min_distance) ? y - min_distance : 0;
-    unsigned char end_x = x + min_distance;
-    unsigned char end_y = y + min_distance;
-    
-    if (end_x >= MAP_W) end_x = MAP_W - 1;
-    if (end_y >= MAP_H) end_y = MAP_H - 1;
-    
-    for (unsigned char iy = start_y; iy <= end_y; iy++) {
-        for (unsigned char ix = start_x; ix <= end_x; ix++) {
-            if (get_compact_tile(ix, iy) == TILE_DOOR) {
-                return 1;
-            }
-        }
-    }
-    
-    return 0;
-}
 
 unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
     unsigned char i;
@@ -286,26 +231,6 @@ inline unsigned char abs_diff(unsigned char a, unsigned char b) {
 }
 inline unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2) {
     return abs_diff(x1, x2) + abs_diff(y1, y2);
-}
-
-
-// get_room_bounds() removed - dead code (never used)
-
-unsigned char calculate_direction(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2) {
-    unsigned char dx = abs_diff(x1, x2);
-    unsigned char dy = abs_diff(y1, y2);
-    
-    if (dx > dy) {
-        return (x2 > x1) ? 0 : 4;
-    } else if (dy > dx) {
-        return (y2 > y1) ? 6 : 2;
-    } else {
-        if (x2 > x1) {
-            return (y2 > y1) ? 7 : 1;
-        } else {
-            return (y2 > y1) ? 5 : 3;
-        }
-    }
 }
 
 inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y) {
@@ -349,30 +274,30 @@ inline unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsi
     return (tile <= 3) ? (tile_type_masks[tile] & type_flags) != 0 : 0;
 }
 
-unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y, 
+unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y,
                                        unsigned char type_flags, unsigned char include_diagonals) {
     if (x >= MAP_W || y >= MAP_H) return 0;
-    
+
     if (y > 0) {
         adjacent_tile_temp = get_compact_tile(x, y-1);
         if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
-    
+
     if (y < MAP_H-1) {
         adjacent_tile_temp = get_compact_tile(x, y+1);
         if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
-    
+
     if (x < MAP_W-1) {
         adjacent_tile_temp = get_compact_tile(x+1, y);
         if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
-    
+
     if (x > 0) {
         adjacent_tile_temp = get_compact_tile(x-1, y);
         if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
-    
+
     if (include_diagonals) {
         if (x > 0 && y > 0) {
             adjacent_tile_temp = get_compact_tile(x-1, y-1);
@@ -391,18 +316,8 @@ unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y,
             if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
     }
-    
-    return 0;
-}
 
-unsigned char check_tile_adjacency(unsigned char x, unsigned char y, unsigned char include_diagonals, unsigned char tile_types) {
-    if (!coords_in_bounds(x, y)) return 0;
-    
-    unsigned char type_flags = 0;
-    if (tile_types & CHECK_DOORS_ONLY) type_flags |= TILE_CHECK_DOOR;
-    if (tile_types & CHECK_FLOORS_ONLY) type_flags |= TILE_CHECK_FLOOR;
-    
-    return check_adjacent_tile_types(x, y, type_flags, include_diagonals);
+    return 0;
 }
 
 
@@ -560,21 +475,47 @@ void finish_progress_bar_simple(void) {
     }
 }
 
-// Show current phase name below progress bar - centered
+// Compact phase name storage - saves ~100 bytes vs individual strings
+// Strings packed sequentially to save pointer overhead
+static const char phase_strings[] =
+    "Building Rooms\0"
+    "Connecting Rooms\0"
+    "Secret Areas\0"
+    "Secret Treasures\0"
+    "False Corridors\0"
+    "Placing Stairs\0"
+    "Finalizing\0"
+    "Complete";
+
+// Offsets into packed string (much smaller than 8 pointers)
+static const unsigned char phase_offsets[8] = {0, 15, 32, 45, 62, 78, 93, 104};
+
+// Show phase by index - optimized for size
+void show_phase(unsigned char phase_id) {
+    if (phase_id >= 8) return;
+
+    const char* text = phase_strings + phase_offsets[phase_id];
+    unsigned char text_len = 0;
+    const char* p = text;
+    while (*p++) text_len++;
+
+    unsigned char phase_x = (40 - text_len) / 2;
+
+    gotoxy(0, progress_y + 2);
+    for (unsigned char i = 0; i < 40; i++) putchar(' ');
+    gotoxy(phase_x, progress_y + 2);
+    print_text(text);
+}
+
+// Legacy wrapper for compatibility
 void show_phase_name(const char* phase_name) {
-    // Calculate center position for phase name based on text length
     unsigned char text_len = 0;
     const char* p = phase_name;
-    while (*p) { // Simple string length calculation - fixed
-        text_len++;
-        p++;
-    }
-    
-    unsigned char phase_x = (40 - text_len) / 2; // Center horizontally
-    
-    // Clear previous phase name line
+    while (*p++) text_len++;
+
+    unsigned char phase_x = (40 - text_len) / 2;
+
     gotoxy(0, progress_y + 2);
-    // Clear full line (40 chars) - using single character for size optimization
     for (unsigned char i = 0; i < 40; i++) putchar(' ');
     gotoxy(phase_x, progress_y + 2);
     print_text(phase_name);
@@ -648,13 +589,6 @@ void place_door(unsigned char x, unsigned char y) {
 static unsigned char room_distance_cache[MAX_ROOMS][MAX_ROOMS];
 static unsigned char distance_cache_valid = 0;
 
-unsigned char get_cached_room_distance(unsigned char room1, unsigned char room2) {
-    if (!distance_cache_valid) {
-        init_room_distance_cache();
-    }
-    return room_distance_cache[room1][room2];
-}
-
 void init_room_distance_cache(void) {
     // Initialize cache with Manhattan distances between room centers
     for (unsigned char i = 0; i < room_count; i++) {
@@ -675,6 +609,43 @@ void init_room_distance_cache(void) {
 
 void clear_room_distance_cache(void) {
     distance_cache_valid = 0;
+}
+
+// =============================================================================
+// WALL AND DOOR VALIDATION UTILITIES
+// =============================================================================
+
+// Get wall side from door position - room geometry utility
+unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y) {
+    Room *room = &room_list[room_idx];
+
+    if (exit_x < room->x) return 0; // Left
+    if (exit_x >= room->x + room->w) return 1; // Right
+    if (exit_y < room->y) return 2; // Top
+    return 3; // Bottom
+}
+
+// Check if a wall side has any doors (normal or cached false corridors)
+unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
+    Room *room = &room_list[room_idx];
+
+    for (unsigned char i = 0; i < room->connections; i++) {
+        if (room->doors[i].wall_side == wall_side) {
+            return 1;
+        }
+    }
+
+    if ((room->state & ROOM_HAS_FALSE_CORRIDOR) &&
+        room->false_corridor_door_x != 255 && room->false_corridor_door_y != 255) {
+        unsigned char recorded_wall = get_wall_side_from_exit(room_idx,
+                                                              room->false_corridor_door_x,
+                                                              room->false_corridor_door_y);
+        if (recorded_wall == wall_side) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
 
 
