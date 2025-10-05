@@ -10,6 +10,9 @@
 #include "mapgen_internal.h"   // For room placement/validation and global variable declarations
 #include "mapgen_utils.h"      // For utility functions
 
+// External reference to current generation parameters
+extern MapParameters current_params;
+
 // Local constants
 // Use const instead of #define for better code generation
 static const unsigned char MAP_BORDER = 1;
@@ -325,26 +328,15 @@ void create_rooms(void) {
     }
 
     // Generate rooms at shuffled grid positions
-    for (unsigned char i = 0; i < MAX_ROOMS && placed_rooms < MAX_ROOMS && i < grid_count; i++) {
+    for (unsigned char i = 0; i < current_params.max_rooms && placed_rooms < current_params.max_rooms && i < grid_count; i++) {
         unsigned char w, h, x, y;
-        
-        // Generate room size with bias toward rectangles
-        if (rnd(RECTANGLE_TOTAL) < RECTANGLE_CHANCE) {
-            // 60% chance for rectangular rooms
-            if (rnd(2)) {
-                // Wider than tall
-                w = MIN_SIZE + 1 + rnd(MAX_SIZE - MIN_SIZE);     // 5-8 wide
-                h = MIN_SIZE + rnd(MAX_SIZE - MIN_SIZE - 1);     // 4-6 high
-            } else {
-                // Taller than wide
-                w = MIN_SIZE + rnd(MAX_SIZE - MIN_SIZE - 1);     // 4-6 wide
-                h = MIN_SIZE + 1 + rnd(MAX_SIZE - MIN_SIZE);     // 5-8 high
-            }
-        } else {
-            // 40% chance for square-ish rooms
-            w = MIN_SIZE + rnd(MAX_SIZE - MIN_SIZE + 1);         // 4-8 wide
-            h = MIN_SIZE + rnd(MAX_SIZE - MIN_SIZE + 1);         // 4-8 high
-        }
+        unsigned char min_size = current_params.min_room_size;
+        unsigned char max_size = current_params.max_room_size;
+        unsigned char size_range = max_size - min_size;
+
+        // Generate room size - both dimensions random from range
+        w = min_size + rnd(size_range + 1);
+        h = min_size + rnd(size_range + 1);
         
         // Attempt to place room at grid position
         if (try_place_room_at_grid(grid_positions[i], w, h, &x, &y)) {
