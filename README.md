@@ -89,8 +89,8 @@ Final dungeon map:
 - **Real-time Procedural Generation**: Grid-based room placement with MST connectivity ensures all rooms are reachable
 - **Interactive Navigation**: Explore generated dungeons with continuous WASD scrolling and 40×25 viewport
 - **Secret Rooms**: Hidden areas accessible through secret passages (50% chance for single-connection rooms)
-- **Secret Treasures**: Hidden treasure chambers placed on walls without doors (3 per map)
-- **False Corridors**: Misleading dead-end passages from room walls (2 per map, Nethack-style)
+- **Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances (3 per map)
+- **False Corridors**: Misleading dead-end passages validated by a two-pass corridor walker; doors are wall-specific and never share a wall with treasure alcoves (5 per map)
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
 - **Map Export**: Save generated maps to disk in binary format
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
@@ -127,8 +127,8 @@ The generation process displays real-time progress with a centered progress bar 
 1. **Building Rooms**: Grid-based placement on 4×4 layout with Fisher-Yates shuffle, immediate wall construction
 2. **Connecting Rooms**: Minimum Spanning Tree algorithm ensures all rooms are reachable with optimal corridor placement
 3. **Creating Secret Areas**: Single-connection rooms converted to secret areas (50% probability)
-4. **Placing Secret Treasures**: Hidden treasure chambers placed on walls without doors (3 treasures per map)
-5. **Placing False Corridors**: Misleading dead-end passages from room wall centers (2 per map, straight/L-shaped)
+4. **Placing Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances (3 treasures per map)
+5. **Placing False Corridors**: Walker-driven straight/L/Z paths with per-wall door selection; treasure-bearing walls and existing doors are skipped (5 per map)
 6. **Placing Stairs**: Priority-based stair placement in room centers for level navigation
 7. **Finalizing**: Camera initialization and viewport setup for interactive exploration
 
