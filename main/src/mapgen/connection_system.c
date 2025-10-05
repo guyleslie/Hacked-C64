@@ -512,13 +512,13 @@ void convert_secret_rooms_doors(void) {
         // Only rooms with exactly one connection can be secret
         if (room_list[i].connections == 1 && rnd(100) < SECRET_ROOM_PERCENTAGE) {
             unsigned char connected_room = room_list[i].conn_data[0].room_id;
-            
+
             // Get the connected room's door position for this connection
             unsigned char connected_door_x, connected_door_y, connected_wall_side, temp_corridor_type;
             if (!get_connection_info(connected_room, i, &connected_door_x, &connected_door_y, &connected_wall_side, &temp_corridor_type)) {
                 continue; // Connection not found, skip this room
             }
-            
+
             // Count how many doors are on this specific wall in connected room
             unsigned char doors_on_wall = 0;
             for (unsigned char j = 0; j < room_list[connected_room].connections; j++) {
@@ -529,31 +529,31 @@ void convert_secret_rooms_doors(void) {
             // If more than 1 door on this wall, skip (would delete existing corridor)
             if (doors_on_wall > 1) continue;
             room_list[i].state |= ROOM_SECRET;
-            
+
             if (room_list[i].connections > 0) {
                 Door *secret_door = &room_list[i].doors[0];
-                
+
                 // Use the door coordinates we already retrieved above
                 unsigned char normal_door_x = connected_door_x;
                 unsigned char normal_door_y = connected_door_y;
-                
+
                 // Only convert the normal room door to secret passage
                 // The corridor and secret room door remain normal
                 // This creates a hidden entrance to the secret room
                 set_compact_tile(normal_door_x, normal_door_y, TILE_SECRET_PATH);
-                
+
                 // Mark the door as secret in metadata - find the door index in connected room
                 for (unsigned char door_idx = 0; door_idx < room_list[connected_room].connections; door_idx++) {
-                    if (room_list[connected_room].doors[door_idx].x == normal_door_x && 
+                    if (room_list[connected_room].doors[door_idx].x == normal_door_x &&
                         room_list[connected_room].doors[door_idx].y == normal_door_y) {
                         room_list[connected_room].doors[door_idx].is_secret_door = 1;
                         break;
                     }
                 }
-                
+
                 secrets_made++;
                 // Phase 2: Secret room progress
-                update_progress_step(2, secrets_made, room_count);
+                update_progress_step(2, secrets_made, current_params.secret_room_count);
             }
         }
     }
@@ -680,18 +680,20 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
 // Place false corridors across the map - keep trying until target reached
 void place_false_corridors(unsigned char corridor_count) {
     if (room_count == 0 || corridor_count == 0) return;
-    
+
     unsigned char corridors_placed = 0;
     unsigned char attempts = 0;
     unsigned char max_attempts = room_count * 20; // More attempts to reach target
-    
+
     // Keep trying random positions until we reach target or max attempts
     while (corridors_placed < corridor_count && attempts < max_attempts) {
         unsigned char room_idx = rnd(room_count);
         unsigned char wall_side = rnd(4);
-        
+
         if (create_false_corridor(room_idx, wall_side)) {
             corridors_placed++;
+            // Phase 4: False corridor placement progress
+            update_progress_step(4, corridors_placed, corridor_count);
         }
         attempts++;
     }
@@ -785,16 +787,18 @@ unsigned char place_treasure_for_room(unsigned char room_idx) {
 // Main secret treasure placement function
 void place_secret_treasures(unsigned char treasure_count) {
     if (room_count == 0 || treasure_count == 0) return;
-    
+
     unsigned char treasures_placed = 0;
     unsigned char attempts = 0;
     unsigned char max_attempts = room_count * 2; // Reasonable attempt limit
-    
+
     while (treasures_placed < treasure_count && attempts < max_attempts) {
         unsigned char room_idx = rnd(room_count);
-        
+
         if (place_treasure_for_room(room_idx)) {
             treasures_placed++;
+            // Phase 3: Treasure placement progress
+            update_progress_step(3, treasures_placed, treasure_count);
         }
         attempts++;
     }

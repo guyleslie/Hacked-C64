@@ -60,11 +60,9 @@ void initialize_camera(void) {
         get_room_center(0, &camera_center_x, &camera_center_y);
         update_camera();
     }
-    
-    // Phase 4: Finalization progress
-    update_progress_step(4, 1, 1);
-    
+
     // NOTE: render_map_viewport() moved out - will be called after progress bar finishes
+    // NOTE: Progress tracking now handled by map_generation.c (Phase 6)
 }
 
 // Update viewport based on camera center position with boundary checking

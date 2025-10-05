@@ -363,7 +363,7 @@ void create_rooms(void) {
             place_room(x, y, w, h);
             placed_rooms++;
             // Phase 0: Room placement progress
-            update_progress_step(0, placed_rooms, MAX_ROOMS);
+            update_progress_step(0, placed_rooms, current_params.max_rooms);
         }
     }
     

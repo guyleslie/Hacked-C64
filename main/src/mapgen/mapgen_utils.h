@@ -11,6 +11,7 @@ unsigned char rnd(unsigned char max);
 // Console functions for Oscar64
 void print_text(const char* text);
 // PETSCII Progress bar system - direct functions, no wrappers
+void init_progress_weights(void);  // Initialize dynamic phase boundaries from current_params
 void init_progress_bar_simple(const char* title);
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total);
 void finish_progress_bar_simple(void);

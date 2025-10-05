@@ -45,12 +45,15 @@ MapParameters current_params = {
 // Place stairs in appropriate rooms based on priority
 void add_stairs(void) {
     if (room_count < 2) return; // Need at least 2 rooms for stairs
-    
+
     unsigned char start_room = 0;
     unsigned char end_room = room_count - 1;
     // Adaptive minimum distance: smaller maps need shorter distances
     unsigned char min_stair_distance = (room_count <= 6) ? 20 : 30;
-    
+
+    // Phase 5: Stair placement progress - starting
+    update_progress_step(5, 0, 2);
+
     // Find highest priority room for up stairs
     unsigned char highest_priority = 0;
     for (unsigned char i = 0; i < room_count; i++) {
@@ -60,9 +63,7 @@ void add_stairs(void) {
             start_room = i;
         }
     }
-    // Phase 3: Stair placement progress
-    update_progress_step(3, 1, 1);
-    
+
     // Find second highest priority room for down stairs with distance check
     unsigned char second_highest = 0;
     for (unsigned char i = 0; i < room_count; i++) {
@@ -75,22 +76,25 @@ void add_stairs(void) {
             }
         }
     }
-    // End room found - no extra step needed
-    
+
     // Place up stairs in starting room
     unsigned char up_x, up_y;
     get_room_center(start_room, &up_x, &up_y);
     if (coords_in_bounds(up_x, up_y)) {
         set_compact_tile(up_x, up_y, TILE_UP);
     }
-    
+
+    update_progress_step(5, 1, 2);
+
     // Place down stairs in ending room
     unsigned char down_x, down_y;
     get_room_center(end_room, &down_x, &down_y);
     if (coords_in_bounds(down_x, down_y)) {
         set_compact_tile(down_x, down_y, TILE_DOWN);
     }
-    // Stairs placed - no extra step needed
+
+    // Phase 5: Stair placement complete
+    update_progress_step(5, 2, 2);
 }
 
 
@@ -102,7 +106,8 @@ void add_stairs(void) {
 unsigned char generate_level(void) {
     // Initialize progress bar system
     init_generation_progress();
-    
+    init_progress_weights();  // Pre-calculate dynamic phase boundaries
+
     // Phase 1: Create rooms with walls using grid-based placement
     show_phase(0); // "Building Rooms"
     create_rooms();
@@ -132,9 +137,11 @@ unsigned char generate_level(void) {
     show_phase(5); // "Placing Stairs"
     add_stairs();
 
-    // Phase 4: Initialize camera for new map
+    // Phase 6: Initialize camera for new map
     show_phase(6); // "Finalizing"
+    update_progress_step(6, 0, 1);
     initialize_camera();
+    update_progress_step(6, 1, 1);
 
     // Finish progress bar and show completion message
     finish_progress_bar_simple();

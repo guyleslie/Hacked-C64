@@ -402,44 +402,79 @@ static unsigned char progress_steps = 0;    // Current step (0-80: 20 positions 
 static const unsigned char progress_x = 9;  // X position (centered: (40-22)/2 = 9)
 static const unsigned char progress_y = 12; // Y position (screen center)
 
-// C64-optimized phase boundaries (80 total steps divided by phases)
-static const unsigned char phase_starts[5] = {0, 20, 50, 65, 75};  // Phase start positions
-static const unsigned char phase_lengths[5] = {20, 30, 15, 10, 5}; // Steps per phase
+// Dynamic phase boundaries - calculated from current_params at generation start
+static unsigned char phase_boundaries[8];   // Phase start positions (0-80 scale)
+static unsigned char phase_total_weight = 0; // Total weight cache for fast calculation
+
+// External reference to current generation parameters
+extern MapParameters current_params;
+
+// Initialize dynamic progress weights based on current_params
+void init_progress_weights(void) {
+    // Calculate weights from current generation parameters
+    unsigned char weights[8];
+    weights[0] = current_params.max_rooms;                    // Rooms
+    weights[1] = current_params.max_rooms - 1;                // Connections (MST: n-1 edges)
+    weights[2] = current_params.secret_room_count;            // Secrets
+    weights[3] = current_params.treasure_count;               // Treasures
+    weights[4] = current_params.false_corridor_count;         // False corridors
+    weights[5] = 2;                                           // Stairs (fixed: 2 stairs)
+    weights[6] = 1;                                           // Finalize (fixed: camera init)
+    weights[7] = 1;                                           // Complete (fixed: display)
+
+    // Calculate total weight
+    phase_total_weight = 0;
+    for (unsigned char i = 0; i < 8; i++) {
+        phase_total_weight += weights[i];
+    }
+
+    // Pre-calculate phase boundaries on 0-80 scale
+    unsigned char accumulated = 0;
+    for (unsigned char i = 0; i < 8; i++) {
+        // Boundary = (accumulated * 80) / total_weight
+        phase_boundaries[i] = ((unsigned short)accumulated * 80) / phase_total_weight;
+        accumulated += weights[i];
+    }
+}
 
 // Initialize progress bar with C64-optimized display
 void init_progress_bar_simple(const char* title) {
     progress_steps = 0;
-    
+
     // Clear screen and show title using OSCAR64 compatible functions
     clrscr();
     gotoxy(13, 10); // Center generation status: (40-14)/2 = 13
     print_text(title);
-    
+
     // Progress bar will be drawn by update_progress_step() calls
 }
 
-// C64-optimized phase progress update - pure 8-bit math
+// Dynamic phase progress update - calculated from pre-computed boundaries
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total) {
     // Validate ranges for compiler analysis
-    __assume(phase < 5);
+    __assume(phase < 8);
     __assume(current <= total);
-    
-    // Calculate phase progress using 8-bit math only
+
+    if (total == 0 || phase >= 8) return;
+
+    // Get phase start and end from pre-calculated boundaries (fast lookup!)
+    unsigned char phase_start = phase_boundaries[phase];
+    unsigned char phase_end = (phase < 7) ? phase_boundaries[phase + 1] : 80;
+    unsigned char phase_range = phase_end - phase_start;
+
+    // Calculate progress within this phase
     unsigned char phase_progress = 0;
-    if (total > 0) {
-        // Avoid division: use bit shifts for common cases
-        if (total <= 4) {
-            phase_progress = (current << 2) < phase_lengths[phase] ? (current << 2) : phase_lengths[phase];
-        } else if (total <= 8) {
-            phase_progress = (current << 1) < phase_lengths[phase] ? (current << 1) : phase_lengths[phase];
-        } else {
-            // For larger totals, use simple proportion approximation
-            phase_progress = current < total ? current : phase_lengths[phase];
-        }
+    if (current >= total) {
+        // Phase complete
+        phase_progress = phase_range;
+    } else if (phase_range > 0) {
+        // Proportional progress: (current * range) / total
+        // 8-bit safe: max current=20, max range=80 → 1600 < 65535
+        phase_progress = ((unsigned short)current * phase_range) / total;
     }
-    
+
     // Set absolute progress position
-    progress_steps = phase_starts[phase] + phase_progress;
+    progress_steps = phase_start + phase_progress;
     if (progress_steps > 80) progress_steps = 80;
     
     // Calculate display position using bit operations
@@ -495,7 +530,7 @@ static const char phase_strings[] =
     "False Corridors\0"
     "Placing Stairs\0"
     "Finalizing\0"
-    "Complete";
+    "Generation Complete!";
 
 // Offsets into packed string (much smaller than 8 pointers)
 static const unsigned char phase_offsets[8] = {0, 15, 32, 45, 62, 78, 93, 104};
