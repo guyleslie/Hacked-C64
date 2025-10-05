@@ -12,8 +12,10 @@
 // Project headers
 #include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon
 #include "mapgen/mapgen_display.h"    // For move_camera_direction
+#include "mapgen/mapgen_config.h"     // For configuration management
 
 // Include C files for OSCAR64 linking
+#include "mapgen/mapgen_config.c"
 #include "mapgen/mapgen_utils.c"
 #include "mapgen/map_generation.c"
 #include "mapgen/room_management.c"
@@ -36,73 +38,77 @@ void set_mixed_charset(void) {
 // Main function with complete dungeon generation and interactive navigation
 int main(void) {
     unsigned char key;
-    
+    MapConfig config;
+    MapParameters params;
+
     clrscr();
-    
+
     // Switch to mixed (lowercase/uppercase) character set for C64
     set_mixed_charset();
-    
+
+    // Initialize default configuration
+    init_default_config(&config);
+
+    // Show configuration menu
+    show_config_menu(&config);
+
+    // Validate and compute parameters
+    validate_and_adjust_config(&config, &params);
+
+    // Set generation parameters
+    mapgen_set_parameters(&params);
+
+    // Clear screen before generation
+    clrscr();
+
     // Generate complete level (includes all necessary resets)
     mapgen_generate_dungeon();
-    
-    // Interactive loop with continuous input using CIA keyboard matrix
+
+    // Interactive loop using joystick 2
     while (1) {
-        // Check for non-movement keys using standard input
-        if (kbhit()) {
-            key = getch();
-            
-            if (key == 'Q' || key == 'q') {
-                clrscr();
-                break;
-            } else if (key == ' ') {
-                clrscr();
-                // Generate new level (includes all necessary resets)
-                mapgen_generate_dungeon();
-            } else if (key == 'M' || key == 'm') {
-                // Save the current map to disk
-                save_compact_map("MAPDATA.BIN");
-            }
+        // Check for keyboard commands
+        key = getchx();
+        if (key == 'Q' || key == 'q') {
+            clrscr();
+            break;
+        } else if (key == 'M' || key == 'm') {
+            save_compact_map("MAPDATA.BIN");
         }
-        
-        // Continuous movement using CIA keyboard matrix direct access
-        // Save current CIA state
-        unsigned char old_porta = cia1.pra;
-        
-        // Scan row 1 (contains W, A, S keys) - set row 1 to 0, others to 1
-        cia1.pra = 0xFD; // 11111101 - scan row 1
-        
-        // Read column states from port B
-        unsigned char row1_keys = cia1.prb;
-        
-        // Check W key (row 1, column 1) - bit 1
-        if (!(row1_keys & 0x02)) {
+
+        // Read joystick 2 from CIA1 Port A ($DC00)
+        unsigned char joy2 = cia1.pra;
+
+        // Joystick 2 bit mapping (active low):
+        // Bit 0 = UP
+        // Bit 1 = DOWN
+        // Bit 2 = LEFT
+        // Bit 3 = RIGHT
+        // Bit 4 = FIRE
+
+        // Check FIRE button for configuration menu
+        if (!(joy2 & 0x10)) {
+            clrscr();
+            show_config_menu(&config);
+            validate_and_adjust_config(&config, &params);
+            mapgen_set_parameters(&params);
+            clrscr();
+            mapgen_generate_dungeon();
+            // Wait for fire release
+            while (!(cia1.pra & 0x10)) {}
+        }
+
+        // Check joystick directions (supports diagonal)
+        if (!(joy2 & 0x01)) {  // UP
             move_camera_direction(MOVE_UP);
         }
-        // Check A key (row 1, column 2) - bit 2  
-        if (!(row1_keys & 0x04)) {
-            move_camera_direction(MOVE_LEFT);
-        }
-        // Check S key (row 1, column 5) - bit 5
-        if (!(row1_keys & 0x20)) {
+        if (!(joy2 & 0x02)) {  // DOWN
             move_camera_direction(MOVE_DOWN);
         }
-        
-        // Scan row 2 (contains D key) - set row 2 to 0, others to 1
-        cia1.pra = 0xFB; // 11111011 - scan row 2
-        
-        unsigned char row2_keys = cia1.prb;
-        
-        // Check D key (row 2, column 2) - bit 2
-        if (!(row2_keys & 0x04)) {
-            move_camera_direction(MOVE_RIGHT);
+        if (!(joy2 & 0x04)) {  // LEFT
+            move_camera_direction(MOVE_LEFT);
         }
-        
-        // Restore CIA port A
-        cia1.pra = old_porta;
-        
-        // Small delay for smooth scrolling - prevents too fast movement
-        for (unsigned char i = 0; i < 100; i++) {
-            // Timing loop - adjust for desired scroll speed
+        if (!(joy2 & 0x08)) {  // RIGHT
+            move_camera_direction(MOVE_RIGHT);
         }
     }
     
