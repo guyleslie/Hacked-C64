@@ -14,7 +14,7 @@ enum MapConstants {
     MAP_H = 72,
     VIEW_W = 40,
     VIEW_H = 25,
-    MAX_ROOMS = 20,
+    MAX_ROOMS = 20,  // Maximum for stable operation (16 grid positions + buffer)
     MIN_SIZE = 4,
     MAX_SIZE = 8,
     MIN_ROOM_DISTANCE = 4,
