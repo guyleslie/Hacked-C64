@@ -400,7 +400,7 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
     // Draw corridor using original working algorithm
     unsigned char wall1 = get_wall_side_from_exit(room1, exit1_x, exit1_y);
     unsigned char wall2 = get_wall_side_from_exit(room2, exit2_x, exit2_y);
-    
+
     draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret);
     
     // Place doors
@@ -665,6 +665,7 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
 
     place_door(door_x, door_y);
 
+    // Store corridor endpoints only - type can be recalculated from coordinates if needed
     room->state |= ROOM_HAS_FALSE_CORRIDOR;
     room->false_corridor_door_x = door_x;
     room->false_corridor_door_y = door_y;
@@ -764,15 +765,16 @@ unsigned char place_treasure_for_room(unsigned char room_idx) {
             // Create secret path in wall only, normal floor in treasure chamber
             set_compact_tile(wall_x, wall_y, TILE_SECRET_PATH);
             set_compact_tile(treasure_x, treasure_y, TILE_FLOOR);
-            
+
             // Place walls around treasure chamber
             place_walls_around_corridor_tile(treasure_x, treasure_y);
-            
-            // Mark room as having treasure and store wall position
+
+            // Mark room as having treasure and store wall position only
+            // Target coordinates can be recalculated from wall position and wall side
             room->state |= ROOM_HAS_TREASURE;
             room->treasure_wall_x = wall_x;
             room->treasure_wall_y = wall_y;
-            
+
             return 1; // Successfully placed treasure
         }
     }
