@@ -89,12 +89,12 @@ static inline unsigned char is_within_map_bounds_inline(unsigned char x, unsigne
 
 static inline unsigned char get_room_center_x_inline(unsigned char room_id) {
     if (room_id >= room_count) return 0;
-    return room_list[room_id].x + (room_list[room_id].w - 1) / 2;
+    return room_list[room_id].center_x;
 }
 
 static inline unsigned char get_room_center_y_inline(unsigned char room_id) {
     if (room_id >= room_count) return 0;
-    return room_list[room_id].y + (room_list[room_id].h - 1) / 2;
+    return room_list[room_id].center_y;
 }
 
 #endif // MAPGEN_UTILITY_H

@@ -234,22 +234,22 @@ inline unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsi
 }
 
 inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y) {
-    // Simple calculation without cache overhead
+    // Use cached center to avoid repeated division
     if (room_id >= room_count) {
         *center_x = *center_y = 0;
         return;
     }
-    *center_x = room_list[room_id].x + room_list[room_id].w / 2;
-    *center_y = room_list[room_id].y + room_list[room_id].h / 2;
+    *center_x = room_list[room_id].center_x;
+    *center_y = room_list[room_id].center_y;
 }
 
 // Helper for Room pointer - used in connection_system.c
 inline void get_room_center_ptr(Room *room, unsigned char *center_x, unsigned char *center_y) {
-    *center_x = room->x + room->w / 2;
-    *center_y = room->y + room->h / 2;
+    *center_x = room->center_x;
+    *center_y = room->center_y;
 }
 
-// Room center cache functions removed - direct calculation is more efficient for OSCAR64
+// Room center values are cached per room for fast lookup during generation
 
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2) {
     unsigned char x1 = get_room_center_x_inline(room1);
@@ -339,8 +339,18 @@ void reset_all_generation_data(void) {
     clear_map();
     
     for (unsigned char i = 0; i < MAX_ROOMS; i++) {
+        room_list[i].x = 0;
+        room_list[i].y = 0;
+        room_list[i].w = 0;
+        room_list[i].h = 0;
+        room_list[i].center_x = 0;
+        room_list[i].center_y = 0;
         room_list[i].connections = 0;
         room_list[i].state = 0;
+        room_list[i].hub_distance = 0;
+        room_list[i].priority = 0;
+        room_list[i].treasure_wall_x = 255;
+        room_list[i].treasure_wall_y = 255;
         room_list[i].false_corridor_door_x = 255; // Mark as no false corridor
         room_list[i].false_corridor_door_y = 255;
         room_list[i].false_corridor_end_x = 255;

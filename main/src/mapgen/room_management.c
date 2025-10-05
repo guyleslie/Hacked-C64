@@ -166,7 +166,17 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         room_list[room_count].y = y;
         room_list[room_count].w = w;
         room_list[room_count].h = h;
+        room_list[room_count].center_x = x + (w - 1) / 2;
+        room_list[room_count].center_y = y + (h - 1) / 2;
         room_list[room_count].priority = 0;    // Will be set by assign_room_priorities()
+        
+        // Reset per-room metadata to sentinel defaults on placement
+        room_list[room_count].treasure_wall_x = 255;
+        room_list[room_count].treasure_wall_y = 255;
+        room_list[room_count].false_corridor_door_x = 255;
+        room_list[room_count].false_corridor_door_y = 255;
+        room_list[room_count].false_corridor_end_x = 255;
+        room_list[room_count].false_corridor_end_y = 255;
         
         room_count++;
     }
@@ -270,6 +280,12 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx) {
 // Initialize room data structures
 void init_rooms(void) {
     for (unsigned char i = 0; i < MAX_ROOMS; i++) {
+        room_list[i].x = 0;
+        room_list[i].y = 0;
+        room_list[i].w = 0;
+        room_list[i].h = 0;
+        room_list[i].center_x = 0;
+        room_list[i].center_y = 0;
         room_list[i].connections = 0;
         room_list[i].state = 0;
         room_list[i].hub_distance = 0;
@@ -291,13 +307,17 @@ void init_rooms(void) {
             // Initialize corridor breakpoints (invalid coordinates)
             room_list[i].breakpoints[j][0].x = 255; // Invalid marker
             room_list[i].breakpoints[j][0].y = 255;
-            room_list[i].breakpoints[j][1].x = 255; // Invalid marker  
+            room_list[i].breakpoints[j][1].x = 255; // Invalid marker
             room_list[i].breakpoints[j][1].y = 255;
         }
         
-        // Initialize treasure wall position (no treasure by default)
+        // Initialize treasure and corridor metadata (no treasure/false corridors by default)
         room_list[i].treasure_wall_x = 255; // Invalid marker
         room_list[i].treasure_wall_y = 255;
+        room_list[i].false_corridor_door_x = 255;
+        room_list[i].false_corridor_door_y = 255;
+        room_list[i].false_corridor_end_x = 255;
+        room_list[i].false_corridor_end_y = 255;
     }
     room_count = 0;
 }
