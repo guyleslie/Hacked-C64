@@ -98,6 +98,7 @@ typedef struct {
 typedef struct {
     // Most frequently accessed during generation (ordered by access frequency)
     unsigned char x, y, w, h;              // 4 bytes - room position and size
+    unsigned char center_x, center_y;      // 2 bytes - cached room center position
     unsigned char connections;             // 1 byte - number of active connections
     unsigned char state;                   // 1 byte - room state flags
     
@@ -109,21 +110,21 @@ typedef struct {
     
     // Corridor breakpoint metadata (16 bytes) - 2 breakpoints per connection max
     CorridorBreakpoint breakpoints[4][2];  // 16 bytes - corridor turn points (L=1, Z=2)
-    
-    // Secret treasure metadata (2 bytes) - wall position where treasure is accessible
-    unsigned char treasure_wall_x;        // 1 byte - secret wall X coordinate (255 = no treasure)
-    unsigned char treasure_wall_y;        // 1 byte - secret wall Y coordinate
-    
-    // False corridor metadata (4 bytes) - dead-end corridor information
-    unsigned char false_corridor_door_x;  // 1 byte - false corridor door X coordinate (255 = no false corridor)
-    unsigned char false_corridor_door_y;  // 1 byte - false corridor door Y coordinate  
-    unsigned char false_corridor_end_x;   // 1 byte - false corridor end X coordinate
-    unsigned char false_corridor_end_y;   // 1 byte - false corridor end Y coordinate
+
+    // Secret treasure metadata (2 bytes) - wall entry only (target calculated on-demand)
+    unsigned char treasure_wall_x;         // 1 byte - secret wall X coordinate (255 = no treasure)
+    unsigned char treasure_wall_y;         // 1 byte - secret wall Y coordinate
+
+    // False corridor metadata (4 bytes) - dead-end corridor information (type calculated on-demand)
+    unsigned char false_corridor_door_x;   // 1 byte - false corridor door X coordinate (255 = no false corridor)
+    unsigned char false_corridor_door_y;   // 1 byte - false corridor door Y coordinate
+    unsigned char false_corridor_end_x;    // 1 byte - false corridor end X coordinate
+    unsigned char false_corridor_end_y;    // 1 byte - false corridor end Y coordinate
     
     // Less frequently accessed (moved to end for better cache behavior)
-    unsigned char hub_distance;           // 1 byte - distance from hub room
-    unsigned char priority;               // 1 byte - generation priority
-} Room; // 46 bytes total (optimized from larger structures - 4+1+1+4+12+16+2+4+2 bytes)
+    unsigned char hub_distance;            // 1 byte - distance from hub room
+    unsigned char priority;                // 1 byte - generation priority
+} Room; // 48 bytes total (cached center only, other values calculated on-demand)
 
 // Viewport structure
 typedef struct {
