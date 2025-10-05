@@ -138,7 +138,7 @@ The connection system implements three distinct corridor types with specific geo
 - **Direction:** straight line path between doors
 
 ```c
-// Validation: connection_system.c:232-251
+// Validation: can_use_straight_corridor() in connection_system.c
 if (r1_cx == r2_cx) {
     // Vertical alignment - rooms must face each other (not overlap)
     return (r1_cy < r2_cy) ? (r1->y + r1->h <= r2->y) : (r2->y + r2->h <= r1->y);
@@ -163,7 +163,7 @@ if (r1_cx == r2_cx) {
 - **Direction:** deterministic based on wall side
 
 ```c
-// Path logic: connection_system.c:82-98
+// Path logic: compute_corridor_breakpoints() in connection_system.c
 if ((wall1_side & 0x02) == 0) {
     // Vertical wall -> HORIZONTAL FIRST
     pivot_x = door2_x; pivot_y = door1_y;
@@ -191,7 +191,7 @@ if ((wall1_side & 0x02) == 0) {
 - **Segment lengths:** first leg is 1/3 of total distance
 
 ```c
-// Segment calculation: connection_system.c:106-129
+// Segment calculation: compute_corridor_breakpoints() in connection_system.c
 if ((wall_side & 0x02) == 0) { // Vertical walls -> horizontal start
     unsigned char leg_length = dx / 3;
     seg1_end_x = (door2_x > door1_x) ? door1_x + leg_length : door1_x - leg_length;
@@ -210,7 +210,7 @@ if ((wall_side & 0x02) == 0) { // Vertical walls -> horizontal start
 ## Wall Side Encoding
 
 ```c
-// Wall side determination: connection_system.c:224-229
+// Wall side determination: get_wall_side_from_exit() in mapgen_utils.c
 if (exit_x < room->x) return 0; // Left wall
 if (exit_x >= room->x + room->w) return 1; // Right wall  
 if (exit_y < room->y) return 2; // Top wall

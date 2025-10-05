@@ -135,7 +135,11 @@ dir build\"Hacked C64.prg"
 - 3-bit tile encoding in packed arrays
 - Use `__zeropage` annotation for frequently accessed variables
 - **Atomic metadata operations** - prevent inconsistent states during connection management
-- **Inline optimizations** - Hot path functions optimized for performance
+- **Static inline optimizations** - Hot path functions use `static inline` in headers for OSCAR64 optimization
+  - `get_room_center_ptr_inline()` - Room pointer center access (mapgen_utils.h)
+  - `get_room_center_x_inline()`, `get_room_center_y_inline()` - Room ID center access
+  - `abs_diff_inline()` - Arithmetic helpers
+  - Header placement enables OSCAR64 `-Oo` outliner to optimize call sites
 - **Dynamic progress tracking** - Runtime-calculated phase boundaries based on generation parameters
 
 ### Corridor Logic and Connection Functions
