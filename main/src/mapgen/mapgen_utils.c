@@ -243,13 +243,8 @@ inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsi
     *center_y = room_list[room_id].center_y;
 }
 
-// Helper for Room pointer - used in connection_system.c
-inline void get_room_center_ptr(Room *room, unsigned char *center_x, unsigned char *center_y) {
-    *center_x = room->center_x;
-    *center_y = room->center_y;
-}
-
 // Room center values are cached per room for fast lookup during generation
+// get_room_center_ptr_inline() moved to header as static inline for best optimization
 
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2) {
     unsigned char x1 = get_room_center_x_inline(room1);
