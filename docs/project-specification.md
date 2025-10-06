@@ -528,13 +528,17 @@ add_custom_command(OUTPUT ${OUTPUT_PRG} COMMAND ${OSCAR64_BIN} ...)
 // Core generation
 unsigned char mapgen_generate_dungeon(void);
 
-// Room queries  
+// Room queries
 unsigned char mapgen_get_room_info(unsigned char room_index, ...);
 unsigned char mapgen_find_room_at_position(unsigned char x, unsigned char y);
+unsigned char mapgen_get_map_size(void);  // Returns current map width/height
 
 // Statistics and validation
 void mapgen_get_statistics(unsigned char *floor_tiles, ...);
 unsigned char mapgen_validate_map(void);
+
+// Map export
+void save_compact_map(const char* filename);  // Export map to PRG format
 ```
 
 ### Atomic Metadata Management Functions
@@ -555,6 +559,68 @@ unsigned char get_connection_info(unsigned char room_idx, unsigned char target_r
 // Atomic rollback - removes last connection from room safely
 unsigned char remove_last_connection_from_room(unsigned char room_idx);
 ```
+
+## Map Export System
+
+### File Format (MAPBIN.PRG)
+
+The map export system saves generated dungeons to disk in a compact PRG format compatible with C64 KERNAL routines.
+
+**File Structure:**
+```
+Byte 0-1:   PRG load address (little-endian, added automatically by C64 KERNAL SAVE)
+Byte 2:     Map size (single byte: 48, 72, or 96)
+Byte 3+:    Packed tile data (3 bits per tile, bit stream crosses byte boundaries)
+```
+
+**File Size Calculation:**
+```c
+tile_bits = map_size × map_size × 3
+data_bytes = (tile_bits + 7) / 8
+total_size = 2 (PRG header) + 1 (size byte) + data_bytes
+```
+
+**Example File Sizes:**
+- 48×48 map: 2 + 1 + 864 = **867 bytes**
+- 72×72 map: 2 + 1 + 3888 = **3891 bytes**
+- 96×96 map: 2 + 1 + 6912 = **6915 bytes**
+
+### Tile Encoding (3 bits per tile)
+
+| Value | Tile Type    | PETSCII Display |
+|-------|--------------|-----------------|
+| 0     | Empty        | Space (32)      |
+| 1     | Wall         | Block (160)     |
+| 2     | Floor        | Period (46)     |
+| 3     | Door         | Plus (219)      |
+| 4     | Up stairs    | Less-than (60)  |
+| 5     | Down stairs  | Greater (62)    |
+| 6     | Secret path  | Caret (94)      |
+| 7     | (reserved)   | -               |
+
+### Implementation Details
+
+**Export Function:**
+```c
+void save_compact_map(const char* filename);
+```
+
+**Trigger:**
+- User presses 'M' key during map navigation
+- File saved as "mapbin" (lowercase for proper PETSCII display)
+- Appears as "MAPBIN" in C64 directory listing
+
+**Technical Implementation:**
+1. Query current map size using `mapgen_get_map_size()`
+2. Calculate actual data bytes needed: `(size² × 3 + 7) / 8`
+3. Create export buffer: `[size (1 byte)] + [compact_map data]`
+4. Use KERNAL SAVE routine via `krnio_save()` which automatically adds PRG header
+5. Only save necessary bytes (not full 3888-byte buffer)
+
+**Memory Optimization:**
+- Static buffer allocation (max size for 96×96)
+- Dynamic size calculation prevents unnecessary disk I/O
+- Efficient 3-bit packing maintains compact file sizes
 
 ## Development Standards
 

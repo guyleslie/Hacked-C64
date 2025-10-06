@@ -89,7 +89,7 @@ dir build\"Hacked C64.prg"
 ### Core Components
 - **main/src/main.c**: Entry point, VIC-II setup, joystick 2 input handling
 - **main/src/mapgen/**: Complete dungeon generation system
-  - `mapgen_api.h`: Public interface for map operations
+  - `mapgen_api.h`: Public interface for map operations (includes `mapgen_get_map_size()`)
   - `mapgen_types.h`: Core data structures and constants
   - `mapgen_internal.h`: Internal module definitions
   - `mapgen_config.c/.h`: Pre-generation configuration system with joystick 2 menu
@@ -98,7 +98,7 @@ dir build\"Hacked C64.prg"
   - `connection_system.c`: Minimum spanning tree corridors
   - `mapgen_display.c/.h`: Viewport rendering and camera
   - `mapgen_utils.c/.h`: Utility functions and math operations
-  - `map_export.c/.h`: File I/O operations
+  - `map_export.c/.h`: File I/O operations with PRG format export
 
 ### Memory Architecture
 - **Map Size**: Configurable (Small: 48×48, Medium: 72×72, Large: 96×96) with 3-bit packed encoding
@@ -199,7 +199,57 @@ void place_false_corridors(unsigned char corridor_count);
 // - Phase weights automatically scale to actual work done per configuration
 void init_progress_weights(void);
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total);
+
+// Map export system functions (in map_export.c)
+// - save_compact_map: Exports map to disk in PRG format
+// - File format: [PRG header (2 bytes, auto)] + [map_size (1 byte)] + [packed tile data (3 bits/tile)]
+// - Filename: "mapbin" (lowercase for proper PETSCII display on C64)
+// - Uses mapgen_get_map_size() to determine actual data size
+// - Only saves necessary bytes based on current map configuration
+void save_compact_map(const char* filename);
+
+// Map size query function (in map_generation.c, exposed via mapgen_api.h)
+// - Returns current map width (== height) from generation parameters
+// - Used by export system to calculate actual data size
+unsigned char mapgen_get_map_size(void);
 ```
+
+## Map Export Format (MAPBIN.PRG)
+
+The map is exported to disk as a PRG file with the following structure:
+
+**File Structure:**
+- **Byte 0-1**: PRG load address (little-endian, added automatically by C64 KERNAL SAVE)
+- **Byte 2**: Map size (single byte: 48, 72, or 96)
+- **Byte 3+**: Packed tile data (3 bits per tile, bit stream crosses byte boundaries)
+
+**File Sizes:**
+- 48×48 map: 2 + 1 + 864 = **867 bytes**
+- 72×72 map: 2 + 1 + 3888 = **3891 bytes**
+- 96×96 map: 2 + 1 + 6912 = **6915 bytes**
+
+**Calculation:**
+```
+tile_bits = map_size × map_size × 3
+data_bytes = (tile_bits + 7) / 8
+total_size = 2 (PRG header) + 1 (size) + data_bytes
+```
+
+**Tile Encoding (3 bits per tile):**
+| Value | Tile Type    |
+|-------|--------------|
+| 0     | Empty        |
+| 1     | Wall         |
+| 2     | Floor        |
+| 3     | Door         |
+| 4     | Up stairs    |
+| 5     | Down stairs  |
+| 6     | Secret path  |
+| 7     | (reserved)   |
+
+**Export Trigger:**
+- Press **'M'** key during navigation to save map to disk as "mapbin"
+- File appears as "MAPBIN" in C64 directory listing
 
 ## Core Files & Architecture
 

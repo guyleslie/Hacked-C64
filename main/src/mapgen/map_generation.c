@@ -183,3 +183,8 @@ void mapgen_get_parameters(MapParameters *params) {
         *params = current_params;
     }
 }
+
+// Get current map size (width == height)
+unsigned char mapgen_get_map_size(void) {
+    return current_params.map_width;
+}

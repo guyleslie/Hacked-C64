@@ -72,7 +72,7 @@ int main(void) {
             clrscr();
             break;
         } else if (key == 'M' || key == 'm') {
-            save_compact_map("MAPDATA.BIN");
+            save_compact_map("mapbin");
         }
 
         // Read joystick 2 from CIA1 Port A ($DC00)
