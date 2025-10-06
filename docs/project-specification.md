@@ -407,7 +407,7 @@ typedef struct {
     
     // Less frequently accessed
     unsigned char hub_distance, priority; // Generation parameters
-} Room; // 42 bytes total - optimized for C64 memory constraints
+} Room;                                   // 42 bytes total 
 ```
 
 ### Packed Connection Structure
@@ -415,7 +415,7 @@ typedef struct {
 typedef struct {
     unsigned char room_id : 5;             // Connected room ID (0-31)
     unsigned char corridor_type : 3;       // Corridor type (0-7, expanded for future use)
-} PackedConnection; // 1 byte total - removed 'used' flag (redundant with connections counter)
+} PackedConnection;                        // 1 byte total 
 ```
 
 ### Optimized Door Structure
@@ -426,14 +426,14 @@ typedef struct {
     unsigned char is_secret_door : 1;      // Secret room entrance flag
     unsigned char has_treasure : 1;        // Treasure chamber attached flag
     unsigned char reserved : 4;            // Reserved for future use
-} Door; // 3 bytes total - bit-packed flags for secret tracking
+} Door;                                    // 3 bytes total
 ```
 
 ### Corridor Breakpoint Structure
 ```c
 typedef struct {
     unsigned char x, y;                    // Breakpoint coordinates
-} CorridorBreakpoint; // 2 bytes total - compact coordinate storage
+} CorridorBreakpoint;                      // 2 bytes total 
 ```
 
 **Breakpoint Usage by Corridor Type:**
@@ -637,11 +637,5 @@ void save_compact_map(const char* filename);
 - **Map Storage**: 3072 bytes (3-bit packed tile encoding)
 - **Room Data**: 48 bytes per room (optimized packed structures with center cache)
 - **Code Quality**: Optimized for 6502 architecture with substantial size improvements
-
-### Optimization Results
-- **Code-level optimizations**: Redundant safety checks removed, inline functions for hot paths
-- **Compiler optimizations**: Size optimization (`-Os`), code outlining (`-Oo`), debug overhead elimination
-- **Build separation**: Development builds with full debug vs production builds with maximum optimization
-- **Performance improvements**: Reduced function call overhead, dynamic progress calculation with runtime-weighted phases
 
 This implementation leverages both 8-bit programming techniques and modern compiler optimization strategies, adapted specifically for the hardware constraints of the Commodore 64.
