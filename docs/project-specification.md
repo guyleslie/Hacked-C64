@@ -63,7 +63,7 @@ Limited keyboard support for essential commands:
 ### Configuration System
 
 **Pre-Generation Parameters:**
-- **Map Size**: Small (48×48), Medium (72×72), Large (96×96)
+- **Map Size**: Small (48×48), Medium (64×64), Large (80×80)
 - **Room Count**: Small (8), Medium (12), Large (16)
 - **Secret Rooms**: 10%/20%/30% of max rooms
 - **False Corridors**: 3/5/8 dead-end passages
@@ -332,9 +332,9 @@ Map data is stored using a 3-bit per tile encoding:
 
 **Bit-Level Compression:**
 - Each tile type is represented by 3 bits (8 possible types)
-- 72×72 map = 5184 tiles × 3 bits = efficiently packed data
+- Dynamic map sizes (48×48, 64×64, 80×80) with runtime bit offset calculation
 - Bits can span byte boundaries for maximum compression
-- Direct bit manipulation provides O(1) tile access
+- Direct bit manipulation provides O(1) tile access with `calculate_y_bit_offset()`
 
 **Tile Type Encoding:**
 - `TILE_EMPTY` (0): Empty space
@@ -569,7 +569,7 @@ The map export system saves generated dungeons to disk in a compact PRG format c
 **File Structure:**
 ```
 Byte 0-1:   PRG load address (little-endian, added automatically by C64 KERNAL SAVE)
-Byte 2:     Map size (single byte: 48, 72, or 96)
+Byte 2:     Map size (single byte: 48, 64, or 80)
 Byte 3+:    Packed tile data (3 bits per tile, bit stream crosses byte boundaries)
 ```
 
@@ -582,8 +582,8 @@ total_size = 2 (PRG header) + 1 (size byte) + data_bytes
 
 **Example File Sizes:**
 - 48×48 map: 2 + 1 + 864 = **867 bytes**
-- 72×72 map: 2 + 1 + 3888 = **3891 bytes**
-- 96×96 map: 2 + 1 + 6912 = **6915 bytes**
+- 64×64 map: 2 + 1 + 1536 = **1539 bytes**
+- 80×80 map: 2 + 1 + 2400 = **2403 bytes**
 
 ### Tile Encoding (3 bits per tile)
 
@@ -615,11 +615,12 @@ void save_compact_map(const char* filename);
 2. Calculate actual data bytes needed: `(size² × 3 + 7) / 8`
 3. Create export buffer: `[size (1 byte)] + [compact_map data]`
 4. Use KERNAL SAVE routine via `krnio_save()` which automatically adds PRG header
-5. Only save necessary bytes (not full 3888-byte buffer)
+5. Only save necessary bytes (not full 2400-byte buffer)
 
 **Memory Optimization:**
-- Static buffer allocation (max size for 96×96)
+- Static buffer allocation (max size 2400 bytes for 80×80)
 - Dynamic size calculation prevents unnecessary disk I/O
+- Runtime bit offset calculation: `y * map_width * 3` ensures correct tile access
 - Efficient 3-bit packing maintains compact file sizes
 
 ## Development Standards
@@ -631,11 +632,12 @@ void save_compact_map(const char* filename);
 - **Testing**: Validation functions for map integrity verification
 
 ### Performance Metrics
-- **Generation Time**: ~3-4 seconds on C64 hardware
+- **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
 - **Executable Size**: Optimized for C64 constraints (release build significantly smaller than debug)
-- **Memory Management**: Static allocation only, no dynamic memory
-- **Map Storage**: 3072 bytes (3-bit packed tile encoding)
+- **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
+- **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
 - **Room Data**: 48 bytes per room (optimized packed structures with center cache)
+- **Scrolling**: Optimized partial screen updates with no slowdown at map boundaries
 - **Code Quality**: Optimized for 6502 architecture with substantial size improvements
 
 This implementation leverages both 8-bit programming techniques and modern compiler optimization strategies, adapted specifically for the hardware constraints of the Commodore 64.

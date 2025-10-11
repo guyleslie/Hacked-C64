@@ -101,8 +101,9 @@ Final dungeon map:
 - **Real-time Procedural Generation**: Grid-based room placement with MST connectivity ensures all rooms are reachable
 - **Joystick Control**: Full joystick 2 support with diagonal movement and intuitive menu navigation
 - **Interactive Navigation**: Explore generated dungeons with responsive joystick control and 40×25 viewport
+- **Dynamic Map Sizing**: Runtime selection of map dimensions (48×48, 64×64, or 80×80) with single optimized buffer
 - **Configurable Parameters**:
-  - Map Size (Small: 48×48, Medium: 72×72, Large: 96×96)
+  - Map Size (Small: 48×48, Medium: 64×64, Large: 80×80)
   - Room Count (Small: 8, Medium: 12, Large: 16)
   - Secret Rooms (10%/20%/30% of max rooms)
   - False Corridors (3/5/8)
@@ -125,17 +126,21 @@ Final dungeon map:
 
 ### Map Specifications
 
-- **Map Size**: 72×72 tiles with 40×25 viewport
+- **Map Size**: Dynamically configurable (48×48, 64×64, or 80×80) with 40×25 viewport
 - **Room Count**: Up to 20 rooms (4×4 to 8×8 tiles each)
-- **Storage**: 3-bit tile encoding in 3888 bytes
+- **Storage**: 3-bit tile encoding with runtime calculated offsets
+  - 48×48 map: 864 bytes
+  - 64×64 map: 1536 bytes
+  - 80×80 map: 2400 bytes (max buffer size)
 
 ### Performance
 
-- **Generation Time**: ~3-4 seconds on C64 hardware
+- **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
 - **Executable Size**: Release build optimized for size (significantly smaller than development build)
-- **Memory Management**: Static allocation only, no dynamic memory allocation
-- **Map Storage**: 3888 bytes (3-bit packed tile encoding for 72×72 map)
+- **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
+- **Map Storage**: 2400 bytes max buffer (handles all map sizes: 48×48=864, 64×64=1536, 80×80=2400)
 - **Room Data**: 48 bytes per room (optimized packed structures with center cache)
+- **Scrolling**: Optimized partial screen updates with no slowdown at map boundaries
 - **Debug Information**: Development builds include .map, .asm, .lbl, .dbj files for analysis
 
 ## Generation Process

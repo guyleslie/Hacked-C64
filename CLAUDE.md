@@ -13,7 +13,7 @@ This is a Commodore 64 dungeon map generator built with the OSCAR64 cross-compil
 - **Language**: C with C64-specific optimizations  
 - **Target**: .prg executable format
 - **Memory Model**: Static allocation only, 3-bit tile encoding
-- **Display**: 40×25 character mode viewport on 72×72 map
+- **Display**: 40×25 character mode viewport on dynamic map sizes (48×48, 64×64, or 80×80)
 
 ## Commands
 
@@ -101,13 +101,15 @@ dir build\"Hacked C64.prg"
   - `map_export.c/.h`: File I/O operations with PRG format export
 
 ### Memory Architecture
-- **Map Size**: Configurable (Small: 48×48, Medium: 72×72, Large: 96×96) with 3-bit packed encoding
+- **Map Size**: Dynamically configurable at runtime (Small: 48×48, Medium: 64×64, Large: 80×80)
+- **Map Storage**: 3-bit packed tile encoding with runtime calculated offsets (max 2400 bytes for 80×80)
 - **Room System**: Up to 20 rooms on 4×4 placement grid (48 bytes each, optimized structure with center cache)
-- **Configuration System**: Dynamic parameter selection before generation
-- **Memory Usage**: Static allocation with optimized data structures
-- **Display**: Character-mode rendering with custom tiles (40×25 viewport)
+- **Configuration System**: Pre-generation joystick menu for dynamic parameter selection
+- **Memory Usage**: Static allocation with maximum-sized buffers, runtime bounds checking
+- **Display**: Character-mode rendering with custom tiles (40×25 viewport, optimized partial scrolling)
 - **Connection Management**: Single source of truth prevents data inconsistency
 - **String Optimization**: Packed string table with offset indexing
+- **Bit Offset Calculation**: Dynamic `y * map_width * 3` formula ensures correct tile access across all map sizes
 
 ### Generation Algorithm
 1. **Room Placement**: Fisher-Yates shuffle on 4×4 grid with immediate wall construction
@@ -132,13 +134,16 @@ dir build\"Hacked C64.prg"
 
 ### Memory Management
 - Static allocation only - no malloc/free
-- 3-bit tile encoding in packed arrays
+- 3-bit tile encoding in packed arrays with dynamic bit offset calculation
 - Use `__zeropage` annotation for frequently accessed variables
+- **Runtime bounds checking** - All tile access uses `current_params.map_width/height` for dynamic maps
+- **Dynamic bit offsets** - `calculate_y_bit_offset()` computes `y * map_width * 3` at runtime
 - **Atomic metadata operations** - prevent inconsistent states during connection management
 - **Static inline optimizations** - Hot path functions use `static inline` in headers for OSCAR64 optimization
   - `get_room_center_ptr_inline()` - Room pointer center access (mapgen_utils.h)
   - `get_room_center_x_inline()`, `get_room_center_y_inline()` - Room ID center access
   - `abs_diff_inline()` - Arithmetic helpers
+  - `calculate_y_bit_offset()` - Dynamic Y offset calculation for tile access
   - Header placement enables OSCAR64 `-Oo` outliner to optimize call sites
 - **Dynamic progress tracking** - Runtime-calculated phase boundaries based on generation parameters
 
@@ -220,13 +225,13 @@ The map is exported to disk as a PRG file with the following structure:
 
 **File Structure:**
 - **Byte 0-1**: PRG load address (little-endian, added automatically by C64 KERNAL SAVE)
-- **Byte 2**: Map size (single byte: 48, 72, or 96)
+- **Byte 2**: Map size (single byte: 48, 64, or 80)
 - **Byte 3+**: Packed tile data (3 bits per tile, bit stream crosses byte boundaries)
 
 **File Sizes:**
 - 48×48 map: 2 + 1 + 864 = **867 bytes**
-- 72×72 map: 2 + 1 + 3888 = **3891 bytes**
-- 96×96 map: 2 + 1 + 6912 = **6915 bytes**
+- 64×64 map: 2 + 1 + 1536 = **1539 bytes**
+- 80×80 map: 2 + 1 + 2400 = **2403 bytes**
 
 **Calculation:**
 ```
@@ -333,8 +338,8 @@ typedef struct {
     unsigned char reserved : 6;            // Reserved bits
 } Door; // 2 bytes - no 'connected_room' (redundant)
 
-// Map stored as 3-bit packed tile array
-unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
+// Map stored as 3-bit packed tile array (max size for 80×80)
+unsigned char compact_map[COMPACT_MAP_SIZE]; // 2400 bytes = (80*80*3+7)/8
 ```
 
 ## Testing and Verification
@@ -392,9 +397,16 @@ unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
 
 **Data structure optimizations:**
 - Packed Room struct with bitfields (48 bytes per room with center cache)
-- 3-bit tile encoding for compact map storage
+- 3-bit tile encoding for compact map storage with dynamic bit offset calculation
 - Offset-based string table instead of pointer arrays
 - Pre-calculated phase boundaries array (8 bytes) replaces static phase tables (-1 byte net)
+- Runtime map size selection (48/64/80) with single 2400-byte buffer
+
+**Display and scrolling optimizations:**
+- Optimized partial screen updates (single row/column shifts)
+- Eliminated edge case full screen fallbacks at map boundaries
+- Scroll direction tracking only when viewport actually changes
+- Dynamic viewport bounds checking using `current_params.map_width/height`
 
 **Results:**
 - Optimized release builds with no debug overhead
