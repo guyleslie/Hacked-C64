@@ -18,10 +18,6 @@ extern MapParameters current_params;
 static const unsigned char MAP_BORDER = 1;
 static const unsigned char BORDER_PADDING = 1;
 static const unsigned char PLACEMENT_ATTEMPTS = 15;
-static const unsigned char DEFAULT_PRIORITY = 5;
-static const unsigned char START_ROOM_PRIORITY = 10;
-static const unsigned char END_ROOM_PRIORITY = 8;
-static const unsigned char PRIORITY_VARIATION = 3;
 static const unsigned char RECTANGLE_CHANCE = 6;
 static const unsigned char RECTANGLE_TOTAL = 10;
 
@@ -163,8 +159,7 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         room_list[room_count].h = h;
         room_list[room_count].center_x = x + (w - 1) / 2;
         room_list[room_count].center_y = y + (h - 1) / 2;
-        room_list[room_count].priority = 0;    // Will be set by assign_room_priorities()
-        
+
         // Reset per-room metadata to sentinel defaults on placement
         room_list[room_count].treasure_wall_x = 255;
         room_list[room_count].treasure_wall_y = 255;
@@ -174,25 +169,6 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         room_list[room_count].false_corridor_end_y = 255;
         
         room_count++;
-    }
-}
-
-// =============================================================================
-// ROOM PRIORITY SYSTEM
-// =============================================================================
-
-// Sets room priorities based on position and type
-void assign_room_priorities(void) {
-    for (unsigned char i = 0; i < room_count; i++) {
-        __assume(room_count <= MAX_ROOMS);
-        if (i == 0) {
-            room_list[i].priority = START_ROOM_PRIORITY; // Starting room
-        } else if (i == room_count - 1) {
-            room_list[i].priority = END_ROOM_PRIORITY;  // End room
-        } else {
-            // Random priority variation for other rooms
-            room_list[i].priority = DEFAULT_PRIORITY + rnd(PRIORITY_VARIATION);
-        }
     }
 }
 
@@ -283,9 +259,7 @@ void init_rooms(void) {
         room_list[i].center_y = 0;
         room_list[i].connections = 0;
         room_list[i].state = 0;
-        room_list[i].hub_distance = 0;
-        room_list[i].priority = 0;
-        
+
         // Initialize packed connection data
         for (unsigned char j = 0; j < 4; j++) {
             room_list[i].conn_data[j].room_id = 31; // Invalid room index (unused slot marker)
@@ -364,5 +338,4 @@ void create_rooms(void) {
     
     // Finalize room generation
     room_count = placed_rooms;
-    assign_room_priorities();
 }

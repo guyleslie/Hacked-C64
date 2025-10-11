@@ -42,42 +42,33 @@ MapParameters current_params = {
 // PHASE 3: STAIR PLACEMENT SYSTEM
 // =============================================================================
 
-// Place stairs in appropriate rooms based on priority
+// Place stairs in rooms with maximum distance for optimal separation
 void add_stairs(void) {
     if (room_count < 2) return; // Need at least 2 rooms for stairs
-
-    unsigned char start_room = 0;
-    unsigned char end_room = room_count - 1;
-    // Adaptive minimum distance: smaller maps need shorter distances
-    unsigned char min_stair_distance = (room_count <= 6) ? 20 : 30;
 
     // Phase 5: Stair placement progress - starting
     update_progress_step(5, 0, 2);
 
-    // Find highest priority room for up stairs
-    unsigned char highest_priority = 0;
-    for (unsigned char i = 0; i < room_count; i++) {
-        __assume(room_count <= MAX_ROOMS);
-        if (room_list[i].priority > highest_priority) {
-            highest_priority = room_list[i].priority;
-            start_room = i;
-        }
-    }
+    // Find room pair with maximum distance (brute-force optimal)
+    unsigned char start_room = 0;
+    unsigned char end_room = 1;
+    unsigned char max_distance = calculate_room_distance(0, 1);
 
-    // Find second highest priority room for down stairs with distance check
-    unsigned char second_highest = 0;
     for (unsigned char i = 0; i < room_count; i++) {
         __assume(room_count <= MAX_ROOMS);
-        if (i != start_room && room_list[i].priority > second_highest) {
-            unsigned char distance = calculate_room_distance(start_room, i);
-            if (distance >= min_stair_distance) { // Check minimum distance
-                second_highest = room_list[i].priority;
-                end_room = i;
+        for (unsigned char j = i + 1; j < room_count; j++) {
+            __assume(i < MAX_ROOMS);
+            __assume(j < MAX_ROOMS);
+            unsigned char dist = calculate_room_distance(i, j);
+            if (dist > max_distance) {
+                max_distance = dist;
+                start_room = i;
+                end_room = j;
             }
         }
     }
 
-    // Place up stairs in starting room
+    // Place up stairs in starting room center
     unsigned char up_x, up_y;
     get_room_center(start_room, &up_x, &up_y);
     if (coords_in_bounds(up_x, up_y)) {
@@ -86,7 +77,7 @@ void add_stairs(void) {
 
     update_progress_step(5, 1, 2);
 
-    // Place down stairs in ending room
+    // Place down stairs in ending room center
     unsigned char down_x, down_y;
     get_room_center(end_room, &down_x, &down_y);
     if (coords_in_bounds(down_x, down_y)) {

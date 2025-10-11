@@ -13,7 +13,6 @@ void build_room_network(void);
 void add_stairs(void);
 unsigned char generate_level(void);
 void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
-void assign_room_priorities(void);
 
 // Room initialization
 void init_rooms(void);

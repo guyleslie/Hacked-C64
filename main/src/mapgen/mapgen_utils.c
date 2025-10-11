@@ -335,8 +335,6 @@ void reset_all_generation_data(void) {
         room_list[i].center_y = 0;
         room_list[i].connections = 0;
         room_list[i].state = 0;
-        room_list[i].hub_distance = 0;
-        room_list[i].priority = 0;
         room_list[i].treasure_wall_x = 255;
         room_list[i].treasure_wall_y = 255;
         room_list[i].false_corridor_door_x = 255; // Mark as no false corridor

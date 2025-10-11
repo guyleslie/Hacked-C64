@@ -120,11 +120,7 @@ typedef struct {
     unsigned char false_corridor_door_y;   // 1 byte - false corridor door Y coordinate
     unsigned char false_corridor_end_x;    // 1 byte - false corridor end X coordinate
     unsigned char false_corridor_end_y;    // 1 byte - false corridor end Y coordinate
-
-    // Less frequently accessed (moved to end for better cache behavior)
-    unsigned char hub_distance;            // 1 byte - distance from hub room
-    unsigned char priority;                // 1 byte - generation priority
-} Room; // 48 bytes total (cached center only, other values calculated on-demand)
+} Room; // 46 bytes total (optimized: removed unused hub_distance and priority fields)
 
 // Viewport structure
 typedef struct {

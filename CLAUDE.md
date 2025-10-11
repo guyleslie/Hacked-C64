@@ -103,7 +103,7 @@ dir build\"Hacked C64.prg"
 ### Memory Architecture
 - **Map Size**: Dynamically configurable at runtime (Small: 48×48, Medium: 64×64, Large: 80×80)
 - **Map Storage**: 3-bit packed tile encoding with runtime calculated offsets (max 2400 bytes for 80×80)
-- **Room System**: Up to 20 rooms on 4×4 placement grid (48 bytes each, optimized structure with center cache)
+- **Room System**: Up to 20 rooms on 4×4 placement grid (46 bytes each with cached center coordinates)
 - **Configuration System**: Pre-generation joystick menu for dynamic parameter selection
 - **Memory Usage**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Display**: Character-mode rendering with custom tiles (40×25 viewport, optimized partial scrolling)
@@ -117,7 +117,7 @@ dir build\"Hacked C64.prg"
 3. **Secret Rooms**: Single-connection rooms converted to secret areas
 4. **Secret Treasures**: Hidden treasure chambers placed on walls without doors (excludes secret rooms, max 1 per room)
 5. **False Corridors**: Dead-end corridors from room wall centers (5 per map, straight/L-shaped/Z-shaped, 2 tile margin)
-6. **Stair Placement**: Priority-based placement in room centers
+6. **Stair Placement**: Distance-based optimal placement - up/down stairs placed in room centers with maximum separation
 
 ## Code Style & Conventions
 
@@ -295,7 +295,7 @@ OSCAR64 generates detailed build information for optimization:
 
 ### Data Types
 ```c
-// Optimized Room structure (48 bytes total, optimized layout)
+// Room structure (46 bytes total)
 typedef struct {
     // Most frequently accessed during generation (ordered by access frequency)
     unsigned char x, y, w, h;              // Room position and size (4 bytes)
@@ -321,22 +321,19 @@ typedef struct {
     unsigned char false_corridor_door_y;   // False corridor door Y coordinate
     unsigned char false_corridor_end_x;    // False corridor end X coordinate
     unsigned char false_corridor_end_y;    // False corridor end Y coordinate
+} Room; // 46 bytes total
 
-    // Less frequently accessed
-    unsigned char hub_distance, priority;  // Generation parameters (2 bytes)
-} Room; // 48 bytes total (4+2+1+1+4+12+16+2+4+2 bytes)
-
-// Optimized connection structures
+// Connection structures
 typedef struct {
     unsigned char room_id : 5;             // Connected room (0-31)
     unsigned char corridor_type : 3;       // Corridor type (0-7)
-} PackedConnection; // 1 byte - no 'used' flag (redundant)
+} PackedConnection; // 1 byte
 
 typedef struct {
     unsigned char x, y;                    // Door coordinates
     unsigned char wall_side : 2;           // Wall side (0-3)
     unsigned char reserved : 6;            // Reserved bits
-} Door; // 2 bytes - no 'connected_room' (redundant)
+} Door; // 3 bytes
 
 // Map stored as 3-bit packed tile array (max size for 80×80)
 unsigned char compact_map[COMPACT_MAP_SIZE]; // 2400 bytes = (80*80*3+7)/8
@@ -396,7 +393,7 @@ unsigned char compact_map[COMPACT_MAP_SIZE]; // 2400 bytes = (80*80*3+7)/8
 - Separated build workflows for development vs production
 
 **Data structure optimizations:**
-- Packed Room struct with bitfields (48 bytes per room with center cache)
+- Packed Room struct with bitfields (46 bytes per room with center cache)
 - 3-bit tile encoding for compact map storage with dynamic bit offset calculation
 - Offset-based string table instead of pointer arrays
 - Pre-calculated phase boundaries array (8 bytes) replaces static phase tables (-1 byte net)

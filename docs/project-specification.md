@@ -299,22 +299,23 @@ The false corridor system creates Nethack-style misleading dead-end passages usi
 
 ### Phase 6: Placing Stairs
 
-Stair placement system ensures optimal level navigation:
+Stair placement system ensures optimal level navigation with maximum separation:
 
-**Priority-Based Selection:**
-- Up stairs placed in highest priority room
-- Down stairs placed in second highest priority room
-- Priority ensures stairs are placed in well-connected, accessible rooms
+**Distance-Based Selection:**
+- Algorithm performs exhaustive search across all room pairs (O(n²))
+- Calculates Manhattan distance between every room center combination
+- Selects the pair with maximum distance for stair placement
+- Up stairs placed in first room, down stairs in second room of optimal pair
 
-**Distance Validation:**
-- Adaptive minimum distance requirements: 20 tiles (≤6 rooms) or 30 tiles (>6 rooms)
-- Distance calculated using Manhattan distance between room centers
-- Ensures reasonable separation between level entry and exit points
+**Performance Characteristics:**
+- Brute-force search guarantees optimal placement (maximum separation)
+- Typical performance: 190 comparisons for 20 rooms (~10ms on C64)
+- Acceptable overhead in generation pipeline context
 
 **Placement Strategy:**
 - Stairs positioned at room centers for optimal accessibility
 - Coordinate bounds checking prevents placement errors
-- System guarantees valid navigation paths between levels
+- System guarantees maximum distance between level entry and exit points
 
 ### Phase 7: Finalizing
 
@@ -352,13 +353,13 @@ Each room maintains metadata for:
 **Core Properties:**
 - `x, y`: Room top-left corner coordinates
 - `w, h`: Room width and height dimensions
-- `priority`: Stair placement priority (1-10 scale)
+- `center_x, center_y`: Cached room center coordinates
 - `connections`: Number of active connections
 - `state`: Secret room flag and status bits
 
-**Connection Metadata (Optimized):**
-- `conn_data[4]`: Packed connection structures with room ID and corridor type only
-- `doors[4]`: Packed door structures with coordinates and wall side only
+**Connection Metadata:**
+- `conn_data[4]`: Packed connection structures with room ID and corridor type
+- `doors[4]`: Door structures with coordinates and wall side
 - `breakpoints[4][2]`: Corridor turn point coordinates for pathfinding and navigation
 - Connection count tracked in `connections` field (single source of truth)
 - Atomic operations ensure metadata consistency
@@ -413,10 +414,7 @@ typedef struct {
     unsigned char false_corridor_door_y;   // False corridor door Y coordinate
     unsigned char false_corridor_end_x;    // False corridor end X coordinate
     unsigned char false_corridor_end_y;    // False corridor end Y coordinate
-
-    // Less frequently accessed (2 bytes)
-    unsigned char hub_distance, priority;  // Generation parameters
-} Room;                                    // 48 bytes total (4+2+1+1+4+12+16+2+4+2) 
+} Room;                                    // 46 bytes total 
 ```
 
 ### Packed Connection Structure
@@ -427,7 +425,7 @@ typedef struct {
 } PackedConnection;                        // 1 byte total 
 ```
 
-### Optimized Door Structure
+### Door Structure
 ```c
 typedef struct {
     unsigned char x, y;                    // Door coordinates
@@ -494,7 +492,7 @@ typedef struct {
 4. **Secret Rooms**: Single-connection room conversion
 5. **Secret Treasures**: Hidden treasure chamber placement on available walls
 6. **False Corridors**: Dead-end corridor placement on available room walls
-7. **Stair Placement**: Start/end room assignment by priority
+7. **Stair Placement**: Distance-based optimal placement (maximum separation)
 8. **Camera Initialization**: Viewport setup for navigation
 
 ## Technical Architecture
@@ -654,11 +652,11 @@ void save_compact_map(const char* filename);
 
 ### Performance Metrics
 - **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
-- **Executable Size**: Optimized for C64 constraints (release build significantly smaller than debug)
+- **Executable Size**: C64 constraints (release build significantly smaller than debug)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
-- **Room Data**: 48 bytes per room (optimized packed structures with center cache)
-- **Scrolling**: Optimized partial screen updates with no slowdown at map boundaries
-- **Code Quality**: Optimized for 6502 architecture with substantial size improvements
+- **Room Data**: 46 bytes per room with packed structures and cached center coordinates
+- **Scrolling**: Partial screen updates with no slowdown at map boundaries
+- **Code Quality**: 6502 architecture with size improvements
 
 This implementation leverages both 8-bit programming techniques and modern compiler optimization strategies, adapted specifically for the hardware constraints of the Commodore 64.
