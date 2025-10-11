@@ -381,14 +381,14 @@ unsigned char compact_map[COMPACT_MAP_SIZE]; // 2400 bytes = (80*80*3+7)/8
 ### Applied Optimizations
 
 **Code-level optimizations:**
-- Removed redundant safety checks and validation layers
-- Eliminated complex path validation functions (`validate_corridor_path()`, `path_is_safe()`)
 - Simplified false corridor logic using existing corridor drawing functions
 - Maintained atomic connection management for data consistency
 - Dynamic progress calculation with runtime-weighted phases based on current_params
 - Inline function optimizations for hot paths
 - Packed string table with 8-bit offset array (vs separate string literals)
 - Index-based phase display API (`show_phase(id)` vs `show_phase_name(string)`)
+- Single bounds check per tile access (no redundant validation layers)
+- MST algorithm connection logic (guaranteed valid room indices)
 
 **Compiler-level optimizations:**
 - Development builds: Full debug information (`-O0 -g -n -dDEBUG`)
@@ -412,7 +412,7 @@ unsigned char compact_map[COMPACT_MAP_SIZE]; // 2400 bytes = (80*80*3+7)/8
 - Optimized release builds with no debug overhead
 - Maintained full functionality with improved performance
 - Clean development workflow with proper debug capabilities
-- Professional code organization with no unused functions
+- Professional code organization with efficient memory usage
 
 ### Build Strategy
 
