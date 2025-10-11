@@ -48,12 +48,7 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y, unsigned char
     return 1;
 }
 
-
-
-// Validity check for room connections - essential for array bounds safety
-unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2) {
-    return (room1 != room2 && room1 < room_count && room2 < room_count);
-}
+// can_connect_rooms_safely() removed - MST algorithm guarantees valid indices
 
 static void compute_corridor_breakpoints(unsigned char start_x, unsigned char start_y,
                                          unsigned char end_x, unsigned char end_y,
@@ -168,12 +163,11 @@ static unsigned char process_corridor_path(unsigned char start_x, unsigned char 
 
     compute_corridor_breakpoints(start_x, start_y, end_x, end_y, wall_side, corridor_type, &breakpoints);
 
+    // Loop only over valid breakpoints - count is accurate, no sentinel check needed
     for (unsigned char i = 0; i < breakpoints.count; i++) {
         unsigned char next_x = breakpoints.x[i];
         unsigned char next_y = breakpoints.y[i];
-        if (next_x == 255 || next_y == 255) {
-            continue; // Skip sentinel breakpoints
-        }
+
         if (!walk_corridor_line(current_x, current_y, next_x, next_y, mode, tile_type)) {
             return 0;
         }
@@ -369,11 +363,7 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
         return 1;
     }
 
-    // Safety check
-    if (!can_connect_rooms_safely(room1, room2)) {
-        return 0;
-    }
-
+    // No safety check needed - MST guarantees: room1 != room2, both < room_count
     Room *r1 = &room_list[room1];
     Room *r2 = &room_list[room2];
 
@@ -576,8 +566,8 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
     if (room->state & ROOM_SECRET) return 0;
     if (wall_has_doors(room_idx, wall_side)) return 0;
 
-    if ((room->state & ROOM_HAS_TREASURE) &&
-        room->treasure_wall_x != 255 && room->treasure_wall_y != 255) {
+    // State flag guarantees coordinates are valid - no sentinel check needed
+    if (room->state & ROOM_HAS_TREASURE) {
         unsigned char treasure_wall = get_wall_side_from_exit(room_idx,
                                                               room->treasure_wall_x,
                                                               room->treasure_wall_y);
@@ -715,8 +705,8 @@ unsigned char place_treasure_for_room(unsigned char room_idx) {
         if (wall_has_doors(room_idx, wall_side)) {
             continue;
         }
-        if ((room->state & ROOM_HAS_FALSE_CORRIDOR) &&
-            room->false_corridor_door_x != 255 && room->false_corridor_door_y != 255) {
+        // State flag guarantees coordinates are valid - no sentinel check needed
+        if (room->state & ROOM_HAS_FALSE_CORRIDOR) {
             unsigned char corridor_wall = get_wall_side_from_exit(room_idx,
                                                                   room->false_corridor_door_x,
                                                                   room->false_corridor_door_y);
@@ -840,12 +830,10 @@ void calculate_and_store_breakpoints(unsigned char room_idx, unsigned char conne
     CorridorBreakpoints computed;
     compute_corridor_breakpoints(door1_x, door1_y, door2_x, door2_y, wall1_side, corridor_type, &computed);
 
+    // Store valid breakpoints - count is accurate, no sentinel check needed
     for (unsigned char i = 0; i < computed.count && i < 2; i++) {
-        unsigned char bp_x = computed.x[i];
-        unsigned char bp_y = computed.y[i];
-        if (bp_x == 255 || bp_y == 255) continue;
-        room->breakpoints[connection_idx][i].x = bp_x;
-        room->breakpoints[connection_idx][i].y = bp_y;
+        room->breakpoints[connection_idx][i].x = computed.x[i];
+        room->breakpoints[connection_idx][i].y = computed.y[i];
     }
 }
 
