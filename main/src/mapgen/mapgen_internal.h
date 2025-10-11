@@ -2,6 +2,7 @@
 #define MAPGEN_INTERNAL_H
 
 #include "mapgen_types.h"
+#include "mapgen_config.h"  // For MapParameters type
 
 // =============================================================================
 // SIMPLIFIED CONNECTION SYSTEM
@@ -38,6 +39,9 @@ extern unsigned char compact_map[COMPACT_MAP_SIZE];
 extern Room room_list[MAX_ROOMS];
 extern unsigned char room_count;
 extern unsigned char rnd_state;
+
+// Generation parameters (defined in map_generation.c)
+extern MapParameters current_params;
 
 // Zero page variables for MST performance
 extern __zeropage unsigned char mst_best_room1;

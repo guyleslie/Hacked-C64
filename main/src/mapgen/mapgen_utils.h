@@ -76,8 +76,31 @@ void place_door(unsigned char x, unsigned char y);
 // INLINE OPTIMIZED HELPERS - C64 Performance Critical
 // ===================================================================
 
+// Mathematical helpers
 static inline unsigned char abs_diff_inline(unsigned char a, unsigned char b) {
     return (a > b) ? a - b : b - a;
+}
+
+// Grid calculation helpers - OSCAR64 inline optimization for room placement
+static inline unsigned char get_grid_x(unsigned char grid_index) {
+    return grid_index % GRID_SIZE;
+}
+
+static inline unsigned char get_grid_y(unsigned char grid_index) {
+    return grid_index / GRID_SIZE;
+}
+
+static inline unsigned char get_grid_cell_width(void) {
+    return (current_params.map_width - 8) / GRID_SIZE;
+}
+
+static inline unsigned char get_grid_cell_height(void) {
+    return (current_params.map_height - 8) / GRID_SIZE;
+}
+
+// Bounds clamping helper - generic utility for boundary management
+static inline unsigned char clamp_max(unsigned char value, unsigned char max_value) {
+    return (value >= max_value) ? (max_value - 1) : value;
 }
 
 // Note: is_within_map_bounds_inline() removed - use coords_in_bounds() instead

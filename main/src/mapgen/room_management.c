@@ -18,8 +18,6 @@ extern MapParameters current_params;
 static const unsigned char MAP_BORDER = 1;
 static const unsigned char BORDER_PADDING = 1;
 static const unsigned char PLACEMENT_ATTEMPTS = 15;
-static const unsigned char RECTANGLE_CHANCE = 6;
-static const unsigned char RECTANGLE_TOTAL = 10;
 
 // =============================================================================
 // UTILITY FUNCTIONS
@@ -53,10 +51,11 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
 
     // No clamp needed - early return above guarantees buffer_x2/y2 in bounds
 
-    // Check if safety margin is clear
+    // Check if safety margin is clear - explicit bounds check for code clarity
     for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
         for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
-            if (get_compact_tile(ix, iy) != TILE_EMPTY) {
+            // Explicit bounds check documents intent (get_compact_tile also validates internally)
+            if (!coords_in_bounds(ix, iy) || get_compact_tile(ix, iy) != TILE_EMPTY) {
                 return 0;
             }
         }
@@ -70,13 +69,13 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
 // =============================================================================
 
 // Attempts to place room at specified grid position with simplified range calculation
-unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h, 
+unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h,
                                     unsigned char *result_x, unsigned char *result_y) {
-    // Get base grid position - inline for OSCAR64 efficiency
-    const unsigned char grid_x = grid_index % GRID_SIZE;
-    const unsigned char grid_y = grid_index / GRID_SIZE;
-    const unsigned char cell_w = (current_params.map_width - 8) / GRID_SIZE;
-    const unsigned char cell_h = (current_params.map_height - 8) / GRID_SIZE;
+    // Get base grid position using optimized inline helpers
+    const unsigned char grid_x = get_grid_x(grid_index);
+    const unsigned char grid_y = get_grid_y(grid_index);
+    const unsigned char cell_w = get_grid_cell_width();
+    const unsigned char cell_h = get_grid_cell_height();
 
     // Calculate grid cell boundaries
     const unsigned char cell_min_x = MAP_BORDER + grid_x * cell_w;
@@ -91,13 +90,9 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
     unsigned char expanded_max_x = cell_max_x + buffer;
     unsigned char expanded_max_y = cell_max_y + buffer;
 
-    // Clamp expanded boundaries to map limits
-    if (expanded_max_x >= current_params.map_width - MAP_BORDER) {
-        expanded_max_x = current_params.map_width - MAP_BORDER - 1;
-    }
-    if (expanded_max_y >= current_params.map_height - MAP_BORDER) {
-        expanded_max_y = current_params.map_height - MAP_BORDER - 1;
-    }
+    // Clamp expanded boundaries to map limits using helper
+    expanded_max_x = clamp_max(expanded_max_x, current_params.map_width - MAP_BORDER);
+    expanded_max_y = clamp_max(expanded_max_y, current_params.map_height - MAP_BORDER);
 
     // Calculate valid placement range ensuring full room fits within boundaries
     const unsigned char placement_min_x = expanded_min_x;
