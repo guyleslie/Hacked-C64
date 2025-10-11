@@ -61,10 +61,6 @@ void reset_viewport_state(void);
 void reset_display_state(void);
 void reset_all_generation_data(void);
 
-// Room distance cache management
-void init_room_distance_cache(void);
-void clear_room_distance_cache(void);
-
 // Wall and door validation utilities
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y);
 unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);

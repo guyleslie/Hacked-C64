@@ -55,18 +55,7 @@ extern unsigned char last_scroll_direction;
 // Connection functions (optimized)
 unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned char is_secret);
 
-/**
- * @brief Checks if two rooms can be safely connected according to simplified rules.
- * @param room1 The first room index.
- * @param room2 The second room index.
- * @return 1 if connection is allowed, 0 otherwise.
- * 
- * Simplified validation with dynamic distance limits:
- * - For sparse layouts (≤8 rooms): max 80 tiles apart
- * - For normal layouts (>8 rooms): max 30 tiles apart
- * This ensures connectivity on large maps with few rooms while maintaining C64 performance.
- */
-unsigned char can_connect_rooms_safely(unsigned char room1, unsigned char room2);
+// can_connect_rooms_safely() removed - MST algorithm guarantees valid indices
 
 /**
  * @brief Checks if a corridor tile can be placed at the given coordinates.
