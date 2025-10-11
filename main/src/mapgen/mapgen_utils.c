@@ -45,10 +45,7 @@ unsigned char rnd(unsigned char max) {
 }
 
 unsigned char get_compact_tile(unsigned char x, unsigned char y) {
-    // Compiler hints for 8-bit range analysis
-    __assume(x < MAX_MAP_SIZE);
-    __assume(y < MAX_MAP_SIZE);
-
+    // Single bounds check - callers trust this function
     if (x >= current_params.map_width || y >= current_params.map_height) return TILE_EMPTY;
 
     // Calculate bit offset dynamically using actual map width
@@ -67,18 +64,15 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
 }
 
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
-    // Compiler hints for 8-bit range analysis
-    __assume(x < MAX_MAP_SIZE);
-    __assume(y < MAX_MAP_SIZE);
-    __assume(tile <= TILE_MASK);  // tile < 8
-
+    // Single bounds check - callers trust this function
     if (x >= current_params.map_width || y >= current_params.map_height) return;
 
     // Calculate bit offset dynamically using actual map width
     unsigned short bit_offset = calculate_y_bit_offset(y) + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
-    
+
+    // Runtime tile masking (no redundant __assume)
     tile &= TILE_MASK;
     
     if (bit_pos <= 5) {
@@ -96,8 +90,7 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
 
 
 unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
-    if (map_x >= current_params.map_width || map_y >= current_params.map_height) return EMPTY;
-    
+    // No bounds check - get_compact_tile() already validates
     unsigned char raw_tile = get_compact_tile(map_x, map_y);
     
     switch(raw_tile) {
@@ -138,7 +131,7 @@ void clear_map(void) {
 }
 
 inline unsigned char coords_in_bounds(unsigned char x, unsigned char y) {
-    return (x < current_params.map_width && y < current_params.map_height && x != UNDERFLOW_CHECK_VALUE && y != UNDERFLOW_CHECK_VALUE);
+    return (x < current_params.map_width && y < current_params.map_height);
 }
 
 unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room_id) {
@@ -446,11 +439,12 @@ void init_progress_bar_simple(const char* title) {
 
 // Dynamic phase progress update - calculated from pre-computed boundaries
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total) {
-    // Validate ranges for compiler analysis
+    // Compiler hints for range analysis (no redundant runtime checks)
     __assume(phase < 8);
     __assume(current <= total);
+    __assume(total > 0);
 
-    if (total == 0 || phase >= 8) return;
+    if (total == 0) return; // Only essential runtime check
 
     // Get phase start and end from pre-calculated boundaries (fast lookup!)
     unsigned char phase_start = phase_boundaries[phase];
@@ -623,37 +617,9 @@ void place_door(unsigned char x, unsigned char y) {
 }
 
 // =============================================================================
-// CONNECTION SYSTEM UTILITIES (moved from connection_system.c)
-// =============================================================================
-
-static unsigned char room_distance_cache[MAX_ROOMS][MAX_ROOMS];
-static unsigned char distance_cache_valid = 0;
-
-void init_room_distance_cache(void) {
-    // Initialize cache with Manhattan distances between room centers
-    for (unsigned char i = 0; i < room_count; i++) {
-        for (unsigned char j = 0; j < room_count; j++) {
-            if (i == j) {
-                room_distance_cache[i][j] = 0;
-            } else {
-                unsigned char x1 = get_room_center_x_inline(i);
-                unsigned char y1 = get_room_center_y_inline(i);
-                unsigned char x2 = get_room_center_x_inline(j);
-                unsigned char y2 = get_room_center_y_inline(j);
-                room_distance_cache[i][j] = manhattan_distance(x1, y1, x2, y2);
-            }
-        }
-    }
-    distance_cache_valid = 1;
-}
-
-void clear_room_distance_cache(void) {
-    distance_cache_valid = 0;
-}
-
-// =============================================================================
 // WALL AND DOOR VALIDATION UTILITIES
 // =============================================================================
+// (Unused 400-byte room_distance_cache removed - never called, wastes RAM)
 
 // Get wall side from door position - room geometry utility
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y) {
@@ -675,8 +641,8 @@ unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
         }
     }
 
-    if ((room->state & ROOM_HAS_FALSE_CORRIDOR) &&
-        room->false_corridor_door_x != 255 && room->false_corridor_door_y != 255) {
+    // State flag guarantees coordinates are valid - no sentinel check needed
+    if (room->state & ROOM_HAS_FALSE_CORRIDOR) {
         unsigned char recorded_wall = get_wall_side_from_exit(room_idx,
                                                               room->false_corridor_door_x,
                                                               room->false_corridor_door_y);
