@@ -114,7 +114,7 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
 **Rationale:**
 - `__assume()` hints claimed x/y are always in bounds
 - Runtime check contradicted compiler hints
-- Triple checking (2× `__assume` + 1× runtime) was redundant
+- Triple checking (2Ã— `__assume` + 1Ã— runtime) was redundant
 - Keeping runtime check is safer and sufficient
 
 **Impact:**
@@ -158,7 +158,7 @@ case MOVE_UP:
 - Same logic applied to all four directions (UP, DOWN, LEFT, RIGHT)
 
 **Impact:**
-- Code size: ~16-24 bytes saved (4 directions × 4-6 bytes each)
+- Code size: ~16-24 bytes saved (4 directions Ã— 4-6 bytes each)
 - Performance: ~16-32 CPU cycles saved per movement
 - Logic flow: Simplified and more consistent
 
@@ -465,20 +465,3 @@ void update_progress_step(unsigned char phase, unsigned char current, unsigned c
 - Maintained correctness through mathematical analysis
 
 ---
-
-## Documentation Updates
-
-**Files Modified:**
-- `main/src/mapgen/CLAUDE.md`
-
-**Changes:**
-- Simplified "Applied Optimizations" section
-- Removed detailed optimization descriptions from main documentation
-- Kept only general patterns and compiler-level optimizations
-- Moved detailed optimization history to CHANGELOG.md (this file)
-
-**Rationale:**
-- User feedback: Don't mention optimizations in README/specs
-- Focus documentation on current architecture, not change history
-- CHANGELOG.md serves as chronological optimization record
-- Separation of concerns: specs describe "what", changelog describes "why changed"
