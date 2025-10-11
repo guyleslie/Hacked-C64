@@ -154,15 +154,17 @@ Before generation, configure map parameters using joystick 2:
 
 ### Generation Phase
 
-The generation process displays real-time progress with a centered progress bar and phase indicators. Progress calculation is dynamic, automatically scaling to the actual work done based on configuration parameters (room count, secret rooms, treasures, etc.):
+The dungeon is generated in real-time with a progress bar showing each phase:
 
-1. **Building Rooms**: Grid-based placement on 4×4 layout with Fisher-Yates shuffle, immediate wall construction (count varies by configuration)
-2. **Connecting Rooms**: Minimum Spanning Tree algorithm ensures all rooms are reachable with optimal corridor placement
-3. **Creating Secret Areas**: Single-connection rooms converted to secret areas (percentage based on configuration)
-4. **Placing Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances (count varies by configuration)
-5. **Placing False Corridors**: Walker-driven straight/L/Z paths with per-wall door selection; treasure-bearing walls and existing doors are skipped (count varies by configuration)
-6. **Placing Stairs**: Priority-based stair placement in room centers for level navigation
-7. **Finalizing**: Camera initialization and viewport setup for interactive exploration
+1. **Building Rooms**: Creates rooms of various sizes across the map
+2. **Connecting Rooms**: Links all rooms together with corridors so every area is reachable
+3. **Creating Secret Areas**: Converts some isolated rooms into hidden secret areas
+4. **Placing Secret Treasures**: Adds hidden treasure chambers accessible through secret passages
+5. **Placing False Corridors**: Creates dead-end passages to add exploration challenge
+6. **Placing Stairs**: Positions up and down stairs for level navigation
+7. **Finalizing**: Prepares the map for exploration
+
+The number of rooms, secret areas, treasures, and false corridors varies based on your configuration settings.
 
 ## Documentation
 
