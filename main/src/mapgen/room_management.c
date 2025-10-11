@@ -50,15 +50,13 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
     unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
     unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
     
-    // Check map boundaries
+    // Check map boundaries - early return if placement exceeds map
     if (buffer_x2 + BORDER_PADDING >= current_params.map_width || buffer_y2 + BORDER_PADDING >= current_params.map_height) {
         return 0;
     }
 
-    // Clamp safety margin to map boundaries
-    if (buffer_x2 >= current_params.map_width) buffer_x2 = current_params.map_width - 1;
-    if (buffer_y2 >= current_params.map_height) buffer_y2 = current_params.map_height - 1;
-    
+    // No clamp needed - early return above guarantees buffer_x2/y2 in bounds
+
     // Check if safety margin is clear
     for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
         for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
@@ -122,12 +120,9 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
         return 0; // No valid placement area
     }
 
+    // If min <= max, then range = max - min + 1 >= 1 (mathematically guaranteed)
     const unsigned char range_x = placement_max_x - placement_min_x + 1;
     const unsigned char range_y = placement_max_y - placement_min_y + 1;
-
-    if (range_x == 0 || range_y == 0) {
-        return 0; // Empty range
-    }
 
     // Try multiple placement attempts within calculated range
     unsigned char attempts = 0;
