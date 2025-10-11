@@ -9,8 +9,8 @@
 // Map size table (width, height)
 const unsigned char map_size_table[3][2] = {
     {48, 48},  // SMALL
-    {72, 72},  // MEDIUM (current default)
-    {96, 96}   // LARGE
+    {64, 64},  // MEDIUM
+    {80, 80}   // LARGE
 };
 
 // Room count table (limited by 4x4 grid = 16 positions)

@@ -634,8 +634,8 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
         target_y += offset_y;
     }
 
-    if (target_x < 2 || target_x >= (signed char)(MAP_W - 2) ||
-        target_y < 2 || target_y >= (signed char)(MAP_H - 2)) {
+    if (target_x < 2 || target_x >= (signed char)(current_params.map_width - 2) ||
+        target_y < 2 || target_y >= (signed char)(current_params.map_height - 2)) {
         return 0;
     }
 

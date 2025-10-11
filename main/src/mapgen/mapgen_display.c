@@ -10,9 +10,13 @@
 #include <string.h>
 #include <stdlib.h>
 // Project headers
-#include "mapgen_types.h"         // For Room, MAP_W, MAP_H, MAX_ROOMS
+#include "mapgen_types.h"         // For Room, MAX_ROOMS, map constants
 #include "mapgen_utils.h"         // For viewport utilities, tile access, helper functions
 #include "mapgen_display.h"       // For display, viewport, input
+#include "mapgen_config.h"        // For MapParameters
+
+// External reference to current generation parameters
+extern MapParameters current_params;
 
 
 // =============================================================================
@@ -89,11 +93,11 @@ void update_camera(void) {
     }
     
     // Ensure viewport doesn't go beyond map boundaries
-    if (view.x + VIEW_W > MAP_W) {
-        view.x = (MAP_W >= VIEW_W) ? MAP_W - VIEW_W : 0;
+    if (view.x + VIEW_W > current_params.map_width) {
+        view.x = (current_params.map_width >= VIEW_W) ? current_params.map_width - VIEW_W : 0;
     }
-    if (view.y + VIEW_H > MAP_H) {
-        view.y = (MAP_H >= VIEW_H) ? MAP_H - VIEW_H : 0;
+    if (view.y + VIEW_H > current_params.map_height) {
+        view.y = (current_params.map_height >= VIEW_H) ? current_params.map_height - VIEW_H : 0;
     }
     
     // CRITICAL FIX: Synchronize camera position back to actual viewport center
@@ -189,21 +193,21 @@ void move_camera_direction(unsigned char direction) {
             break;
             
         case MOVE_DOWN:
-            if (camera_center_y < MAP_H - 1) {
+            if (camera_center_y < current_params.map_height - 1) {
                 new_camera_y++;
                 moved = 1;
             }
             break;
-            
+
         case MOVE_LEFT:
             if (camera_center_x > 0) {
                 new_camera_x--;
                 moved = 1;
             }
             break;
-            
+
         case MOVE_RIGHT:
-            if (camera_center_x < MAP_W - 1) {
+            if (camera_center_x < current_params.map_width - 1) {
                 new_camera_x++;
                 moved = 1;
             }
@@ -220,14 +224,14 @@ void move_camera_direction(unsigned char direction) {
         camera_center_y = new_camera_y;
         update_camera();
         
-        // Determine scroll direction based on ACTUAL camera movement
-        // This fixes the boundary case where camera moves but viewport doesn't
+        // Determine scroll direction ONLY if viewport actually changed
+        // This prevents full screen updates at map boundaries
         if (view.x != old_view_x || view.y != old_view_y) {
-            // Viewport changed - use viewport movement for scroll direction
+            // Viewport changed - set scroll direction for optimized rendering
             if (view.y < old_view_y) {
                 last_scroll_direction = 1; // Up scroll
             } else if (view.y > old_view_y) {
-                last_scroll_direction = 2; // Down scroll  
+                last_scroll_direction = 2; // Down scroll
             } else if (view.x < old_view_x) {
                 last_scroll_direction = 3; // Left scroll
             } else if (view.x > old_view_x) {
@@ -236,19 +240,9 @@ void move_camera_direction(unsigned char direction) {
                 last_scroll_direction = 0; // No scroll
             }
         } else {
-            // Viewport didn't change but camera moved (boundary case)
-            // Set scroll direction based on camera movement for next input
-            if (camera_center_y < prev_camera_y) {
-                last_scroll_direction = 1; // Up scroll
-            } else if (camera_center_y > prev_camera_y) {
-                last_scroll_direction = 2; // Down scroll  
-            } else if (camera_center_x < prev_camera_x) {
-                last_scroll_direction = 3; // Left scroll
-            } else if (camera_center_x > prev_camera_x) {
-                last_scroll_direction = 4; // Right scroll
-            } else {
-                last_scroll_direction = 0; // No movement
-            }
+            // Viewport didn't change (at boundary) - no scroll optimization
+            // This prevents slow full screen updates when hitting map edges
+            last_scroll_direction = 0;
         }
         
         // Mark screen as dirty for redraw
@@ -268,21 +262,17 @@ void move_camera_direction(unsigned char direction) {
 void update_partial_screen(unsigned char scroll_dir) {
     unsigned short screen_offset;
     unsigned char x, y;
-    
+
     // Validate scroll direction parameter
     if (scroll_dir == 0 || scroll_dir > 4) {
         update_full_screen();
         return;
     }
-    
-    // Edge case check with fallback to full update
-    switch(scroll_dir) {
-        case 1: if (view.y == 0) { update_full_screen(); return; } break;
-        case 2: if (view.y >= MAP_H - VIEW_H) { update_full_screen(); return; } break;
-        case 3: if (view.x == 0) { update_full_screen(); return; } break;
-        case 4: if (view.x >= MAP_W - VIEW_W) { update_full_screen(); return; } break;
-    }
-    
+
+    // Edge case checks removed - partial scroll works fine at boundaries!
+    // The get_map_tile() bounds checking handles out-of-bounds safely
+    // This eliminates slow full screen updates on the last scroll before boundary
+
     // Always use single line/column scroll for precise movement
     unsigned char max_y = VIEW_H - 1;
     unsigned char max_x = VIEW_W - 1;

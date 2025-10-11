@@ -51,13 +51,13 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
     unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
     
     // Check map boundaries
-    if (buffer_x2 + BORDER_PADDING >= MAP_W || buffer_y2 + BORDER_PADDING >= MAP_H) {
+    if (buffer_x2 + BORDER_PADDING >= current_params.map_width || buffer_y2 + BORDER_PADDING >= current_params.map_height) {
         return 0;
     }
-    
+
     // Clamp safety margin to map boundaries
-    if (buffer_x2 >= MAP_W) buffer_x2 = MAP_W - 1;
-    if (buffer_y2 >= MAP_H) buffer_y2 = MAP_H - 1;
+    if (buffer_x2 >= current_params.map_width) buffer_x2 = current_params.map_width - 1;
+    if (buffer_y2 >= current_params.map_height) buffer_y2 = current_params.map_height - 1;
     
     // Check if safety margin is clear
     for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
@@ -81,8 +81,8 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
     // Get base grid position - inline for OSCAR64 efficiency
     const unsigned char grid_x = grid_index % GRID_SIZE;
     const unsigned char grid_y = grid_index / GRID_SIZE;
-    const unsigned char cell_w = (MAP_W - 8) / GRID_SIZE;  // Adjusted for 72x72: (72-8)/4 = 16
-    const unsigned char cell_h = (MAP_H - 8) / GRID_SIZE;  // More conservative border for larger map
+    const unsigned char cell_w = (current_params.map_width - 8) / GRID_SIZE;
+    const unsigned char cell_h = (current_params.map_height - 8) / GRID_SIZE;
 
     // Calculate grid cell boundaries
     const unsigned char cell_min_x = MAP_BORDER + grid_x * cell_w;
@@ -98,11 +98,11 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
     unsigned char expanded_max_y = cell_max_y + buffer;
 
     // Clamp expanded boundaries to map limits
-    if (expanded_max_x >= MAP_W - MAP_BORDER) {
-        expanded_max_x = MAP_W - MAP_BORDER - 1;
+    if (expanded_max_x >= current_params.map_width - MAP_BORDER) {
+        expanded_max_x = current_params.map_width - MAP_BORDER - 1;
     }
-    if (expanded_max_y >= MAP_H - MAP_BORDER) {
-        expanded_max_y = MAP_H - MAP_BORDER - 1;
+    if (expanded_max_y >= current_params.map_height - MAP_BORDER) {
+        expanded_max_y = current_params.map_height - MAP_BORDER - 1;
     }
 
     // Calculate valid placement range ensuring full room fits within boundaries
