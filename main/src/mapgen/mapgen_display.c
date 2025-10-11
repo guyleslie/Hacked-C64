@@ -183,34 +183,26 @@ void move_camera_direction(unsigned char direction) {
     unsigned char new_camera_y = camera_center_y;
     unsigned char moved = 0;
     
-    // Direct camera movement with bounds checking
+    // Direct camera movement - update_camera() clamps to boundaries
     switch (direction) {
         case MOVE_UP:
-            if (camera_center_y > 0) {
-                new_camera_y--;
-                moved = 1;
-            }
+            new_camera_y--;
+            moved = 1;
             break;
-            
+
         case MOVE_DOWN:
-            if (camera_center_y < current_params.map_height - 1) {
-                new_camera_y++;
-                moved = 1;
-            }
+            new_camera_y++;
+            moved = 1;
             break;
 
         case MOVE_LEFT:
-            if (camera_center_x > 0) {
-                new_camera_x--;
-                moved = 1;
-            }
+            new_camera_x--;
+            moved = 1;
             break;
 
         case MOVE_RIGHT:
-            if (camera_center_x < current_params.map_width - 1) {
-                new_camera_x++;
-                moved = 1;
-            }
+            new_camera_x++;
+            moved = 1;
             break;
     }
 
