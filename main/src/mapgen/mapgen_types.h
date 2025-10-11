@@ -10,8 +10,9 @@
 
 // Use enum instead of #define for better code generation
 enum MapConstants {
-    MAP_W = 72,
-    MAP_H = 72,
+    MIN_MAP_SIZE = 48,
+    MED_MAP_SIZE = 64,
+    MAX_MAP_SIZE = 80,
     VIEW_W = 40,
     VIEW_H = 25,
     MAX_ROOMS = 20,  // Maximum for stable operation (16 grid positions + buffer)
@@ -19,9 +20,9 @@ enum MapConstants {
     MAX_SIZE = 8,
     MIN_ROOM_DISTANCE = 4,
     GRID_SIZE = 4,
-    // Pre-calculated map size constants for 8-bit optimization
-    COMPACT_MAP_SIZE = 3888,  // (72 * 72 * 3 + 7) / 8 = (15552 + 7) / 8 = 3888
-    COMPACT_MAP_CHUNKS = 16   // COMPACT_MAP_SIZE / 256 = 3888 / 256 = 15.2 → 16
+    // Max: (80*80*3+7)/8 = 2400 bytes
+    COMPACT_MAP_SIZE = 2400,  // Max: (80*80*3+7)/8
+    COMPACT_MAP_CHUNKS = 10   // 2400/256
 };
 
 // Dynamic maximum connection distance calculation

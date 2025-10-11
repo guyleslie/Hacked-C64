@@ -84,9 +84,8 @@ static inline unsigned char abs_diff_inline(unsigned char a, unsigned char b) {
     return (a > b) ? a - b : b - a;
 }
 
-static inline unsigned char is_within_map_bounds_inline(unsigned char x, unsigned char y) {
-    return (x < MAP_W) && (y < MAP_H);
-}
+// Note: is_within_map_bounds_inline() removed - use coords_in_bounds() instead
+// (requires runtime access to current_params, not suitable for inline header functions)
 
 static inline unsigned char get_room_center_x_inline(unsigned char room_id) {
     if (room_id >= room_count) return 0;

@@ -3,7 +3,11 @@
 #include "mapgen_types.h"
 #include "mapgen_utils.h"
 #include "mapgen_internal.h"
-unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
+#include "mapgen_config.h"  // For MapParameters
+
+// External reference to current generation parameters
+extern MapParameters current_params;
+unsigned char compact_map[COMPACT_MAP_SIZE];
 Room room_list[MAX_ROOMS];
 __zeropage unsigned char mst_best_room1;
 __zeropage unsigned char mst_best_room2;
@@ -20,16 +24,15 @@ extern unsigned char last_scroll_direction;
 
 // Room center cache removed - simple calculation is faster
 
-// Pre-calculated Y bit offsets lookup table
-// Replaces expensive 16-bit multiplication: y * 216 = y * (72 * 3)
-// Each Y coordinate maps to bit offset: y * MAP_W * 3 = y * 216
-static const unsigned short y_bit_offsets[72] = {
-    0, 216, 432, 648, 864, 1080, 1296, 1512, 1728, 1944, 2160, 2376, 2592, 2808, 3024, 3240,
-    3456, 3672, 3888, 4104, 4320, 4536, 4752, 4968, 5184, 5400, 5616, 5832, 6048, 6264, 6480, 6696,
-    6912, 7128, 7344, 7560, 7776, 7992, 8208, 8424, 8640, 8856, 9072, 9288, 9504, 9720, 9936, 10152,
-    10368, 10584, 10800, 11016, 11232, 11448, 11664, 11880, 12096, 12312, 12528, 12744, 12960, 13176, 13392, 13608,
-    13824, 14040, 14256, 14472, 14688, 14904, 15120, 15336
-};
+// Calculate Y bit offset dynamically based on current map width
+// Formula: y * current_params.map_width * 3
+// This ensures correct offset calculation for all map sizes (48/64/80)
+static inline unsigned short calculate_y_bit_offset(unsigned char y) {
+    // Optimized multiplication: y * map_width * 3
+    // Using shifts and adds for 8-bit efficiency
+    unsigned short y_times_width = (unsigned short)y * current_params.map_width;
+    return y_times_width + y_times_width + y_times_width; // × 3
+}
 
 void init_rnd(void) {
     rnd_state = (unsigned char)(cia1.ta ^ vic.raster);
@@ -43,15 +46,13 @@ unsigned char rnd(unsigned char max) {
 
 unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     // Compiler hints for 8-bit range analysis
-    __assume(x < MAP_W);
-    __assume(y < MAP_H);
-    
-    if (x >= MAP_W || y >= MAP_H) return TILE_EMPTY;
-    
-    // Use lookup table instead of 16-bit multiplication
-    // Old: ((unsigned short)y << 7) + ((unsigned short)y << 6) + x + x + x
-    // New: y_bit_offsets[y] + x * 3
-    unsigned short bit_offset = y_bit_offsets[y] + x + x + x;
+    __assume(x < MAX_MAP_SIZE);
+    __assume(y < MAX_MAP_SIZE);
+
+    if (x >= current_params.map_width || y >= current_params.map_height) return TILE_EMPTY;
+
+    // Calculate bit offset dynamically using actual map width
+    unsigned short bit_offset = calculate_y_bit_offset(y) + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
     
@@ -67,14 +68,14 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
 
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     // Compiler hints for 8-bit range analysis
-    __assume(x < MAP_W);
-    __assume(y < MAP_H);
+    __assume(x < MAX_MAP_SIZE);
+    __assume(y < MAX_MAP_SIZE);
     __assume(tile <= TILE_MASK);  // tile < 8
-    
-    if (x >= MAP_W || y >= MAP_H) return;
-    
-    // Use lookup table instead of 16-bit multiplication
-    unsigned short bit_offset = y_bit_offsets[y] + x + x + x;
+
+    if (x >= current_params.map_width || y >= current_params.map_height) return;
+
+    // Calculate bit offset dynamically using actual map width
+    unsigned short bit_offset = calculate_y_bit_offset(y) + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
     
@@ -95,7 +96,7 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
 
 
 unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
-    if (map_x >= MAP_W || map_y >= MAP_H) return EMPTY;
+    if (map_x >= current_params.map_width || map_y >= current_params.map_height) return EMPTY;
     
     unsigned char raw_tile = get_compact_tile(map_x, map_y);
     
@@ -117,28 +118,27 @@ unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
 // tile_is_*() -> get_compact_tile() == TILE_*
 
 void clear_map(void) {
-    // OSCAR64 Optimized: Use 8-bit operations instead of 16-bit loop
-    // Total bytes: (72*72*3+7)/8 = 3888 bytes = 15 chunks of 256 + 48 remainder
+    // Calculate actual bytes based on current map size
+    unsigned short tile_bits = (unsigned short)current_params.map_width *
+                               current_params.map_height * 3;
+    unsigned short total_bytes = (tile_bits + 7) >> 3;
+
     unsigned char *ptr = compact_map;
-    unsigned char chunks = 15;  // 3888 / 256 = 15 (+ 48 remainder)
-    
-    // Clear in 256-byte chunks for optimal 8-bit performance
-    for (unsigned char chunk = 0; chunk < chunks; chunk++) {
-        for (unsigned char i = 0; i < 255; i++) {
-            *ptr++ = 0;
-        }
-        // Handle the 256th byte separately to avoid 8-bit overflow
-        *ptr++ = 0;
+    unsigned char full_chunks = total_bytes >> 8;
+    unsigned char remainder = total_bytes & 0xFF;
+
+    // Clear full 256-byte chunks
+    for (unsigned char chunk = 0; chunk < full_chunks; chunk++) {
+        for (unsigned char i = 0; i < 255; i++) *ptr++ = 0;
+        *ptr++ = 0; // 256th byte
     }
-    
-    // Clear remainder bytes: 3888 - (15 * 256) = 48 bytes
-    for (unsigned char i = 0; i < 48; i++) {
-        *ptr++ = 0;
-    }
+
+    // Clear remainder
+    for (unsigned char i = 0; i < remainder; i++) *ptr++ = 0;
 }
 
 inline unsigned char coords_in_bounds(unsigned char x, unsigned char y) {
-    return (x < MAP_W && y < MAP_H && x != UNDERFLOW_CHECK_VALUE && y != UNDERFLOW_CHECK_VALUE);
+    return (x < current_params.map_width && y < current_params.map_height && x != UNDERFLOW_CHECK_VALUE && y != UNDERFLOW_CHECK_VALUE);
 }
 
 unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room_id) {
@@ -271,19 +271,19 @@ inline unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsi
 
 unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y,
                                        unsigned char type_flags, unsigned char include_diagonals) {
-    if (x >= MAP_W || y >= MAP_H) return 0;
+    if (x >= current_params.map_width || y >= current_params.map_height) return 0;
 
     if (y > 0) {
         adjacent_tile_temp = get_compact_tile(x, y-1);
         if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
 
-    if (y < MAP_H-1) {
+    if (y < current_params.map_height - 1) {
         adjacent_tile_temp = get_compact_tile(x, y+1);
         if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
 
-    if (x < MAP_W-1) {
+    if (x < current_params.map_width - 1) {
         adjacent_tile_temp = get_compact_tile(x+1, y);
         if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
     }
@@ -298,15 +298,15 @@ unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y,
             adjacent_tile_temp = get_compact_tile(x-1, y-1);
             if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
-        if (x < MAP_W-1 && y > 0) {
+        if (x < current_params.map_width - 1 && y > 0) {
             adjacent_tile_temp = get_compact_tile(x+1, y-1);
             if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
-        if (x > 0 && y < MAP_H-1) {
+        if (x > 0 && y < current_params.map_height - 1) {
             adjacent_tile_temp = get_compact_tile(x-1, y+1);
             if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
-        if (x < MAP_W-1 && y < MAP_H-1) {
+        if (x < current_params.map_width - 1 && y < current_params.map_height - 1) {
             adjacent_tile_temp = get_compact_tile(x+1, y+1);
             if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
         }
@@ -317,8 +317,8 @@ unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y,
 
 
 void reset_viewport_state(void) {
-    camera_center_x = 36;  // 72/2 = 36 (map center for 72x72)
-    camera_center_y = 36;  // 72/2 = 36 (map center for 72x72)
+    camera_center_x = current_params.map_width / 2;
+    camera_center_y = current_params.map_height / 2;
     view.x = 0;
     view.y = 0;
 }

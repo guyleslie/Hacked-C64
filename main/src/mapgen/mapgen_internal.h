@@ -35,7 +35,7 @@ void calculate_and_store_breakpoints(unsigned char room_idx, unsigned char conne
 // =============================================================================
 
 // Core map data (defined in mapgen_utils.c)
-extern unsigned char compact_map[MAP_H * MAP_W * 3 / 8];
+extern unsigned char compact_map[COMPACT_MAP_SIZE];
 extern Room room_list[MAX_ROOMS];
 extern unsigned char room_count;
 extern unsigned char rnd_state;
