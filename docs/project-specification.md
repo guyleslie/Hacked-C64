@@ -246,12 +246,12 @@ The secret room system provides a special gameplay mechanic:
 - This creates a hidden entrance mechanism to the secret room
 - Visual representation uses special character (`░` symbol) only at entrance
 
-### Phase 3.5: Placing Secret Treasures
+### Phase 4: Placing Secret Treasures
 
 The secret treasure system creates hidden treasure chambers accessible through walls:
 
 **Secret Treasure Criteria:**
-- Places 3 secret treasures randomly across available rooms
+- Places secret treasures randomly across available rooms (configurable: 2/4/6)
 - Only places treasures on walls without doors, false corridor entrances, or treasure metadata
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
 - Prevents duplicate treasures per room using `ROOM_HAS_TREASURE` flag
@@ -272,12 +272,12 @@ The secret treasure system creates hidden treasure chambers accessible through w
 - Validates bounds before placement to prevent map edge conflicts
 - Sets `ROOM_HAS_TREASURE` flag upon successful placement
 
-### Phase 3.7: Placing False Corridors
+### Phase 5: Placing False Corridors
 
 The false corridor system creates Nethack-style misleading dead-end passages using the same walker infrastructure as primary corridors:
 
 **False Corridor Criteria:**
-- Places 5 false corridors randomly across available rooms
+- Places false corridors randomly across available rooms (configurable: 3/5/8)
 - Retry logic continues until target reached or maximum attempts exceeded
 - Only places on walls with no doors, treasure entrances, or recorded false corridor metadata
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
@@ -297,7 +297,7 @@ The false corridor system creates Nethack-style misleading dead-end passages usi
 - Bounds validation keeps corridors inside the playable area
 - Successful placements record entrance and endpoint metadata and set `ROOM_HAS_FALSE_CORRIDOR`
 
-### Phase 4: Placing Stairs
+### Phase 6: Placing Stairs
 
 Stair placement system ensures optimal level navigation:
 
@@ -316,7 +316,7 @@ Stair placement system ensures optimal level navigation:
 - Coordinate bounds checking prevents placement errors
 - System guarantees valid navigation paths between levels
 
-### Phase 5: Finalizing
+### Phase 7: Finalizing
 
 Final generation step completes the map:
 
@@ -390,24 +390,33 @@ Each room maintains metadata for:
 ```c
 typedef struct {
     // Most frequently accessed (ordered by access frequency)
-    unsigned char x, y, w, h;              // Room position and dimensions
-    unsigned char connections;             // Number of active connections
-    unsigned char state;                   // Room state flags (ROOM_SECRET, ROOM_HAS_TREASURE)
-    
-    // Optimized packed connection metadata (4 bytes)
-    PackedConnection conn_data[4];         // Connection information
-    Door doors[4];                         // Door positions and metadata (12 bytes)
-    
-    // Corridor breakpoint metadata (16 bytes) - for pathfinding and navigation
-    CorridorBreakpoint breakpoints[4][2];  // Turn points (L=1, Z=2 breakpoints max)
-    
-    // Secret treasure metadata (2 bytes) - wall position where treasure is accessible
-    unsigned char treasure_wall_x;        // Secret wall X coordinate (255 = no treasure)
-    unsigned char treasure_wall_y;        // Secret wall Y coordinate
-    
-    // Less frequently accessed
-    unsigned char hub_distance, priority; // Generation parameters
-} Room;                                   // 42 bytes total 
+    unsigned char x, y, w, h;              // Room position and size (4 bytes)
+    unsigned char center_x, center_y;      // Cached room center (2 bytes)
+    unsigned char connections;             // Number of active connections (1 byte)
+    unsigned char state;                   // Room state flags (1 byte)
+
+    // Packed connection metadata (4 bytes)
+    PackedConnection conn_data[4];         // Connection info (room_id, corridor_type)
+
+    // Door metadata (12 bytes)
+    Door doors[4];                         // Door positions and metadata
+
+    // Corridor breakpoint metadata (16 bytes)
+    CorridorBreakpoint breakpoints[4][2];  // Corridor turn points (L=1, Z=2)
+
+    // Secret treasure metadata (2 bytes)
+    unsigned char treasure_wall_x;         // Secret wall X coordinate (255 = no treasure)
+    unsigned char treasure_wall_y;         // Secret wall Y coordinate
+
+    // False corridor metadata (4 bytes)
+    unsigned char false_corridor_door_x;   // False corridor door X coordinate (255 = no false corridor)
+    unsigned char false_corridor_door_y;   // False corridor door Y coordinate
+    unsigned char false_corridor_end_x;    // False corridor end X coordinate
+    unsigned char false_corridor_end_y;    // False corridor end Y coordinate
+
+    // Less frequently accessed (2 bytes)
+    unsigned char hub_distance, priority;  // Generation parameters
+} Room;                                    // 48 bytes total (4+2+1+1+4+12+16+2+4+2) 
 ```
 
 ### Packed Connection Structure
@@ -455,13 +464,13 @@ typedef struct {
 - Invalid coordinates (255, 255) indicate no treasure
 - `wall_has_doors()` (mapgen_utils.c): Validates wall availability (normal + false corridor doors)
 - `get_wall_side_from_exit()` (mapgen_utils.c): Determines wall side from door position
-- `place_secret_treasures()` (connection_system.c): Places exactly 3 treasures across available rooms
+- `place_secret_treasures()` (connection_system.c): Places configurable number of treasures (2/4/6) across available rooms
 
 **False Corridor System:**
 - `false_corridor_door_x, false_corridor_door_y`: Coordinates of corridor entrance door
 - `false_corridor_end_x, false_corridor_end_y`: Coordinates of corridor dead-end
 - Invalid coordinates (255, 255) indicate no false corridor
-- `place_false_corridors()`: Places exactly 5 false corridors with retry logic and two-pass walker validation
+- `place_false_corridors()`: Places configurable number of false corridors (3/5/8) with retry logic and two-pass walker validation
 
 ## Algorithm Performance
 
@@ -484,8 +493,9 @@ typedef struct {
 3. **Connection System**: MST algorithm execution with corridor walls built during creation
 4. **Secret Rooms**: Single-connection room conversion
 5. **Secret Treasures**: Hidden treasure chamber placement on available walls
-6. **Stair Placement**: Start/end room assignment by priority
-7. **Camera Initialization**: Viewport setup for navigation
+6. **False Corridors**: Dead-end corridor placement on available room walls
+7. **Stair Placement**: Start/end room assignment by priority
+8. **Camera Initialization**: Viewport setup for navigation
 
 ## Technical Architecture
 
@@ -502,17 +512,28 @@ typedef struct {
 
 ### Build Configuration
 
-**Compiler Flags:**
+**Development Build Flags:**
 ```bash
-oscar64.exe -o="build/Hacked C64.prg" -n -tf=prg -Os -dNOLONG -dNOFLOAT -tm=c64
+oscar64.exe -O0 -g -n -dDEBUG -d__oscar64__ -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci
+```
+
+**Release Build Flags:**
+```bash
+oscar64.exe -Os -Oo -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci
 ```
 
 **Flag Details:**
-- `-Os`: Size optimization priority
-- `-dNOLONG`: Exclude long integer support (saves space)  
+- `-Os`: Size optimization priority (release only)
+- `-Oo`: Code outlining optimization (release only)
+- `-O0`: No optimization (development only)
+- `-g`: Debug symbols (development only)
+- `-n`: Generate additional debug files (development only)
+- `-dDEBUG`: Define DEBUG macro (development only)
+- `-dNOLONG`: Exclude long integer support (saves space)
 - `-dNOFLOAT`: Remove floating point operations (saves space)
 - `-tm=c64`: Target Commodore 64 platform
 - `-tf=prg`: Generate .prg executable format
+- `-psci`: Enable SCI (Screen Character Interface) support
 
 ### CMake Integration
 Cross-platform build system with automatic OSCAR64 detection:
