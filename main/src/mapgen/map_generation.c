@@ -69,20 +69,17 @@ void add_stairs(void) {
     }
 
     // Place up stairs in starting room center
+    // get_room_center() guarantees valid room, set_compact_tile() handles bounds
     unsigned char up_x, up_y;
     get_room_center(start_room, &up_x, &up_y);
-    if (coords_in_bounds(up_x, up_y)) {
-        set_compact_tile(up_x, up_y, TILE_UP);
-    }
+    set_compact_tile(up_x, up_y, TILE_UP);
 
     update_progress_step(5, 1, 2);
 
     // Place down stairs in ending room center
     unsigned char down_x, down_y;
     get_room_center(end_room, &down_x, &down_y);
-    if (coords_in_bounds(down_x, down_y)) {
-        set_compact_tile(down_x, down_y, TILE_DOWN);
-    }
+    set_compact_tile(down_x, down_y, TILE_DOWN);
 
     // Phase 5: Stair placement complete
     update_progress_step(5, 2, 2);

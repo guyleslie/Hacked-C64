@@ -48,11 +48,15 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     // Single bounds check - callers trust this function
     if (x >= current_params.map_width || y >= current_params.map_height) return TILE_EMPTY;
 
+    // OSCAR64 compiler hints for better code generation after bounds check
+    __assume(x < 80);  // Max map size
+    __assume(y < 80);
+
     // Calculate bit offset dynamically using actual map width
     unsigned short bit_offset = calculate_y_bit_offset(y) + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
-    
+
     if (bit_pos <= 5) {
         return (*byte_ptr >> bit_pos) & TILE_MASK;
     } else {
@@ -67,14 +71,19 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     // Single bounds check - callers trust this function
     if (x >= current_params.map_width || y >= current_params.map_height) return;
 
+    // OSCAR64 compiler hints for better code generation after bounds check
+    __assume(x < 80);  // Max map size
+    __assume(y < 80);
+    __assume(tile <= 7);  // 3-bit tile encoding
+
     // Calculate bit offset dynamically using actual map width
     unsigned short bit_offset = calculate_y_bit_offset(y) + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
 
-    // Runtime tile masking (no redundant __assume)
+    // Runtime tile masking
     tile &= TILE_MASK;
-    
+
     if (bit_pos <= 5) {
         unsigned char mask = TILE_MASK << bit_pos;
         *byte_ptr = (*byte_ptr & ~mask) | (tile << bit_pos);
@@ -564,22 +573,25 @@ void init_generation_progress(void) {
 
 // Place walls around a room during room creation
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
+    // Caller (can_place_room) guarantees room is validly placed within map bounds
+    // get_compact_tile() and set_compact_tile() already handle bounds checking
+
     // Top and bottom walls (including corners)
     for (unsigned char ix = x - 1; ix <= x + w; ix++) {
-        if (coords_in_bounds(ix, y - 1) && get_compact_tile(ix, y - 1) == TILE_EMPTY) {
+        if (get_compact_tile(ix, y - 1) == TILE_EMPTY) {
             set_compact_tile(ix, y - 1, TILE_WALL); // Top wall
         }
-        if (coords_in_bounds(ix, y + h) && get_compact_tile(ix, y + h) == TILE_EMPTY) {
+        if (get_compact_tile(ix, y + h) == TILE_EMPTY) {
             set_compact_tile(ix, y + h, TILE_WALL); // Bottom wall
         }
     }
-    
+
     // Left and right walls (excluding corners already done)
     for (unsigned char iy = y; iy < y + h; iy++) {
-        if (coords_in_bounds(x - 1, iy) && get_compact_tile(x - 1, iy) == TILE_EMPTY) {
+        if (get_compact_tile(x - 1, iy) == TILE_EMPTY) {
             set_compact_tile(x - 1, iy, TILE_WALL); // Left wall
         }
-        if (coords_in_bounds(x + w, iy) && get_compact_tile(x + w, iy) == TILE_EMPTY) {
+        if (get_compact_tile(x + w, iy) == TILE_EMPTY) {
             set_compact_tile(x + w, iy, TILE_WALL); // Right wall
         }
     }
@@ -587,15 +599,16 @@ void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, 
 
 // Place walls around a single corridor tile during corridor creation
 void place_walls_around_corridor_tile(unsigned char x, unsigned char y) {
+    // get_compact_tile() and set_compact_tile() already handle bounds checking
     // 8-directional wall placement around corridor tile
     for (signed char dy = -1; dy <= 1; dy++) {
         for (signed char dx = -1; dx <= 1; dx++) {
             if (dx == 0 && dy == 0) continue; // Skip center tile
-            
+
             unsigned char wall_x = x + dx;
             unsigned char wall_y = y + dy;
-            
-            if (coords_in_bounds(wall_x, wall_y) && get_compact_tile(wall_x, wall_y) == TILE_EMPTY) {
+
+            if (get_compact_tile(wall_x, wall_y) == TILE_EMPTY) {
                 set_compact_tile(wall_x, wall_y, TILE_WALL);
             }
         }
@@ -608,8 +621,9 @@ void place_walls_around_corridor_tile(unsigned char x, unsigned char y) {
 
 // Simple door placement function with duplicate prevention
 void place_door(unsigned char x, unsigned char y) {
+    // get_compact_tile() already handles bounds checking
     // Only place door if position is not already a door
-    if (coords_in_bounds(x, y) && get_compact_tile(x, y) != TILE_DOOR) {
+    if (get_compact_tile(x, y) != TILE_DOOR) {
         set_compact_tile(x, y, TILE_DOOR);
     }
 }

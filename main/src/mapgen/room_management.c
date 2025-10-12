@@ -51,11 +51,10 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
 
     // No clamp needed - early return above guarantees buffer_x2/y2 in bounds
 
-    // Check if safety margin is clear - explicit bounds check for code clarity
+    // Check if safety margin is clear
     for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
         for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
-            // Explicit bounds check documents intent (get_compact_tile also validates internally)
-            if (!coords_in_bounds(ix, iy) || get_compact_tile(ix, iy) != TILE_EMPTY) {
+            if (get_compact_tile(ix, iy) != TILE_EMPTY) {
                 return 0;
             }
         }

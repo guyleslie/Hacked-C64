@@ -753,23 +753,21 @@ unsigned char place_treasure_for_room(unsigned char room_idx) {
             treasure_x = wall_x; treasure_y = wall_y + 1;
         }
         
-        // Validate bounds before placement
-        if (coords_in_bounds(wall_x, wall_y) && coords_in_bounds(treasure_x, treasure_y)) {
-            // Create secret path in wall only, normal floor in treasure chamber
-            set_compact_tile(wall_x, wall_y, TILE_SECRET_PATH);
-            set_compact_tile(treasure_x, treasure_y, TILE_FLOOR);
+        // set_compact_tile() already handles bounds checking
+        // Create secret path in wall only, normal floor in treasure chamber
+        set_compact_tile(wall_x, wall_y, TILE_SECRET_PATH);
+        set_compact_tile(treasure_x, treasure_y, TILE_FLOOR);
 
-            // Place walls around treasure chamber
-            place_walls_around_corridor_tile(treasure_x, treasure_y);
+        // Place walls around treasure chamber
+        place_walls_around_corridor_tile(treasure_x, treasure_y);
 
-            // Mark room as having treasure and store wall position only
-            // Target coordinates can be recalculated from wall position and wall side
-            room->state |= ROOM_HAS_TREASURE;
-            room->treasure_wall_x = wall_x;
-            room->treasure_wall_y = wall_y;
+        // Mark room as having treasure and store wall position only
+        // Target coordinates can be recalculated from wall position and wall side
+        room->state |= ROOM_HAS_TREASURE;
+        room->treasure_wall_x = wall_x;
+        room->treasure_wall_y = wall_y;
 
-            return 1; // Successfully placed treasure
-        }
+        return 1; // Successfully placed treasure
     }
     
     return 0; // Failed to place treasure for this room
