@@ -3,13 +3,23 @@
 ## [Unreleased] - 2025-10-12
 
 ### Changed
+- Refactored static inline functions to use explicit parameters instead of extern variables
+  - `get_grid_cell_width()` now takes `map_width` parameter
+  - `get_grid_cell_height()` now takes `map_height` parameter
+  - `get_room_center_x_inline()` now takes `room_id, room_count, room_list` parameters
+  - `get_room_center_y_inline()` now takes `room_id, room_count, room_list` parameters
 - Eliminated redundant bounds checking in tile access functions
 - Added OSCAR64 `__assume()` compiler hints to get_compact_tile() and set_compact_tile() for better code generation
+- Updated inline function call sites in room_management.c and mapgen_utils.c
 
 ### Removed
+- Extern variable dependencies from static inline functions in mapgen_utils.h
 - 8 redundant `coords_in_bounds()` calls in hot paths (place_walls_around_room, place_walls_around_corridor_tile, place_door, place_treasure_for_room, stair placement)
 
 ### Performance
+- Improved OSCAR64 `-Oo` outliner optimization through explicit parameter passing
+- Better 6502 code generation: parameters can use registers/zero page vs. global memory access
+- Cleaner header dependencies: no extern variables in inline functions
 - Code size reduced: ~40-50 bytes from eliminated redundant checks
 - Improved generation speed: ~150,000 CPU cycles saved (@1MHz) from bounds check elimination
 - Better OSCAR64 code generation through `__assume(x < 80)`, `__assume(y < 80)`, `__assume(tile <= 7)` hints

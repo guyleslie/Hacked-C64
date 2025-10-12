@@ -73,8 +73,8 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
     // Get base grid position using optimized inline helpers
     const unsigned char grid_x = get_grid_x(grid_index);
     const unsigned char grid_y = get_grid_y(grid_index);
-    const unsigned char cell_w = get_grid_cell_width();
-    const unsigned char cell_h = get_grid_cell_height();
+    const unsigned char cell_w = get_grid_cell_width(current_params.map_width);
+    const unsigned char cell_h = get_grid_cell_height(current_params.map_height);
 
     // Calculate grid cell boundaries
     const unsigned char cell_min_x = MAP_BORDER + grid_x * cell_w;

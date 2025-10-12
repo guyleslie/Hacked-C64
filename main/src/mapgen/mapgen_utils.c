@@ -249,10 +249,10 @@ inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsi
 // get_room_center_ptr_inline() moved to header as static inline for best optimization
 
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2) {
-    unsigned char x1 = get_room_center_x_inline(room1);
-    unsigned char y1 = get_room_center_y_inline(room1);
-    unsigned char x2 = get_room_center_x_inline(room2);
-    unsigned char y2 = get_room_center_y_inline(room2);
+    unsigned char x1 = get_room_center_x_inline(room1, room_count, room_list);
+    unsigned char y1 = get_room_center_y_inline(room1, room_count, room_list);
+    unsigned char x2 = get_room_center_x_inline(room2, room_count, room_list);
+    unsigned char y2 = get_room_center_y_inline(room2, room_count, room_list);
     return manhattan_distance(x1, y1, x2, y2);
 }
 

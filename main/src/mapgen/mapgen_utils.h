@@ -90,12 +90,12 @@ static inline unsigned char get_grid_y(unsigned char grid_index) {
     return grid_index / GRID_SIZE;
 }
 
-static inline unsigned char get_grid_cell_width(void) {
-    return (current_params.map_width - 8) / GRID_SIZE;
+static inline unsigned char get_grid_cell_width(unsigned char map_width) {
+    return (map_width - 8) / GRID_SIZE;
 }
 
-static inline unsigned char get_grid_cell_height(void) {
-    return (current_params.map_height - 8) / GRID_SIZE;
+static inline unsigned char get_grid_cell_height(unsigned char map_height) {
+    return (map_height - 8) / GRID_SIZE;
 }
 
 // Bounds clamping helper - generic utility for boundary management
@@ -106,12 +106,12 @@ static inline unsigned char clamp_max(unsigned char value, unsigned char max_val
 // Note: is_within_map_bounds_inline() removed - use coords_in_bounds() instead
 // (requires runtime access to current_params, not suitable for inline header functions)
 
-static inline unsigned char get_room_center_x_inline(unsigned char room_id) {
+static inline unsigned char get_room_center_x_inline(unsigned char room_id, unsigned char room_count, const Room *room_list) {
     if (room_id >= room_count) return 0;
     return room_list[room_id].center_x;
 }
 
-static inline unsigned char get_room_center_y_inline(unsigned char room_id) {
+static inline unsigned char get_room_center_y_inline(unsigned char room_id, unsigned char room_count, const Room *room_list) {
     if (room_id >= room_count) return 0;
     return room_list[room_id].center_y;
 }

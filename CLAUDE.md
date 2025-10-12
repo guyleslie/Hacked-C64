@@ -139,12 +139,12 @@ dir build\"Hacked C64.prg"
 - **Runtime bounds checking** - All tile access uses `current_params.map_width/height` for dynamic maps
 - **Dynamic bit offsets** - `calculate_y_bit_offset()` computes `y * map_width * 3` at runtime
 - **Atomic metadata operations** - prevent inconsistent states during connection management
-- **Static inline optimizations** - Hot path functions use `static inline` in headers for OSCAR64 optimization
-  - `get_room_center_ptr_inline()` - Room pointer center access (mapgen_utils.h)
+- **Static inline optimizations** - Hot path functions use `static inline` in headers
+  - `get_room_center_ptr_inline()` - Room pointer center access
   - `get_room_center_x_inline()`, `get_room_center_y_inline()` - Room ID center access
+  - `get_grid_cell_width()`, `get_grid_cell_height()` - Grid cell calculation
   - `abs_diff_inline()` - Arithmetic helpers
   - `calculate_y_bit_offset()` - Dynamic Y offset calculation for tile access
-  - Header placement enables OSCAR64 `-Oo` outliner to optimize call sites
 - **Dynamic progress tracking** - Runtime-calculated phase boundaries based on generation parameters
 
 ### Corridor Logic and Connection Functions
