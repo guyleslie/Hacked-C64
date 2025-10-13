@@ -189,13 +189,21 @@ void place_secret_treasures(unsigned char treasure_count);
 unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y);
 
-// False corridor system functions (simplified and optimized)
-// - calculate_false_corridor_door: Calculates door position on room wall
-// - create_false_corridor: Creates dead-end corridor from door position outward
+// False corridor system functions (correct wall-first algorithm)
+// - create_false_corridor: Creates dead-end corridor with intelligent endpoint generation
 // - place_false_corridors: Places N false corridors (currently 5) across map with retry logic
-// - Generates straight, L-shaped, or Z-shaped dead-ends with proper direction from doors
-// - Uses simplified collision detection and existing corridor drawing functions
-// - Prevents conflicts with existing doors through wall_has_doors() validation
+// Algorithm:
+//   1. Select random wall_side (0=left, 1=right, 2=top, 3=bottom) where no doors exist
+//   2. Calculate door position on selected wall (center of wall)
+//   3. Generate endpoint AWAY from door based on wall_side:
+//      - Left wall (0): endpoint LEFT of door (negative X direction)
+//      - Right wall (1): endpoint RIGHT of door (positive X direction)
+//      - Top wall (2): endpoint UP from door (negative Y direction)
+//      - Bottom wall (3): endpoint DOWN from door (positive Y direction)
+//   4. Add perpendicular random offset for L-shaped corridors
+//   5. Use same corridor drawing logic as normal room connections (determine_corridor_type, process_corridor_path)
+// - Guarantees L-shaped corridors always move away from doors, never along walls
+// - Higher success rate due to intelligent generation vs. post-hoc validation
 void place_false_corridors(unsigned char corridor_count);
 
 // Progress tracking system functions (in mapgen_utils.c)

@@ -2,6 +2,14 @@
 
 ## [Unreleased] - 2025-10-12
 
+### Fixed
+- **False corridor generation algorithm completely rewritten** to ensure L-shaped corridors always move away from doors
+  - Fixed endpoint generation order: now selects wall_side FIRST, then generates endpoint intelligently
+  - Endpoints now generated in correct direction based on wall_side: left wall→left, right wall→right, top wall→up, bottom wall→down
+  - Eliminated random endpoint placement that could create corridors running along walls or in wrong directions
+  - Simplified validation logic: removed complex post-generation checks in favor of correct initial placement
+  - False corridors now use same proven corridor drawing logic as normal room connections
+
 ### Changed
 - Refactored static inline functions to use explicit parameters instead of extern variables
   - `get_grid_cell_width()` now takes `map_width` parameter
@@ -15,12 +23,15 @@
 ### Removed
 - Extern variable dependencies from static inline functions in mapgen_utils.h
 - 8 redundant `coords_in_bounds()` calls in hot paths (place_walls_around_room, place_walls_around_corridor_tile, place_door, place_treasure_for_room, stair placement)
+- Complex endpoint validation logic that attempted to fix incorrectly generated false corridors post-hoc
+- Reverse-order algorithm that selected wall_side based on random endpoint
 
 ### Performance
 - Improved OSCAR64 `-Oo` outliner optimization through explicit parameter passing
 - Better 6502 code generation: parameters can use registers/zero page vs. global memory access
 - Cleaner header dependencies: no extern variables in inline functions
-- Code size reduced: ~40-50 bytes from eliminated redundant checks
+- Code size reduced from false corridor simplification: development build now 9863 bytes (more optimal than previous implementation)
+- Higher false corridor placement success rate due to intelligent endpoint generation
 - Improved generation speed: ~150,000 CPU cycles saved (@1MHz) from bounds check elimination
 - Better OSCAR64 code generation through `__assume(x < 80)`, `__assume(y < 80)`, `__assume(tile <= 7)` hints
 

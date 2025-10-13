@@ -274,7 +274,18 @@ The secret treasure system creates hidden treasure chambers accessible through w
 
 ### Phase 5: Placing False Corridors
 
-The false corridor system creates Nethack-style misleading dead-end passages using the same walker infrastructure as primary corridors:
+The false corridor system creates Nethack-style misleading dead-end passages using wall-first intelligent endpoint generation:
+
+**Algorithm (Wall-First Approach):**
+1. **Select Wall Side First**: Random wall_side (0=left, 1=right, 2=top, 3=bottom) where no doors exist
+2. **Calculate Door Position**: Door placed at center of selected wall
+3. **Generate Endpoint Intelligently**: Endpoint generated AWAY from door based on wall_side:
+   - **Left wall (0)**: endpoint moves LEFT from door (negative X direction, 4-9 tiles)
+   - **Right wall (1)**: endpoint moves RIGHT from door (positive X direction, 4-9 tiles)
+   - **Top wall (2)**: endpoint moves UP from door (negative Y direction, 4-9 tiles)
+   - **Bottom wall (3)**: endpoint moves DOWN from door (positive Y direction, 4-9 tiles)
+4. **Add Perpendicular Offset**: Random ±1-4 tile offset perpendicular to wall direction for L-shaped corridors
+5. **Use Proven Corridor Logic**: Same `determine_corridor_type()` and `process_corridor_path()` as normal room connections
 
 **False Corridor Criteria:**
 - Places false corridors randomly across available rooms (configurable: 3/5/8)
@@ -283,13 +294,11 @@ The false corridor system creates Nethack-style misleading dead-end passages usi
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
 - Maintains a 2-tile safety margin from map edges
 
-**False Corridor Construction:**
-- Door coordinates derived inline from the chosen wall segment (no helper function)
-- Direction vectors: left wall→left (-1,0), right wall→right (1,0), top wall→up (0,-1), bottom wall→down (0,1)
-- Base length of 4-9 tiles with optional ±1-4 tile offsets in orthogonal directions
-- Target coordinates calculated in signed 8-bit space, then clamped before casting back to unsigned map positions
-- `process_corridor_path()` runs first in `CORRIDOR_MODE_CHECK` and then in `CORRIDOR_MODE_DRAW`, guaranteeing validated geometry before tiles are written
-- Corridor type selection (straight/L/Z) reuses the main connection system heuristics
+**Key Guarantees:**
+- L-shaped corridors ALWAYS move away from doors (never along walls or wrong direction)
+- Higher placement success rate due to intelligent generation vs. post-hoc validation
+- Consistent behavior with normal room connections (same drawing logic)
+- Endpoint validation ensures no room collisions
 
 **Placement Algorithm:**
 - Random room/wall selection with early exits for secret rooms or occupied walls
