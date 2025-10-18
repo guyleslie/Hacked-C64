@@ -269,7 +269,9 @@ The secret treasure system creates hidden treasure chambers accessible through w
 - Iterates through all 4 wall sides per room
 - Skips walls containing any doors (normal connections + false corridors) using enhanced helper pattern
 - Randomly selects position within wall boundaries (excluding corners)
-- Validates bounds before placement to prevent map edge conflicts
+- **Boundary validation**: Treasure chamber + surrounding walls must be ≥3 tiles from map edges
+  - Prevents treasure structures (3×3 total) from extending beyond map boundaries
+  - Validation: `treasure_x < 3 || treasure_x >= map_width - 3 || treasure_y < 3 || treasure_y >= map_height - 3`
 - Sets `ROOM_HAS_TREASURE` flag upon successful placement
 
 ### Phase 5: Placing False Corridors

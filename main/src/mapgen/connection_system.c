@@ -783,7 +783,14 @@ unsigned char place_treasure_for_room(unsigned char room_idx) {
             wall_x = selected_x; wall_y = room->y + room->h;
             treasure_x = wall_x; treasure_y = wall_y + 1;
         }
-        
+
+        // Boundary check: treasure chamber + surrounding walls must be ≥3 tiles from map edges
+        // treasure_x/y ±1 for walls = 3 tiles minimum margin required
+        if (treasure_x < 3 || treasure_x >= current_params.map_width - 3 ||
+            treasure_y < 3 || treasure_y >= current_params.map_height - 3) {
+            continue; // Skip this wall, treasure would be too close to map boundary
+        }
+
         // set_compact_tile() already handles bounds checking
         // Create secret path in wall only, normal floor in treasure chamber
         set_compact_tile(wall_x, wall_y, TILE_SECRET_PATH);

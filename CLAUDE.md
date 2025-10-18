@@ -179,6 +179,7 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx);
 
 // Secret treasure system functions (in connection_system.c)
 // - place_treasure_for_room: Places treasure in room if eligible (not secret, no existing treasure)
+//   - Validates treasure chamber + walls stay ≥3 tiles from map edges (3×3 structure boundary check)
 // - place_secret_treasures: Main function placing N treasures across available rooms
 unsigned char place_treasure_for_room(unsigned char room_idx);
 void place_secret_treasures(unsigned char treasure_count);
