@@ -16,7 +16,6 @@ void init_progress_bar_simple(const char* title);
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total);
 void finish_progress_bar_simple(void);
 void show_phase(unsigned char phase_id);  // Optimized indexed phase display
-void show_phase_name(const char* phase_name);  // Legacy string version
 void init_generation_progress(void);
 
 // Tile access and manipulation (optimized for C64 performance)
@@ -46,8 +45,7 @@ unsigned char is_on_room_edge(unsigned char x, unsigned char y);
 unsigned char abs_diff(unsigned char a, unsigned char b);
 unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
 
-// Room center cache management
-void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y);
+// Room center management - use direct access: room_list[room_id].center_x/center_y
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2);
 unsigned char get_max_connection_distance(void);
 // get_room_center_ptr_inline() is static inline below for OSCAR64 optimization
@@ -63,7 +61,6 @@ void reset_all_generation_data(void);
 
 // Wall and door validation utilities
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y);
-unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);
 
 // Incremental wall placement functions
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);

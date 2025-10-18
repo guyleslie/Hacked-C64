@@ -61,7 +61,8 @@ void initialize_camera(void) {
     
     // Position camera in first room if available
     if (room_count > 0) {
-        get_room_center(0, &camera_center_x, &camera_center_y);
+        camera_center_x = room_list[0].center_x;
+        camera_center_y = room_list[0].center_y;
         update_camera();
     }
 

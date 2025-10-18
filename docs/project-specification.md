@@ -6,11 +6,11 @@ A real-time dungeon map generation system for the Commodore 64, utilizing OSCAR6
 
 This project implements a highly optimized procedural dungeon generation algorithm for the Commodore 64 hardware architecture. The system generates connected room networks using minimum spanning tree algorithms, features secret room mechanics, and provides interactive navigation with constrained memory usage.
 
-**Target Platform:** Commodore 64 (6502 processor, 64KB RAM)  
-**Compiler:** OSCAR64 cross-compiler with size optimization  
-**Output:** Optimized C64 executable (.prg format)  
-**Memory Footprint:** Efficient allocation with 3-bit tile encoding and optimized data structures  
-**Optimization Level:** Substantial code and compiler optimizations applied for minimal footprint
+**Target Platform:** Commodore 64 (6502 processor, 64KB RAM)
+**Compiler:** OSCAR64 cross-compiler with full optimization suite
+**Output:** Optimized C64 executable (.prg format)
+**Memory Footprint:** Efficient allocation with 3-bit tile encoding and optimized data structures
+**Optimization Level:** Full OSCAR64 optimization flags (-Os -Oo -Oi -Op -Oz) for minimal footprint
 
 ## Project Structure
 
@@ -257,7 +257,7 @@ The secret treasure system creates hidden treasure chambers accessible through w
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
 - Prevents duplicate treasures per room using `ROOM_HAS_TREASURE` flag
 - Excludes corners to prevent placement conflicts
-- Uses enhanced `wall_has_doors()` validation to ensure wall availability
+- Validates wall availability using `wall_door_count[wall_side]` to ensure no existing doors
 
 **Treasure Chamber Construction:**
 - Wall position becomes `TILE_SECRET_PATH` (secret passage through wall)
@@ -494,9 +494,8 @@ typedef struct {
 - State flags stored in room `state` field using bitwise operations
 
 **Secret Treasure System:**
-- `treasure_wall_x, treasure_wall_y`: Coordinates of secret wall passage
-- Invalid coordinates (255, 255) indicate no treasure
-- `wall_has_doors()` (mapgen_utils.c): Validates wall availability (normal + false corridor doors)
+- `treasure_wall_side`: Wall side index (0-3) or 255 for no treasure
+- Wall availability checked via `wall_door_count[wall_side]` array
 - `get_wall_side_from_exit()` (mapgen_utils.c): Determines wall side from door position
 - `place_secret_treasures()` (connection_system.c): Places configurable number of treasures (2/4/6) across available rooms
 

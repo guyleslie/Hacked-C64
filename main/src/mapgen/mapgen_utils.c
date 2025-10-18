@@ -183,28 +183,6 @@ unsigned char point_in_any_room(unsigned char x, unsigned char y, unsigned char 
 }
 
 
-static unsigned char calculate_optimal_exit_position(unsigned char room_dim, unsigned char target_coord, unsigned char room_coord) {
-    unsigned char relative_pos;
-    if (target_coord > room_coord + room_dim / 2) {
-        relative_pos = 192;
-    } else if (target_coord < room_coord + room_dim / 2) {
-        relative_pos = 64;
-    } else {
-        relative_pos = 128;
-    }
-    
-    unsigned char min_pos = room_dim / 4;
-    unsigned char max_pos = room_dim - room_dim / 4;
-    
-    if (min_pos >= max_pos) {
-        return room_dim / 2;
-    }
-    
-    unsigned char safe_range = max_pos - min_pos;
-    unsigned char offset = (relative_pos * safe_range) / 256;
-    
-    return min_pos + offset;
-}
 
 
 unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
@@ -235,18 +213,9 @@ inline unsigned char manhattan_distance(unsigned char x1, unsigned char y1, unsi
     return abs_diff(x1, x2) + abs_diff(y1, y2);
 }
 
-inline void get_room_center(unsigned char room_id, unsigned char *center_x, unsigned char *center_y) {
-    // Use cached center to avoid repeated division
-    if (room_id >= room_count) {
-        *center_x = *center_y = 0;
-        return;
-    }
-    *center_x = room_list[room_id].center_x;
-    *center_y = room_list[room_id].center_y;
-}
-
 // Room center values are cached per room for fast lookup during generation
-// get_room_center_ptr_inline() moved to header as static inline for best optimization
+// Direct access via room_list[room_id].center_x/center_y
+// get_room_center_ptr_inline() available in header as static inline for pointer access
 
 unsigned char calculate_room_distance(unsigned char room1, unsigned char room2) {
     unsigned char x1 = get_room_center_x_inline(room1, room_count, room_list);
@@ -547,19 +516,6 @@ void show_phase(unsigned char phase_id) {
     print_text(text);
 }
 
-// Legacy wrapper for compatibility
-void show_phase_name(const char* phase_name) {
-    unsigned char text_len = 0;
-    const char* p = phase_name;
-    while (*p++) text_len++;
-
-    unsigned char phase_x = (40 - text_len) / 2;
-
-    gotoxy(0, progress_y + 2);
-    for (unsigned char i = 0; i < 40; i++) putchar(' ');
-    gotoxy(phase_x, progress_y + 2);
-    print_text(phase_name);
-}
 
 // Simplified progress system - direct calls, no unnecessary wrappers
 void init_generation_progress(void) {
@@ -640,12 +596,6 @@ unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit
     if (exit_x >= room->x + room->w) return 1; // Right
     if (exit_y < room->y) return 2; // Top
     return 3; // Bottom
-}
-
-// Check if a wall side has any doors (normal or false corridors)
-// OPTIMIZED: O(n) iteration → O(1) instant lookup using wall_door_count
-unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
-    return room_list[room_idx].wall_door_count[wall_side] > 0;
 }
 
 

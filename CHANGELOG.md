@@ -9,15 +9,36 @@
   - Automatic branching flag updates during connection creation
   - ~550 redundant operations eliminated per generation
 
+### Code Quality
+- **Dead Code Elimination**: Removed unused functions and redundant wrappers
+  - Removed `calculate_optimal_exit_position()` (never called, ~50 bytes)
+  - Removed `get_room_center()` wrapper (3 call sites replaced with direct metadata access, ~30 bytes)
+  - Removed `show_phase_name()` legacy function (never called, ~40 bytes)
+  - All wrapper functions replaced with direct metadata field access
+
+### Build System
+- **Enhanced OSCAR64 Optimization Flags**: Release build now uses full optimization suite
+  - Added `-Oi` flag for aggressive auto-inlining of small functions
+  - Added `-Op` flag for constant parameter optimization
+  - Added `-Oz` flag for automatic zero page placement of globals
+  - New `build-optimized.bat` script for testing advanced optimization combinations
+  - Release build flags updated: `-Os -Oo -Oi -Op -Oz`
+
 ### Changed
 - Room struct optimized: 46 bytes → 48 bytes (+2 bytes for wall_door_count array)
 - Treasure metadata: `treasure_wall_x/y` → `treasure_wall_side` (2 bytes → 1 byte)
 - False corridor metadata: `false_corridor_door_x/y` → `false_corridor_wall_side` (2 bytes → 1 byte)
-- `wall_has_doors()` simplified from 20+ lines to single O(1) lookup
 - `add_connection_to_room()` now auto-updates branching flags and wall counters
+- All wall door checks now use direct `wall_door_count[wall_side]` access
+- Stair placement: Direct metadata access instead of `get_room_center()` wrapper
+- Camera initialization: Direct metadata access for room center coordinates
 
 ### Removed
 - `mark_branching_doors_for_connection()` function (114 iterations eliminated)
+- `wall_has_doors()` wrapper function (redundant, all code uses direct wall_door_count access)
+- `get_room_center()` wrapper function (replaced with direct field access)
+- `show_phase_name()` legacy function (unused compatibility wrapper)
+- `calculate_optimal_exit_position()` static function (dead code)
 - ~170 `wall_has_doors()` iterations per generation
 - ~236 redundant `get_wall_side_from_exit()` calls in treasure/false corridor contexts
 - ~30 door counting iterations in secret room conversion
@@ -27,7 +48,7 @@
 - Memory overhead: +40 bytes total (+0.625% - negligible)
 - Code quality: Cleaner logic, single source of truth for wall state
 - Synchronization: Metadata updates happen when changes occur (no post-processing)
-- Binary size: 10835 bytes (development build)
+- Binary size: 10815 bytes (optimized release build, -1 byte from previous)
 
 ---
 

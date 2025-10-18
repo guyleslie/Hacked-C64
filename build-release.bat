@@ -38,16 +38,19 @@ cd /d "%SCRIPT_DIR%"
 REM RELEASE BUILD FLAGS:
 REM -Os        : Optimize for size (primary goal)
 REM -Oo        : Outliner optimization (extract repeated code into functions)
+REM -Oi        : Auto inline small functions
+REM -Op        : Optimize constant parameters
+REM -Oz        : Auto zero page placement for globals
 REM -tf=prg    : Output PRG format
 REM -tm=c64    : Target Commodore 64
 REM -dNOLONG   : Disable long integer support
 REM -dNOFLOAT  : Disable floating point support
 REM -psci      : Enable C64-specific optimizations
-REM 
+REM
 REM REMOVED: -dDEBUG, -d__oscar64__, -g, -n (no debug overhead)
 
 echo Building "Hacked C64.prg" (RELEASE BUILD) with oscar64...
-oscar64\bin\oscar64.exe -o="build\Hacked C64.prg" -Os -Oo -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci -i=oscar64\include -i=oscar64\include\c64 -i=main\src\mapgen main\src\main.c
+oscar64\bin\oscar64.exe -o="build\Hacked C64.prg" -Os -Oo -Oi -Op -Oz -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci -i=oscar64\include -i=oscar64\include\c64 -i=main\src\mapgen main\src\main.c
 echo.
 
 REM Check if build was successful
@@ -64,7 +67,10 @@ if exist "%OUTPUT_PATH%" (
     echo.
     echo This is an optimized release build with:
     echo   * Size optimization (-Os^)
-    echo   * Code outlining (-Oo^) 
+    echo   * Code outlining (-Oo^)
+    echo   * Auto inline (-Oi^)
+    echo   * Constant optimization (-Op^)
+    echo   * Zero page optimization (-Oz^)
     echo   * No debug overhead
     echo   * Minimum file size
     echo.

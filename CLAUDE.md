@@ -77,12 +77,19 @@ dir build\"Hacked C64.prg"
 
 **Release Build Flags:**
 ```
--Os -Oo -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci
+-Os -Oo -Oi -Op -Oz -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci
 ```
 
 **Key Differences:**
 - **Development**: No optimization (-O0), debug symbols (-g), debug files (-n)
-- **Release**: Size optimization (-Os), code outlining (-Oo), no debug overhead
+- **Release**: Full optimization (-Os -Oo -Oi -Op -Oz), no debug overhead
+
+**Optimization Flags Explained:**
+- **-Os**: Optimize for size (primary goal)
+- **-Oo**: Code outlining (extract repeated code sequences)
+- **-Oi**: Auto inline small functions
+- **-Op**: Optimize constant parameters
+- **-Oz**: Auto zero page placement for global variables
 
 ## Architecture
 
@@ -189,9 +196,7 @@ unsigned char place_treasure_for_room(unsigned char room_idx);
 void place_secret_treasures(unsigned char treasure_count);
 
 // Wall validation utilities (in mapgen_utils.c)
-// - wall_has_doors: Checks if wall_side has any doors (normal + false corridor doors)
 // - get_wall_side_from_exit: Determines which wall side a door/exit is on
-unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y);
 
 // Hidden corridor system functions (in connection_system.c)
