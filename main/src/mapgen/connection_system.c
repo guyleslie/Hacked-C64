@@ -375,60 +375,10 @@ static void calculate_exit_from_target(unsigned char room_idx, unsigned char tar
 }
 
 // =============================================================================
-// BRANCHING DOOR DETECTION SYSTEM
-// =============================================================================
-
-// Mark doors as branching if multiple doors exist on the same wall
-// Called after BOTH rooms have added connection metadata
-static void mark_branching_doors_for_connection(unsigned char room1, unsigned char room2) {
-    // Get wall sides for this connection
-    unsigned char door1_x, door1_y, wall1_side, corridor_type;
-    if (!get_connection_info(room1, room2, &door1_x, &door1_y, &wall1_side, &corridor_type)) {
-        return; // Connection not found (should never happen in normal flow)
-    }
-
-    unsigned char door2_x, door2_y, wall2_side, temp_type;
-    if (!get_connection_info(room2, room1, &door2_x, &door2_y, &wall2_side, &temp_type)) {
-        return;
-    }
-
-    // Count doors on room1's wall
-    unsigned char doors_on_wall1 = 0;
-    for (unsigned char i = 0; i < room_list[room1].connections; i++) {
-        if (room_list[room1].doors[i].wall_side == wall1_side) {
-            doors_on_wall1++;
-        }
-    }
-
-    // If multiple doors on this wall, mark ALL of them as branching
-    if (doors_on_wall1 > 1) {
-        for (unsigned char i = 0; i < room_list[room1].connections; i++) {
-            if (room_list[room1].doors[i].wall_side == wall1_side) {
-                room_list[room1].doors[i].is_branching = 1;
-            }
-        }
-    }
-
-    // Same logic for room2
-    unsigned char doors_on_wall2 = 0;
-    for (unsigned char i = 0; i < room_list[room2].connections; i++) {
-        if (room_list[room2].doors[i].wall_side == wall2_side) {
-            doors_on_wall2++;
-        }
-    }
-
-    if (doors_on_wall2 > 1) {
-        for (unsigned char i = 0; i < room_list[room2].connections; i++) {
-            if (room_list[room2].doors[i].wall_side == wall2_side) {
-                room_list[room2].doors[i].is_branching = 1;
-            }
-        }
-    }
-}
-
-// =============================================================================
 // ROOM CONNECTION LOGIC
 // =============================================================================
+// Note: Branching door detection is now automatic in add_connection_to_room()
+// No separate function needed - wall_door_count tracks doors per wall automatically
 
 // Connect two rooms with original working algorithm (optimized)
 unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned char is_secret) {
@@ -497,8 +447,8 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
     calculate_and_store_breakpoints(room1, room_list[room1].connections - 1);
     calculate_and_store_breakpoints(room2, room_list[room2].connections - 1);
 
-    // Mark branching doors (after both connections established)
-    mark_branching_doors_for_connection(room1, room2);
+    // Branching door detection is now automatic in add_connection_to_room()
+    // No manual marking needed!
 
     return 1;
 }
@@ -587,15 +537,9 @@ void convert_secret_rooms_doors(void) {
                 continue; // Connection not found, skip this room
             }
 
-            // Count how many doors are on this specific wall in connected room
-            unsigned char doors_on_wall = 0;
-            for (unsigned char j = 0; j < room_list[connected_room].connections; j++) {
-                if (room_list[connected_room].doors[j].wall_side == connected_wall_side) {
-                    doors_on_wall++;
-                }
-            }
+            // OPTIMIZED: Instant O(1) wall door count check
             // If more than 1 door on this wall, skip (would delete existing corridor)
-            if (doors_on_wall > 1) continue;
+            if (room_list[connected_room].wall_door_count[connected_wall_side] > 1) continue;
             room_list[i].state |= ROOM_SECRET;
 
             if (room_list[i].connections > 0) {
@@ -769,16 +713,11 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
 
     if (room->state & ROOM_SECRET) return 0;
 
-    // Validate the chosen wall doesn't already have doors
-    if (wall_has_doors(room_idx, wall_side)) return 0;
+    // OPTIMIZED: Instant O(1) wall check using wall_door_count
+    if (room->wall_door_count[wall_side] > 0) return 0;
 
-    // Check treasure wall conflict
-    if (room->state & ROOM_HAS_TREASURE) {
-        unsigned char treasure_wall = get_wall_side_from_exit(room_idx,
-                                                              room->treasure_wall_x,
-                                                              room->treasure_wall_y);
-        if (treasure_wall == wall_side) return 0;
-    }
+    // OPTIMIZED: Direct wall_side comparison (no coordinate recalculation!)
+    if (room->treasure_wall_side == wall_side) return 0;
 
     // Step 1: Calculate door position based on wall_side (we already KNOW which wall!)
     unsigned char door_x;
@@ -869,12 +808,14 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
 
     place_door(door_x, door_y);
 
-    // Store corridor endpoints
+    // OPTIMIZED: Store wall_side instead of door coordinates (can be recalculated!)
     room->state |= ROOM_HAS_FALSE_CORRIDOR;
-    room->false_corridor_door_x = door_x;
-    room->false_corridor_door_y = door_y;
+    room->false_corridor_wall_side = wall_side;  // Only 1 byte!
     room->false_corridor_end_x = endpoint_x;
     room->false_corridor_end_y = endpoint_y;
+
+    // Update wall door counter for instant O(1) queries
+    room->wall_door_count[wall_side]++;
 
     return 1;
 }
@@ -906,26 +847,22 @@ void place_false_corridors(unsigned char corridor_count) {
 // Place a single secret treasure for a room
 unsigned char place_treasure_for_room(unsigned char room_idx) {
     Room *room = &room_list[room_idx];
-    
+
     // Skip rooms that already have treasure or are secret rooms
     if (room->state & (ROOM_HAS_TREASURE | ROOM_SECRET)) {
         return 0; // Room already has treasure or is a secret room
     }
-    
+
     // Try each wall side to find walls without doors
     for (unsigned char wall_side = 0; wall_side < 4; wall_side++) {
-        // Skip walls that already host doors or false corridor entrances
-        if (wall_has_doors(room_idx, wall_side)) {
+        // OPTIMIZED: Instant O(1) wall check using wall_door_count
+        if (room->wall_door_count[wall_side] > 0) {
             continue;
         }
-        // State flag guarantees coordinates are valid - no sentinel check needed
-        if (room->state & ROOM_HAS_FALSE_CORRIDOR) {
-            unsigned char corridor_wall = get_wall_side_from_exit(room_idx,
-                                                                  room->false_corridor_door_x,
-                                                                  room->false_corridor_door_y);
-            if (corridor_wall == wall_side) {
-                continue;
-            }
+
+        // OPTIMIZED: Direct wall_side comparison (no coordinate recalculation!)
+        if (room->false_corridor_wall_side == wall_side) {
+            continue;
         }
         
         // Calculate wall boundaries excluding only corners
@@ -981,15 +918,14 @@ unsigned char place_treasure_for_room(unsigned char room_idx) {
         // Place walls around treasure chamber
         place_walls_around_corridor_tile(treasure_x, treasure_y);
 
-        // Mark room as having treasure and store wall position only
-        // Target coordinates can be recalculated from wall position and wall side
+        // OPTIMIZED: Store wall_side only (coordinates can be recalculated!)
+        // Target coordinates can be calculated from wall_side + room geometry
         room->state |= ROOM_HAS_TREASURE;
-        room->treasure_wall_x = wall_x;
-        room->treasure_wall_y = wall_y;
+        room->treasure_wall_side = wall_side;  // Only 1 byte!
 
         return 1; // Successfully placed treasure
     }
-    
+
     return 0; // Failed to place treasure for this room
 }
 
