@@ -430,6 +430,10 @@ typedef struct {
     unsigned char connections;             // Number of active connections (1 byte)
     unsigned char state;                   // Room state flags (1 byte)
 
+    // Wall door counters (4 bytes) - tracks door count per wall
+    // Index: 0=left, 1=right, 2=top, 3=bottom
+    unsigned char wall_door_count[4];      // Door count per wall (normal + false corridors)
+
     // Packed connection metadata (4 bytes)
     PackedConnection conn_data[4];         // Connection info (room_id, corridor_type)
 
@@ -439,16 +443,14 @@ typedef struct {
     // Corridor breakpoint metadata (16 bytes)
     CorridorBreakpoint breakpoints[4][2];  // Corridor turn points (L=1, Z=2)
 
-    // Secret treasure metadata (2 bytes)
-    unsigned char treasure_wall_x;         // Secret wall X coordinate (255 = no treasure)
-    unsigned char treasure_wall_y;         // Secret wall Y coordinate
+    // Secret treasure metadata (1 byte) - wall side only (coordinates calculated on-demand)
+    unsigned char treasure_wall_side;      // Wall side (0-3) or 255=no treasure
 
-    // False corridor metadata (4 bytes)
-    unsigned char false_corridor_door_x;   // False corridor door X coordinate (255 = no false corridor)
-    unsigned char false_corridor_door_y;   // False corridor door Y coordinate
-    unsigned char false_corridor_end_x;    // False corridor end X coordinate
-    unsigned char false_corridor_end_y;    // False corridor end Y coordinate
-} Room;                                    // 46 bytes total 
+    // False corridor metadata (3 bytes) - wall side + endpoint coordinates
+    unsigned char false_corridor_wall_side; // Wall side (0-3) or 255=no false corridor
+    unsigned char false_corridor_end_x;     // False corridor end X coordinate
+    unsigned char false_corridor_end_y;     // False corridor end Y coordinate
+} Room;                                     // 48 bytes total
 ```
 
 ### Packed Connection Structure
@@ -689,8 +691,8 @@ void save_compact_map(const char* filename);
 - **Executable Size**: C64 constraints (release build significantly smaller than debug)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
-- **Room Data**: 46 bytes per room with packed structures and cached center coordinates
+- **Room Data**: 48 bytes per room with packed structures, cached center coordinates, and wall door counters
 - **Scrolling**: Partial screen updates with no slowdown at map boundaries
-- **Code Quality**: 6502 architecture with size improvements
+- **Code Quality**: 6502 architecture optimizations with efficient metadata management
 
 This implementation leverages both 8-bit programming techniques and modern compiler optimization strategies, adapted specifically for the hardware constraints of the Commodore 64.

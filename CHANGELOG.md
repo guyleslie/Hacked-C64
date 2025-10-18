@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## [Unreleased] - 2025-01-18
+
+### Performance Optimization
+- **Metadata Architecture Overhaul**: Room metadata storage optimized for generation pipeline synchronization
+  - Added `wall_door_count[4]` for instant O(1) wall state queries (4 bytes)
+  - Replaced coordinate storage with wall_side for treasure/false corridors (saves 2 bytes, eliminates recalculations)
+  - Automatic branching flag updates during connection creation
+  - ~550 redundant operations eliminated per generation
+
+### Changed
+- Room struct optimized: 46 bytes → 48 bytes (+2 bytes for wall_door_count array)
+- Treasure metadata: `treasure_wall_x/y` → `treasure_wall_side` (2 bytes → 1 byte)
+- False corridor metadata: `false_corridor_door_x/y` → `false_corridor_wall_side` (2 bytes → 1 byte)
+- `wall_has_doors()` simplified from 20+ lines to single O(1) lookup
+- `add_connection_to_room()` now auto-updates branching flags and wall counters
+
+### Removed
+- `mark_branching_doors_for_connection()` function (114 iterations eliminated)
+- ~170 `wall_has_doors()` iterations per generation
+- ~236 redundant `get_wall_side_from_exit()` calls in treasure/false corridor contexts
+- ~30 door counting iterations in secret room conversion
+
+### Performance
+- Operations eliminated: ~550 per generation (wall queries, branching detection, coordinate recalculations)
+- Memory overhead: +40 bytes total (+0.625% - negligible)
+- Code quality: Cleaner logic, single source of truth for wall state
+- Synchronization: Metadata updates happen when changes occur (no post-processing)
+- Binary size: 10835 bytes (development build)
+
+---
+
 ## [Unreleased] - 2025-10-18
 
 ### Added

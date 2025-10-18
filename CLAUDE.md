@@ -103,11 +103,14 @@ dir build\"Hacked C64.prg"
 ### Memory Architecture
 - **Map Size**: Dynamically configurable at runtime (Small: 48×48, Medium: 64×64, Large: 80×80)
 - **Map Storage**: 3-bit packed tile encoding with runtime calculated offsets (max 2400 bytes for 80×80)
-- **Room System**: Up to 20 rooms on 4×4 placement grid (46 bytes each with cached center coordinates)
+- **Room System**: Up to 20 rooms on 4×4 placement grid (48 bytes each with cached center coordinates and wall counters)
 - **Configuration System**: Pre-generation joystick menu for dynamic parameter selection
 - **Memory Usage**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Display**: Character-mode rendering with custom tiles (40×25 viewport, optimized partial scrolling)
 - **Connection Management**: Single source of truth prevents data inconsistency
+  - `wall_door_count[4]` provides instant O(1) wall state queries (replaces iterative checks)
+  - Automatic branching flag updates during connection creation
+  - Optimized metadata: wall_side storage instead of redundant coordinates
 - **String Optimization**: Packed string table with offset indexing
 - **Bit Offset Calculation**: Dynamic `y * map_width * 3` formula ensures correct tile access across all map sizes
 
@@ -314,13 +317,17 @@ OSCAR64 generates detailed build information for optimization:
 
 ### Data Types
 ```c
-// Room structure (46 bytes total)
+// Room structure (48 bytes total, optimized with wall counters)
 typedef struct {
     // Most frequently accessed during generation (ordered by access frequency)
     unsigned char x, y, w, h;              // Room position and size (4 bytes)
     unsigned char center_x, center_y;      // Cached room center (2 bytes) - calculated as x+(w-1)/2, y+(h-1)/2
     unsigned char connections;             // Number of active connections (1 byte)
     unsigned char state;                   // Room state flags (ROOM_SECRET=0x01, ROOM_HAS_TREASURE=0x02, ROOM_HAS_FALSE_CORRIDOR=0x04) (1 byte)
+
+    // Wall door counters (4 bytes) - instant O(1) wall queries for optimization
+    // Index: 0=left, 1=right, 2=top, 3=bottom
+    unsigned char wall_door_count[4];      // Door count per wall (normal + false corridors)
 
     // Packed connection metadata (4 bytes)
     PackedConnection conn_data[4];         // Connection info (room_id, corridor_type)
@@ -331,16 +338,14 @@ typedef struct {
     // Corridor breakpoint metadata (16 bytes)
     CorridorBreakpoint breakpoints[4][2];  // Corridor turn points
 
-    // Secret treasure metadata (2 bytes) - wall entry point (target calculated on-demand)
-    unsigned char treasure_wall_x;         // Secret wall X coordinate (255 = no treasure)
-    unsigned char treasure_wall_y;         // Secret wall Y coordinate
+    // Secret treasure metadata (1 byte) - wall side only (coordinates calculated on-demand)
+    unsigned char treasure_wall_side;      // Wall side (0-3) or 255=no treasure
 
-    // False corridor metadata (4 bytes) - endpoints only (type calculated on-demand from coordinates)
-    unsigned char false_corridor_door_x;   // False corridor door X coordinate (255 = no false corridor)
-    unsigned char false_corridor_door_y;   // False corridor door Y coordinate
-    unsigned char false_corridor_end_x;    // False corridor end X coordinate
-    unsigned char false_corridor_end_y;    // False corridor end Y coordinate
-} Room; // 46 bytes total
+    // False corridor metadata (3 bytes) - wall side + endpoint coordinates
+    unsigned char false_corridor_wall_side; // Wall side (0-3) or 255=no false corridor
+    unsigned char false_corridor_end_x;     // False corridor end X coordinate
+    unsigned char false_corridor_end_y;     // False corridor end Y coordinate
+} Room; // 48 bytes total (+2 bytes for wall_door_count optimization, -2 bytes from coordinate removal)
 
 // Connection structures
 typedef struct {
