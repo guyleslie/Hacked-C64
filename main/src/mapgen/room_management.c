@@ -155,13 +155,11 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         room_list[room_count].center_y = y + (h - 1) / 2;
 
         // Reset per-room metadata to sentinel defaults on placement
-        room_list[room_count].treasure_wall_x = 255;
-        room_list[room_count].treasure_wall_y = 255;
-        room_list[room_count].false_corridor_door_x = 255;
-        room_list[room_count].false_corridor_door_y = 255;
+        room_list[room_count].treasure_wall_side = 255;       // 255 = no treasure
+        room_list[room_count].false_corridor_wall_side = 255; // 255 = no false corridor
         room_list[room_count].false_corridor_end_x = 255;
         room_list[room_count].false_corridor_end_y = 255;
-        
+
         room_count++;
     }
 }
@@ -203,24 +201,38 @@ unsigned char get_connection_info(unsigned char room_idx, unsigned char target_r
 
 // Atomic connection management - adds connection metadata in single operation
 unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
-                                    unsigned char door_x, unsigned char door_y, 
+                                    unsigned char door_x, unsigned char door_y,
                                     unsigned char wall_side, unsigned char corridor_type) {
     // Validate room capacity
     if (room_idx >= room_count || room_list[room_idx].connections >= 4) {
         return 0; // Failed - room full or invalid
     }
-    
+
     unsigned char idx = room_list[room_idx].connections;
-    
+
     // Atomic update - all metadata synchronized in single operation
     room_list[room_idx].conn_data[idx].room_id = connected_room;
     room_list[room_idx].conn_data[idx].corridor_type = corridor_type;
-    
+
     room_list[room_idx].doors[idx].x = door_x;
     room_list[room_idx].doors[idx].y = door_y;
     room_list[room_idx].doors[idx].wall_side = wall_side;
     room_list[room_idx].doors[idx].reserved = 0; // Clear reserved bits
-    
+
+    // Increment wall door counter for instant O(1) wall queries
+    room_list[room_idx].wall_door_count[wall_side]++;
+
+    // Auto-mark branching if multiple doors on this wall
+    // This eliminates the need for mark_branching_doors_for_connection()
+    if (room_list[room_idx].wall_door_count[wall_side] > 1) {
+        // Mark ALL doors on this wall as branching (includes current door!)
+        for (unsigned char i = 0; i <= idx; i++) {
+            if (room_list[room_idx].doors[i].wall_side == wall_side) {
+                room_list[room_idx].doors[i].is_branching = 1;
+            }
+        }
+    }
+
     room_list[room_idx].connections++; // Update counter last
     return 1; // Success
 }
@@ -254,6 +266,11 @@ void init_rooms(void) {
         room_list[i].connections = 0;
         room_list[i].state = 0;
 
+        // Initialize wall door counters (optimization)
+        for (unsigned char w = 0; w < 4; w++) {
+            room_list[i].wall_door_count[w] = 0;
+        }
+
         // Initialize packed connection data
         for (unsigned char j = 0; j < 4; j++) {
             room_list[i].conn_data[j].room_id = 31; // Invalid room index (unused slot marker)
@@ -267,19 +284,17 @@ void init_rooms(void) {
             room_list[i].doors[j].has_treasure = 0;
             room_list[i].doors[j].is_branching = 0; // Initialize as non-branching
             room_list[i].doors[j].reserved = 0; // Clear reserved bits
-            
+
             // Initialize corridor breakpoints (invalid coordinates)
             room_list[i].breakpoints[j][0].x = 255; // Invalid marker
             room_list[i].breakpoints[j][0].y = 255;
             room_list[i].breakpoints[j][1].x = 255; // Invalid marker
             room_list[i].breakpoints[j][1].y = 255;
         }
-        
-        // Initialize treasure and corridor metadata (no treasure/false corridors by default)
-        room_list[i].treasure_wall_x = 255; // Invalid marker
-        room_list[i].treasure_wall_y = 255;
-        room_list[i].false_corridor_door_x = 255;
-        room_list[i].false_corridor_door_y = 255;
+
+        // Initialize treasure and corridor metadata (optimized - wall_side only)
+        room_list[i].treasure_wall_side = 255;       // 255 = no treasure
+        room_list[i].false_corridor_wall_side = 255; // 255 = no false corridor
         room_list[i].false_corridor_end_x = 255;
         room_list[i].false_corridor_end_y = 255;
     }

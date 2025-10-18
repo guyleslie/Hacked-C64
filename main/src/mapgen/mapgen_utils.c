@@ -334,7 +334,7 @@ void reset_display_state(void) {
 void reset_all_generation_data(void) {
     init_rnd();
     clear_map();
-    
+
     for (unsigned char i = 0; i < MAX_ROOMS; i++) {
         room_list[i].x = 0;
         room_list[i].y = 0;
@@ -344,14 +344,12 @@ void reset_all_generation_data(void) {
         room_list[i].center_y = 0;
         room_list[i].connections = 0;
         room_list[i].state = 0;
-        room_list[i].treasure_wall_x = 255;
-        room_list[i].treasure_wall_y = 255;
-        room_list[i].false_corridor_door_x = 255; // Mark as no false corridor
-        room_list[i].false_corridor_door_y = 255;
+        room_list[i].treasure_wall_side = 255;       // 255 = no treasure
+        room_list[i].false_corridor_wall_side = 255; // 255 = no false corridor
         room_list[i].false_corridor_end_x = 255;
         room_list[i].false_corridor_end_y = 255;
     }
-    
+
     room_count = 0;
     // Cache functions removed for OSCAR64 efficiency
 }
@@ -644,27 +642,10 @@ unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit
     return 3; // Bottom
 }
 
-// Check if a wall side has any doors (normal or cached false corridors)
+// Check if a wall side has any doors (normal or false corridors)
+// OPTIMIZED: O(n) iteration → O(1) instant lookup using wall_door_count
 unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side) {
-    Room *room = &room_list[room_idx];
-
-    for (unsigned char i = 0; i < room->connections; i++) {
-        if (room->doors[i].wall_side == wall_side) {
-            return 1;
-        }
-    }
-
-    // State flag guarantees coordinates are valid - no sentinel check needed
-    if (room->state & ROOM_HAS_FALSE_CORRIDOR) {
-        unsigned char recorded_wall = get_wall_side_from_exit(room_idx,
-                                                              room->false_corridor_door_x,
-                                                              room->false_corridor_door_y);
-        if (recorded_wall == wall_side) {
-            return 1;
-        }
-    }
-
-    return 0;
+    return room_list[room_idx].wall_door_count[wall_side] > 0;
 }
 
 
