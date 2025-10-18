@@ -95,13 +95,17 @@ typedef struct {
     unsigned char x, y;                    // 2 bytes - breakpoint coordinates
 } CorridorBreakpoint; // 2 bytes total - compact coordinate storage
 
-// Room structure (48 bytes total, optimized layout)
+// Room structure (48 bytes total, optimized layout with wall counters)
 typedef struct {
     // Most frequently accessed during generation (ordered by access frequency)
     unsigned char x, y, w, h;              // 4 bytes - room position and size
     unsigned char center_x, center_y;      // 2 bytes - cached room center position
     unsigned char connections;             // 1 byte - number of active connections
     unsigned char state;                   // 1 byte - room state flags
+
+    // Wall door counters (4 bytes) - instant O(1) wall queries for optimization
+    // Index: 0=left, 1=right, 2=top, 3=bottom
+    unsigned char wall_door_count[4];      // 4 bytes - door count per wall (normal + false corridors)
 
     // Packed connection metadata (4 bytes vs 8 bytes)
     PackedConnection conn_data[4];         // 4 bytes - packed connection info
@@ -112,16 +116,14 @@ typedef struct {
     // Corridor breakpoint metadata (16 bytes) - 2 breakpoints per connection max
     CorridorBreakpoint breakpoints[4][2];  // 16 bytes - corridor turn points (L=1, Z=2)
 
-    // Secret treasure metadata (2 bytes) - wall entry only (target calculated on-demand)
-    unsigned char treasure_wall_x;         // 1 byte - secret wall X coordinate (255 = no treasure)
-    unsigned char treasure_wall_y;         // 1 byte - secret wall Y coordinate
+    // Secret treasure metadata (1 byte) - wall side only (coordinates calculated on-demand)
+    unsigned char treasure_wall_side;      // 1 byte - wall side (0-3) or 255=no treasure
 
-    // False corridor metadata (4 bytes) - dead-end corridor information
-    unsigned char false_corridor_door_x;   // 1 byte - false corridor door X coordinate (255 = no false corridor)
-    unsigned char false_corridor_door_y;   // 1 byte - false corridor door Y coordinate
-    unsigned char false_corridor_end_x;    // 1 byte - false corridor end X coordinate
-    unsigned char false_corridor_end_y;    // 1 byte - false corridor end Y coordinate
-} Room; // 46 bytes total (optimized: removed unused hub_distance and priority fields)
+    // False corridor metadata (3 bytes) - wall side + endpoint coordinates
+    unsigned char false_corridor_wall_side; // 1 byte - wall side (0-3) or 255=no false corridor
+    unsigned char false_corridor_end_x;     // 1 byte - false corridor end X coordinate
+    unsigned char false_corridor_end_y;     // 1 byte - false corridor end Y coordinate
+} Room; // 48 bytes total (+2 bytes for wall_door_count optimization, -2 bytes from coordinate removal)
 
 // Viewport structure
 typedef struct {
