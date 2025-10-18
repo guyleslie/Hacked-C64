@@ -176,3 +176,5 @@ For detailed technical information, see:
 - **[Project Specification](docs/project-specification.md)** - Complete technical specification including algorithms, data structures, and implementation details
 
 - **[Oscar64 Development Reference](docs/oscar64-c64-development-reference.md)** - Comprehensive guide for C64 development using Oscar64 compiler
+
+- **[Changelog](CHANGELOG.md)** - Version history and feature updates
