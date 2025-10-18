@@ -375,6 +375,58 @@ static void calculate_exit_from_target(unsigned char room_idx, unsigned char tar
 }
 
 // =============================================================================
+// BRANCHING DOOR DETECTION SYSTEM
+// =============================================================================
+
+// Mark doors as branching if multiple doors exist on the same wall
+// Called after BOTH rooms have added connection metadata
+static void mark_branching_doors_for_connection(unsigned char room1, unsigned char room2) {
+    // Get wall sides for this connection
+    unsigned char door1_x, door1_y, wall1_side, corridor_type;
+    if (!get_connection_info(room1, room2, &door1_x, &door1_y, &wall1_side, &corridor_type)) {
+        return; // Connection not found (should never happen in normal flow)
+    }
+
+    unsigned char door2_x, door2_y, wall2_side, temp_type;
+    if (!get_connection_info(room2, room1, &door2_x, &door2_y, &wall2_side, &temp_type)) {
+        return;
+    }
+
+    // Count doors on room1's wall
+    unsigned char doors_on_wall1 = 0;
+    for (unsigned char i = 0; i < room_list[room1].connections; i++) {
+        if (room_list[room1].doors[i].wall_side == wall1_side) {
+            doors_on_wall1++;
+        }
+    }
+
+    // If multiple doors on this wall, mark ALL of them as branching
+    if (doors_on_wall1 > 1) {
+        for (unsigned char i = 0; i < room_list[room1].connections; i++) {
+            if (room_list[room1].doors[i].wall_side == wall1_side) {
+                room_list[room1].doors[i].is_branching = 1;
+            }
+        }
+    }
+
+    // Same logic for room2
+    unsigned char doors_on_wall2 = 0;
+    for (unsigned char i = 0; i < room_list[room2].connections; i++) {
+        if (room_list[room2].doors[i].wall_side == wall2_side) {
+            doors_on_wall2++;
+        }
+    }
+
+    if (doors_on_wall2 > 1) {
+        for (unsigned char i = 0; i < room_list[room2].connections; i++) {
+            if (room_list[room2].doors[i].wall_side == wall2_side) {
+                room_list[room2].doors[i].is_branching = 1;
+            }
+        }
+    }
+}
+
+// =============================================================================
 // ROOM CONNECTION LOGIC
 // =============================================================================
 
@@ -444,6 +496,9 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
     // Calculate breakpoints
     calculate_and_store_breakpoints(room1, room_list[room1].connections - 1);
     calculate_and_store_breakpoints(room2, room_list[room2].connections - 1);
+
+    // Mark branching doors (after both connections established)
+    mark_branching_doors_for_connection(room1, room2);
 
     return 1;
 }
@@ -576,6 +631,133 @@ void convert_secret_rooms_doors(void) {
 // SECRET TREASURE PLACEMENT SYSTEM
 // =============================================================================
 
+
+// =============================================================================
+// HIDDEN CORRIDOR SYSTEM
+// =============================================================================
+
+// Check if corridor between two rooms is non-branching (eligible for hiding)
+static unsigned char is_non_branching_corridor(unsigned char room1, unsigned char room2) {
+    // Skip secret rooms (already hidden via different mechanism)
+    if (room_list[room1].state & ROOM_SECRET) return 0;
+    if (room_list[room2].state & ROOM_SECRET) return 0;
+
+    // Find room1's door to room2
+    for (unsigned char i = 0; i < room_list[room1].connections; i++) {
+        if (room_list[room1].conn_data[i].room_id == room2) {
+            // Check room1's door flags
+            if (room_list[room1].doors[i].is_secret_door) return 0;  // Already secret
+            if (room_list[room1].doors[i].is_branching) return 0;    // Branches at room1
+
+            // Find room2's door to room1
+            for (unsigned char j = 0; j < room_list[room2].connections; j++) {
+                if (room_list[room2].conn_data[j].room_id == room1) {
+                    // Check room2's door flags
+                    if (room_list[room2].doors[j].is_secret_door) return 0;
+                    if (room_list[room2].doors[j].is_branching) return 0;
+
+                    return 1; // Non-branching corridor found!
+                }
+            }
+        }
+    }
+
+    return 0; // Connection not found or invalid
+}
+
+// Hide corridor by converting both doors to TILE_SECRET_PATH
+static unsigned char hide_corridor_between_rooms(unsigned char room1, unsigned char room2) {
+    // Get door positions
+    unsigned char door1_x, door1_y, wall1_side, corridor_type;
+    if (!get_connection_info(room1, room2, &door1_x, &door1_y, &wall1_side, &corridor_type)) {
+        return 0;
+    }
+
+    unsigned char door2_x, door2_y, wall2_side, temp_type;
+    if (!get_connection_info(room2, room1, &door2_x, &door2_y, &wall2_side, &temp_type)) {
+        return 0;
+    }
+
+    // Convert tiles to secret paths
+    set_compact_tile(door1_x, door1_y, TILE_SECRET_PATH);
+    set_compact_tile(door2_x, door2_y, TILE_SECRET_PATH);
+
+    // Update metadata flags - room1's door
+    for (unsigned char i = 0; i < room_list[room1].connections; i++) {
+        if (room_list[room1].doors[i].x == door1_x &&
+            room_list[room1].doors[i].y == door1_y) {
+            room_list[room1].doors[i].is_secret_door = 1;
+            break;
+        }
+    }
+
+    // Update metadata flags - room2's door
+    for (unsigned char i = 0; i < room_list[room2].connections; i++) {
+        if (room_list[room2].doors[i].x == door2_x &&
+            room_list[room2].doors[i].y == door2_y) {
+            room_list[room2].doors[i].is_secret_door = 1;
+            break;
+        }
+    }
+
+    return 1;
+}
+
+// Main entry point - randomly hide non-branching corridors
+void place_hidden_corridors(unsigned char corridor_count) {
+    if (room_count < 2 || corridor_count == 0) return;
+
+    // Static candidate storage (max 40 pairs to limit memory)
+    static unsigned char candidates_room1[40];
+    static unsigned char candidates_room2[40];
+    unsigned char candidate_count = 0;
+
+    // Find all non-branching corridor candidates
+    for (unsigned char i = 0; i < room_count && candidate_count < 40; i++) {
+        __assume(room_count <= MAX_ROOMS);
+        for (unsigned char j = i + 1; j < room_count && candidate_count < 40; j++) {
+            __assume(j <= MAX_ROOMS);
+
+            // Check if connected and eligible
+            if (room_has_connection_to(i, j) && is_non_branching_corridor(i, j)) {
+                candidates_room1[candidate_count] = i;
+                candidates_room2[candidate_count] = j;
+                candidate_count++;
+            }
+        }
+    }
+
+    // Early exit if no candidates
+    if (candidate_count == 0) {
+        update_progress_step(5, 0, corridor_count);
+        return;
+    }
+
+    // Determine how many to hide (min of requested and available)
+    unsigned char to_hide = (corridor_count < candidate_count) ? corridor_count : candidate_count;
+    unsigned char hidden = 0;
+
+    // Fisher-Yates shuffle (partial - only first 'to_hide' elements)
+    for (unsigned char i = 0; i < to_hide; i++) {
+        unsigned char j = i + rnd(candidate_count - i);
+
+        // Swap candidates[i] and candidates[j]
+        unsigned char temp_r1 = candidates_room1[i];
+        unsigned char temp_r2 = candidates_room2[i];
+        candidates_room1[i] = candidates_room1[j];
+        candidates_room2[i] = candidates_room2[j];
+        candidates_room1[j] = temp_r1;
+        candidates_room2[j] = temp_r2;
+    }
+
+    // Hide selected corridors
+    for (unsigned char i = 0; i < to_hide; i++) {
+        if (hide_corridor_between_rooms(candidates_room1[i], candidates_room2[i])) {
+            hidden++;
+            update_progress_step(5, hidden, to_hide);
+        }
+    }
+}
 
 // =============================================================================
 // FALSE CORRIDOR SYSTEM

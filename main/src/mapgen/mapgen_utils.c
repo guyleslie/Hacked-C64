@@ -524,16 +524,17 @@ static const char phase_strings[] =
     "Secret Areas\0"
     "Secret Treasures\0"
     "False Corridors\0"
+    "Hidden Corridors\0"
     "Placing Stairs\0"
     "Finalizing\0"
     "Generation Complete!";
 
-// Offsets into packed string (much smaller than 8 pointers)
-static const unsigned char phase_offsets[8] = {0, 15, 32, 45, 62, 78, 93, 104};
+// Offsets into packed string (much smaller than 9 pointers)
+static const unsigned char phase_offsets[9] = {0, 15, 32, 45, 62, 78, 95, 110, 121};
 
 // Show phase by index - optimized for size
 void show_phase(unsigned char phase_id) {
-    if (phase_id >= 8) return;
+    if (phase_id >= 9) return;
 
     const char* text = phase_strings + phase_offsets[phase_id];
     unsigned char text_len = 0;

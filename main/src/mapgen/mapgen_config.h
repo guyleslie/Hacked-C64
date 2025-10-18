@@ -28,6 +28,9 @@ typedef struct {
     // Secret treasures preset
     PresetLevel secret_treasures;
 
+    // Hidden corridors preset
+    PresetLevel hidden_corridors;
+
     // Difficulty level (auto-calculated or manually set)
     unsigned char difficulty_level; // 0-10 scale
 } MapConfig;
@@ -42,6 +45,7 @@ typedef struct {
     unsigned char secret_room_count;
     unsigned char false_corridor_count;
     unsigned char treasure_count;
+    unsigned char hidden_corridor_count;  // Hidden corridor count (non-branching corridors to hide)
 } MapParameters;
 
 // Initialize default configuration

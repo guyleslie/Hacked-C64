@@ -258,13 +258,14 @@ void init_rooms(void) {
         for (unsigned char j = 0; j < 4; j++) {
             room_list[i].conn_data[j].room_id = 31; // Invalid room index (unused slot marker)
             room_list[i].conn_data[j].corridor_type = 0;
-            
+
             // Initialize doors
             room_list[i].doors[j].x = 0;
             room_list[i].doors[j].y = 0;
             room_list[i].doors[j].wall_side = 0;
             room_list[i].doors[j].is_secret_door = 0;
             room_list[i].doors[j].has_treasure = 0;
+            room_list[i].doors[j].is_branching = 0; // Initialize as non-branching
             room_list[i].doors[j].reserved = 0; // Clear reserved bits
             
             // Initialize corridor breakpoints (invalid coordinates)

@@ -1,5 +1,40 @@
 # CHANGELOG
 
+## [Unreleased] - 2025-10-18
+
+### Added
+- **Hidden Corridor System**: Non-branching corridors can now be randomly converted to secret paths
+  - New configuration parameter: `hidden_corridor_count` (Small: 1, Medium: 2, Large: 3)
+  - Added `is_branching` flag to Door structure (uses 1 reserved bit, 0 bytes overhead)
+  - Automatic branching detection during connection creation via `mark_branching_doors_for_connection()`
+  - Fisher-Yates shuffle for random corridor selection from eligible candidates
+  - New generation phase: "Hidden Corridors" (phase 6, between False Corridors and Placing Stairs)
+  - Configuration menu updated with 6th option for hidden corridor adjustment
+  - Difficulty calculation now includes hidden corridors (×2 difficulty weight)
+
+### Changed
+- Phase system expanded from 8 to 9 phases to accommodate hidden corridor placement
+- Phase ID renumbering: Stairs (5→6), Finalizing (6→7), Complete (7→8)
+- Progress tracking updated to support 9-phase generation pipeline
+- Configuration menu rows expanded from 5 to 6 items
+- MapConfig and MapParameters structures extended with `hidden_corridors` field
+- Door structure bit allocation: `reserved:4` → `is_branching:1, reserved:3`
+
+### Performance
+- O(1) corridor branching detection via pre-computed flags (no runtime counting)
+- Static candidate arrays (80 bytes) limit memory usage for corridor selection
+- Partial Fisher-Yates shuffle (only shuffles needed elements, not full array)
+- ~500 operations overhead for hidden corridor phase (~500μs at 1MHz, negligible)
+- Total binary size: 11,078 bytes (within C64 constraints)
+
+### Technical Details
+- Branching flags set during `connect_rooms()` after both connections established
+- Hidden corridors skip secret rooms and already-secret doors automatically
+- Corridor hiding converts both doors to `TILE_SECRET_PATH` and updates metadata
+- Maximum hidden corridors capped at 2/3 of room count to ensure navigability
+
+---
+
 ## [Unreleased] - 2025-10-12
 
 ### Fixed

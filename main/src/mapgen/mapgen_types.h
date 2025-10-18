@@ -80,7 +80,8 @@ typedef struct {
     unsigned char wall_side : 2;           // 0-3 wall sides (2 bits)
     unsigned char is_secret_door : 1;      // 1 bit - secret room entrance flag
     unsigned char has_treasure : 1;        // 1 bit - treasure chamber attached flag
-    unsigned char reserved : 4;            // 4 bits reserved for future use
+    unsigned char is_branching : 1;        // 1 bit - multiple corridors on this wall (elágazó ajtó)
+    unsigned char reserved : 3;            // 3 bits reserved for future use
 } Door; // 3 bytes total - removed connected_room (redundant with conn_data[].room_id)
 
 // Packed connection structure (1 byte vs 2 bytes)  

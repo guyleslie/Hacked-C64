@@ -68,6 +68,7 @@ Limited keyboard support for essential commands:
 - **Secret Rooms**: 10%/20%/30% of max rooms
 - **False Corridors**: 3/5/8 dead-end passages
 - **Secret Treasures**: 2/4/6 hidden chambers
+- **Hidden Corridors**: 1/2/3 non-branching corridors converted to secret paths
 
 **Implementation Details:**
 - Configuration stored in `MapConfig` structure
@@ -308,7 +309,29 @@ The false corridor system creates Nethack-style misleading dead-end passages usi
 - Bounds validation keeps corridors inside the playable area
 - Successful placements record entrance and endpoint metadata and set `ROOM_HAS_FALSE_CORRIDOR`
 
-### Phase 6: Placing Stairs
+### Phase 6: Hiding Corridors
+
+The hidden corridor system identifies and conceals non-branching corridors to increase navigation difficulty:
+
+**Non-Branching Detection:**
+- Corridors identified as "non-branching" if both door endpoints have no other doors on the same wall
+- Branching detection uses pre-computed `is_branching` flag in Door structure (set during connection creation)
+- Excludes secret rooms (already hidden via different mechanism)
+- Excludes doors already marked as secret
+
+**Selection Process:**
+- Candidate search iterates all room pairs with connections
+- Uses `room_has_connection_to()` and `is_non_branching_corridor()` for O(1) validation
+- Fisher-Yates shuffle randomizes candidate selection
+- Hides up to N corridors (configurable: Small=1, Medium=2, Large=3)
+- Maximum capped at 2/3 of room count to preserve navigability
+
+**Corridor Hiding:**
+- Converts both door tiles to `TILE_SECRET_PATH`
+- Updates `is_secret_door` flag in door metadata
+- Maintains corridor structure (only doors change, not corridor tiles)
+
+### Phase 7: Placing Stairs
 
 Stair placement system ensures optimal level navigation with maximum separation:
 

@@ -116,8 +116,9 @@ dir build\"Hacked C64.prg"
 2. **Connection**: Minimum spanning tree for corridor generation with walls built during creation
 3. **Secret Rooms**: Single-connection rooms converted to secret areas
 4. **Secret Treasures**: Hidden treasure chambers placed on walls without doors (excludes secret rooms, max 1 per room)
-5. **False Corridors**: Dead-end corridors from room wall centers (5 per map, straight/L-shaped/Z-shaped, 2 tile margin)
-6. **Stair Placement**: Distance-based optimal placement - up/down stairs placed in room centers with maximum separation
+5. **False Corridors**: Dead-end corridors from room wall centers (configurable count, straight/L-shaped/Z-shaped, 2 tile margin)
+6. **Hidden Corridors**: Non-branching corridors randomly converted to secret paths (configurable count, identified via branching flags)
+7. **Stair Placement**: Distance-based optimal placement - up/down stairs placed in room centers with maximum separation
 
 ## Code Style & Conventions
 
@@ -190,9 +191,18 @@ void place_secret_treasures(unsigned char treasure_count);
 unsigned char wall_has_doors(unsigned char room_idx, unsigned char wall_side);
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y);
 
+// Hidden corridor system functions (in connection_system.c)
+// - is_non_branching_corridor: Checks if corridor between two rooms has no branches (uses is_branching flags)
+// - hide_corridor_between_rooms: Converts both doors of a corridor to TILE_SECRET_PATH
+// - place_hidden_corridors: Randomly hides N non-branching corridors (configurable count)
+//   - Identifies candidates by checking is_branching flag on door metadata
+//   - Fisher-Yates shuffle for random selection
+//   - Excludes secret rooms and already-secret doors
+void place_hidden_corridors(unsigned char corridor_count);
+
 // False corridor system functions (correct wall-first algorithm)
 // - create_false_corridor: Creates dead-end corridor with intelligent endpoint generation
-// - place_false_corridors: Places N false corridors (currently 5) across map with retry logic
+// - place_false_corridors: Places N false corridors (configurable count) across map with retry logic
 // Algorithm:
 //   1. Select random wall_side (0=left, 1=right, 2=top, 3=bottom) where no doors exist
 //   2. Calculate door position on selected wall (center of wall)

@@ -23,7 +23,8 @@ MapParameters current_params = {
     8,   // max_room_size
     4,   // secret_room_count (20% of 20)
     5,   // false_corridor_count
-    4    // treasure_count
+    4,   // treasure_count
+    3    // hidden_corridor_count (default: 3)
 };
 
 // =============================================================================
@@ -46,8 +47,8 @@ MapParameters current_params = {
 void add_stairs(void) {
     if (room_count < 2) return; // Need at least 2 rooms for stairs
 
-    // Phase 5: Stair placement progress - starting
-    update_progress_step(5, 0, 2);
+    // Phase 6: Stair placement progress - starting
+    update_progress_step(6, 0, 2);
 
     // Find room pair with maximum distance (brute-force optimal)
     unsigned char start_room = 0;
@@ -74,15 +75,15 @@ void add_stairs(void) {
     get_room_center(start_room, &up_x, &up_y);
     set_compact_tile(up_x, up_y, TILE_UP);
 
-    update_progress_step(5, 1, 2);
+    update_progress_step(6, 1, 2);
 
     // Place down stairs in ending room center
     unsigned char down_x, down_y;
     get_room_center(end_room, &down_x, &down_y);
     set_compact_tile(down_x, down_y, TILE_DOWN);
 
-    // Phase 5: Stair placement complete
-    update_progress_step(5, 2, 2);
+    // Phase 6: Stair placement complete
+    update_progress_step(6, 2, 2);
 }
 
 
@@ -121,19 +122,23 @@ unsigned char generate_level(void) {
     show_phase(4); // "False Corridors"
     place_false_corridors(current_params.false_corridor_count);
 
+    // Phase 2.8: Place hidden corridors
+    show_phase(5); // "Hidden Corridors"
+    place_hidden_corridors(current_params.hidden_corridor_count);
+
     // Phase 3: Place stairs for level navigation
-    show_phase(5); // "Placing Stairs"
+    show_phase(6); // "Placing Stairs"
     add_stairs();
 
-    // Phase 6: Initialize camera for new map
-    show_phase(6); // "Finalizing"
-    update_progress_step(6, 0, 1);
+    // Phase 4: Initialize camera for new map
+    show_phase(7); // "Finalizing"
+    update_progress_step(7, 0, 1);
     initialize_camera();
-    update_progress_step(6, 1, 1);
+    update_progress_step(7, 1, 1);
 
     // Finish progress bar and show completion message
     finish_progress_bar_simple();
-    show_phase(7); // "Complete"
+    show_phase(8); // "Complete"
     
     // VIC-II raster-based delay (more reliable on C64)
     // Wait for multiple frame cycles for visible delay

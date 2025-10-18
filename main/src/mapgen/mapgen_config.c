@@ -48,6 +48,13 @@ const unsigned char treasure_table[3] = {
     6    // LARGE
 };
 
+// Hidden corridor count table
+const unsigned char hidden_corridor_table[3] = {
+    1,   // SMALL
+    2,   // MEDIUM
+    3    // LARGE
+};
+
 // Level name strings (compact storage, lowercase for mixed charset)
 const char *level_names[3] = {
     "small ",
@@ -63,6 +70,7 @@ void init_default_config(MapConfig *config) {
     config->secret_rooms = LEVEL_MEDIUM;
     config->false_corridors = LEVEL_MEDIUM;
     config->secret_treasures = LEVEL_MEDIUM;
+    config->hidden_corridors = LEVEL_MEDIUM;
     config->difficulty_level = 5; // Medium difficulty
 }
 
@@ -110,6 +118,15 @@ void validate_and_adjust_config(MapConfig *config, MapParameters *params) {
         params->treasure_count = max_treasure_rooms;
     }
 
+    // Hidden corridor count
+    params->hidden_corridor_count = hidden_corridor_table[config->hidden_corridors];
+
+    // Hidden corridor validation: limit to 2/3 of max rooms (leave some visible corridors)
+    unsigned char max_hidden = (params->max_rooms * 2) / 3;
+    if (params->hidden_corridor_count > max_hidden) {
+        params->hidden_corridor_count = max_hidden;
+    }
+
     // Ensure at least 1 of each if not zero preset
     if (params->secret_room_count == 0 && config->secret_rooms > LEVEL_SMALL) {
         params->secret_room_count = 1;
@@ -136,6 +153,7 @@ unsigned char calculate_difficulty(const MapConfig *config) {
     difficulty += config->secret_rooms * 2;
     difficulty += config->false_corridors * 1;
     difficulty += config->secret_treasures * 1;
+    difficulty += config->hidden_corridors * 2;  // Hidden corridors significantly increase difficulty
 
     // Normalize to 0-10 scale
     if (difficulty < 0) difficulty = 0;
@@ -185,7 +203,7 @@ static void clear_screen(void) {
 // PETSCII_RETURN = 0x0d (13)
 
 // Menu line to screen row mapping (no room size, no start generation)
-const unsigned char menu_rows[5] = {5, 7, 9, 11, 13};
+const unsigned char menu_rows[6] = {5, 7, 9, 11, 13, 15};
 
 // Helper: Update cursor position only
 static void update_cursor(unsigned char old_cursor, unsigned char new_cursor) {
@@ -231,6 +249,7 @@ void show_config_menu(MapConfig *config) {
     print_at(7, 9, "secret rooms");
     print_at(7, 11, "false corridors");
     print_at(7, 13, "secret treasures");
+    print_at(7, 15, "hidden corridors");
 
     // Initial values - positioned after labels (column 26)
     update_value(5, config->map_size);
@@ -238,6 +257,7 @@ void show_config_menu(MapConfig *config) {
     update_value(9, config->secret_rooms);
     update_value(11, config->false_corridors);
     update_value(13, config->secret_treasures);
+    update_value(15, config->hidden_corridors);
 
     // Instructions - centered
     print_at(12, 21, "joy2: navigation");
@@ -260,7 +280,7 @@ void show_config_menu(MapConfig *config) {
                 update_cursor(old_cursor, cursor);
             }
             // Navigation - DOWN
-            else if (!(joy2 & 0x02) && cursor < 4) {
+            else if (!(joy2 & 0x02) && cursor < 5) {
                 cursor++;
                 update_cursor(old_cursor, cursor);
             }
@@ -302,6 +322,12 @@ void show_config_menu(MapConfig *config) {
                             update_value(13, config->secret_treasures);
                         }
                         break;
+                    case 5:
+                        if (config->hidden_corridors < LEVEL_LARGE) {
+                            config->hidden_corridors++;
+                            update_value(15, config->hidden_corridors);
+                        }
+                        break;
                 }
             }
             // Value adjustment - LEFT (decrease)
@@ -335,6 +361,12 @@ void show_config_menu(MapConfig *config) {
                         if (config->secret_treasures > LEVEL_SMALL) {
                             config->secret_treasures--;
                             update_value(13, config->secret_treasures);
+                        }
+                        break;
+                    case 5:
+                        if (config->hidden_corridors > LEVEL_SMALL) {
+                            config->hidden_corridors--;
+                            update_value(15, config->hidden_corridors);
                         }
                         break;
                 }
