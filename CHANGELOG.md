@@ -2,6 +2,65 @@
 
 ## [Unreleased] - 2025-11-15
 
+### Terminology Standardization
+- **Renamed TILE_SECRET_PATH to TILE_SECRET_DOOR**: Clarified tile constant naming for better code readability
+  - Updated all code references: `TILE_SECRET_PATH` → `TILE_SECRET_DOOR`
+  - Variable/constant naming now matches actual functionality (represents secret doors, not paths)
+
+### Documentation Clarification
+- **Standardized "Secret Door" terminology**: Unified terminology across all documentation
+  - Changed "Secret Path" → "Secret Door" in README.md, CLAUDE.md, project-specification.md
+  - Changed "Hidden passage/treasure chamber" → "Secret door" in user-facing documentation
+  - Clarified that `░` symbol always represents a secret door (not a path or passage)
+  - Updated 18 locations across documentation and code comments
+  - Technical accuracy: TILE_SECRET_DOOR represents door tiles, corridor floors remain TILE_FLOOR
+
+### Architecture Refactoring
+- **Unified Feature Generation Systems**: Standardized architecture for all four feature systems
+  - Implemented consistent `create_FEATURE()` + `place_FEATURES()` pattern across all systems
+  - Secret Room System: `convert_secret_rooms_doors()` → `place_secret_rooms()`
+  - Secret Treasure System: `place_treasure_for_room()` → `create_secret_treasure()` (now static)
+  - Hidden Corridor System: Merged 3 functions into unified `create_hidden_corridor()`
+  - False Corridor System: Already followed pattern, no changes needed
+
+### Code Quality
+- **Improved Code Reuse**: Extracted shared helper function for better maintainability
+  - Created `is_non_branching_corridor()` as shared validation function
+  - Secret room system now reuses `is_non_branching_corridor()` instead of inline checks
+  - Eliminated duplicate logic between secret rooms and hidden corridors
+  - All four systems now follow identical structural pattern for consistency
+
+### Changed
+- `convert_secret_rooms_doors()` renamed to `place_secret_rooms(unsigned char room_count_target)`
+- Extracted `create_secret_room(unsigned char room_idx)` as static internal function
+- `place_treasure_for_room()` renamed to `create_secret_treasure()` and made static
+- Hidden corridor functions merged: `is_non_branching_corridor()` + `hide_corridor_between_rooms()` → `create_hidden_corridor()`
+- Fisher-Yates shuffle removed from hidden corridors (simplified to random selection with retry)
+- Secret room eligibility now uses `is_non_branching_corridor()` instead of manual connection check
+
+### Documentation
+- CLAUDE.md updated with "FEATURE GENERATION SYSTEMS (Unified Architecture)" section
+- All four systems documented with consistent pattern and clear API descriptions
+- Shared helper functions documented separately for clarity
+- Function signatures and usage patterns standardized across documentation
+
+### Performance
+- No performance regression: refactoring maintains identical behavior
+- Improved code clarity reduces maintenance overhead
+- Shared `is_non_branching_corridor()` function eliminates duplicate logic (~30 bytes code saved)
+- Simplified hidden corridor logic reduces complexity without performance cost
+
+### Technical Details
+- All `create_*` functions are static (internal use only)
+- All `place_*` functions are public API (called from map_generation.c)
+- Consistent parameter naming: `room_idx` for single room, `count` for placement target
+- Unified eligibility checking pattern across all four systems
+- mapgen_internal.h function declarations updated to reflect new API
+
+---
+
+## [Unreleased] - 2025-11-15
+
 ### Performance Optimization
 - **Room Placement Algorithm Y-Stride Optimization**: Major performance improvement for `can_place_room()` function
   - Added `y_bit_stride` global variable (2 bytes) for pre-calculated Y offset stride
@@ -102,7 +161,7 @@
 ## [Unreleased] - 2025-10-18
 
 ### Added
-- **Hidden Corridor System**: Non-branching corridors can now be randomly converted to secret paths
+- **Hidden Corridor System**: Non-branching corridor doors can now be randomly converted to secret doors
   - New configuration parameter: `hidden_corridor_count` (Small: 1, Medium: 2, Large: 3)
   - Added `is_branching` flag to Door structure (uses 1 reserved bit, 0 bytes overhead)
   - Automatic branching detection during connection creation via `mark_branching_doors_for_connection()`
@@ -129,7 +188,7 @@
 ### Technical Details
 - Branching flags set during `connect_rooms()` after both connections established
 - Hidden corridors skip secret rooms and already-secret doors automatically
-- Corridor hiding converts both doors to `TILE_SECRET_PATH` and updates metadata
+- Corridor hiding converts both doors to secret doors (`TILE_SECRET_DOOR`) and updates metadata
 - Maximum hidden corridors capped at 2/3 of room count to ensure navigability
 
 ---
