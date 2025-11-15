@@ -177,4 +177,6 @@ For detailed technical information, see:
 
 - **[Oscar64 Development Reference](docs/oscar64-c64-development-reference.md)** - Comprehensive guide for C64 development using Oscar64 compiler
 
+- **[TMEA: Tile Metadata Extension Architecture](docs/TMEA.md)** - Lightweight metadata system for tile features and dynamic entities (doors, traps, objects, monsters)
+
 - **[Changelog](CHANGELOG.md)** - Version history and feature updates
