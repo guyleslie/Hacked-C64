@@ -6,6 +6,7 @@
 #include "mapgen_types.h"
 #include "mapgen_internal.h"
 #include "mapgen_utils.h"
+#include "tmea_core.h"      // For add_secret_door_metadata() and TMEA functions
 
 // External reference to current generation parameters
 extern MapParameters current_params;
@@ -40,7 +41,7 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y, unsigned char
         }
 
         unsigned char tile = get_compact_tile(x, y);
-        if (tile == TILE_FLOOR || tile == TILE_DOOR || tile == TILE_SECRET_DOOR) {
+        if (tile == TILE_FLOOR || tile == TILE_DOOR) {
             return 0;
         }
     }
@@ -207,9 +208,9 @@ static unsigned char process_corridor_path(unsigned char start_x, unsigned char 
 void draw_corridor_from_door(unsigned char exit1_x, unsigned char exit1_y,
                             unsigned char wall1_side, unsigned char exit2_x, unsigned char exit2_y,
                             unsigned char corridor_type, unsigned char is_secret) {
-    unsigned char tile_type = is_secret ? TILE_SECRET_DOOR : TILE_FLOOR;
+    // Always draw corridor as TILE_FLOOR (doors placed separately with metadata)
     process_corridor_path(exit1_x, exit1_y, exit2_x, exit2_y, wall1_side, corridor_type,
-                          CORRIDOR_MODE_DRAW, tile_type);
+                          CORRIDOR_MODE_DRAW, TILE_FLOOR);
 }
 
 // =============================================================================
@@ -418,13 +419,14 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
 
     draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret);
 
-    // Place doors
+    // Place doors (always TILE_DOOR, metadata marks secret doors)
+    place_door(exit1_x, exit1_y);
+    place_door(exit2_x, exit2_y);
+
+    // Add secret door metadata if needed
     if (is_secret) {
-        set_compact_tile(exit1_x, exit1_y, TILE_SECRET_DOOR);
-        set_compact_tile(exit2_x, exit2_y, TILE_SECRET_DOOR);
-    } else {
-        place_door(exit1_x, exit1_y);
-        place_door(exit2_x, exit2_y);
+        add_secret_door_metadata(exit1_x, exit1_y);
+        add_secret_door_metadata(exit2_x, exit2_y);
     }
 
     // Mark secret rooms
@@ -529,14 +531,18 @@ static unsigned char is_non_branching_corridor(unsigned char room1, unsigned cha
     for (unsigned char i = 0; i < room_list[room1].connections; i++) {
         if (room_list[room1].conn_data[i].room_id == room2) {
             // Check room1's door flags
-            if (room_list[room1].doors[i].is_secret_door) return 0;  // Already secret
+            unsigned char door1_x = room_list[room1].doors[i].x;
+            unsigned char door1_y = room_list[room1].doors[i].y;
+            if (is_door_secret(door1_x, door1_y)) return 0;  // Already secret (via TMEA)
             if (room_list[room1].doors[i].is_branching) return 0;    // Branches at room1
 
             // Find room2's door to room1
             for (unsigned char j = 0; j < room_list[room2].connections; j++) {
                 if (room_list[room2].conn_data[j].room_id == room1) {
                     // Check room2's door flags
-                    if (room_list[room2].doors[j].is_secret_door) return 0;
+                    unsigned char door2_x = room_list[room2].doors[j].x;
+                    unsigned char door2_y = room_list[room2].doors[j].y;
+                    if (is_door_secret(door2_x, door2_y)) return 0;  // Already secret (via TMEA)
                     if (room_list[room2].doors[j].is_branching) return 0;
 
                     return 1; // Non-branching corridor found!
@@ -587,16 +593,8 @@ static unsigned char create_secret_room(unsigned char room_idx) {
 
     // Convert the normal room's door to secret door
     // This creates a hidden entrance to the secret room
-    set_compact_tile(connected_door_x, connected_door_y, TILE_SECRET_DOOR);
-
-    // Mark the door as secret in metadata - find the door index in connected room
-    for (unsigned char door_idx = 0; door_idx < room_list[connected_room].connections; door_idx++) {
-        if (room_list[connected_room].doors[door_idx].x == connected_door_x &&
-            room_list[connected_room].doors[door_idx].y == connected_door_y) {
-            room_list[connected_room].doors[door_idx].is_secret_door = 1;
-            break;
-        }
-    }
+    // Door tile is already TILE_DOOR, just add secret metadata
+    add_secret_door_metadata(connected_door_x, connected_door_y);
 
     return 1; // Successfully created secret room
 }
@@ -644,27 +642,10 @@ static unsigned char create_hidden_corridor(unsigned char room1, unsigned char r
         return 0;
     }
 
-    // Convert door tiles to secret doors
-    set_compact_tile(door1_x, door1_y, TILE_SECRET_DOOR);
-    set_compact_tile(door2_x, door2_y, TILE_SECRET_DOOR);
-
-    // Update metadata flags - room1's door
-    for (unsigned char i = 0; i < room_list[room1].connections; i++) {
-        if (room_list[room1].doors[i].x == door1_x &&
-            room_list[room1].doors[i].y == door1_y) {
-            room_list[room1].doors[i].is_secret_door = 1;
-            break;
-        }
-    }
-
-    // Update metadata flags - room2's door
-    for (unsigned char i = 0; i < room_list[room2].connections; i++) {
-        if (room_list[room2].doors[i].x == door2_x &&
-            room_list[room2].doors[i].y == door2_y) {
-            room_list[room2].doors[i].is_secret_door = 1;
-            break;
-        }
-    }
+    // Convert door tiles to secret doors using TMEA metadata
+    // Door tiles are already TILE_DOOR, just add secret metadata
+    add_secret_door_metadata(door1_x, door1_y);
+    add_secret_door_metadata(door2_x, door2_y);
 
     return 1;
 }
@@ -924,7 +905,8 @@ static unsigned char create_secret_treasure(unsigned char room_idx) {
 
         // set_compact_tile() already handles bounds checking
         // Create secret door in wall, normal floor in treasure chamber
-        set_compact_tile(wall_x, wall_y, TILE_SECRET_DOOR);
+        set_compact_tile(wall_x, wall_y, TILE_DOOR);
+        add_secret_door_metadata(wall_x, wall_y);
         set_compact_tile(treasure_x, treasure_y, TILE_FLOOR);
 
         // Place walls around treasure chamber
