@@ -22,11 +22,47 @@ extern unsigned char screen_buffer[VIEW_H][VIEW_W];
 extern unsigned char screen_dirty;
 extern unsigned char last_scroll_direction;
 
-// Room center cache removed - simple calculation is faster
+// =============================================================================
+// OPTIMIZATION: Pre-calculated Y stride for bit offset calculation
+// =============================================================================
+// This eliminates repeated multiplication of (map_width * 3) in hot paths
+unsigned short y_bit_stride = 0;
 
-// Calculate Y bit offset dynamically based on current map width
-// Formula: y * current_params.map_width * 3
-// This ensures correct offset calculation for all map sizes (48/64/80)
+/**
+ * @brief Calculate and cache the Y bit stride for current map dimensions
+ * @note Must be called after map parameters are set, before any tile access
+ * 
+ * The y_bit_stride represents the bit offset increment per Y row:
+ * - Each tile uses 3 bits
+ * - Each row has map_width tiles
+ * - Therefore: y_bit_stride = map_width * 3
+ * 
+ * This allows Y offset calculation to become: y * y_bit_stride
+ * Instead of the slower: y * map_width * 3
+ */
+void calculate_y_bit_stride(void) {
+    y_bit_stride = (unsigned short)current_params.map_width * 3;
+}
+
+/**
+ * @brief Fast Y bit offset calculation using pre-computed stride
+ * @param y Y coordinate
+ * @return Bit offset for the start of row y
+ * 
+ * OPTIMIZATION: Uses cached y_bit_stride to avoid repeated multiplication
+ * Old: y * map_width * 3 (two 8-bit multiplications)
+ * New: y * y_bit_stride (one 8-bit × 16-bit multiplication)
+ */
+static inline unsigned short get_y_bit_offset_fast(unsigned char y) {
+    return (unsigned short)y * y_bit_stride;
+}
+
+/**
+ * @brief Legacy Y bit offset calculation (for compatibility)
+ * @param y Y coordinate
+ * @return Bit offset for the start of row y
+ * @note This function is slower - prefer get_y_bit_offset_fast() in hot paths
+ */
 static inline unsigned short calculate_y_bit_offset(unsigned char y) {
     // Optimized multiplication: y * map_width * 3
     // Using shifts and adds for 8-bit efficiency
@@ -38,12 +74,22 @@ void init_rnd(void) {
     rnd_state = (unsigned char)(cia1.ta ^ vic.raster);
     if (rnd_state == 0) rnd_state = 1;
 }
+
 unsigned char rnd(unsigned char max) {
     if (max <= 1) return 0;
     rnd_state = rnd_state * 97 + 71;
     return rnd_state % max;
 }
 
+/**
+ * @brief Get tile value from compact map (standard version)
+ * @param x X coordinate
+ * @param y Y coordinate
+ * @return Tile type (TILE_EMPTY, TILE_WALL, etc.)
+ * 
+ * NOTE: For performance-critical loops, consider using the optimized
+ * inline expansion found in can_place_room_optimized()
+ */
 unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     // Single bounds check - callers trust this function
     if (x >= current_params.map_width || y >= current_params.map_height) return TILE_EMPTY;
@@ -52,8 +98,8 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     __assume(x < 80);  // Max map size
     __assume(y < 80);
 
-    // Calculate bit offset dynamically using actual map width
-    unsigned short bit_offset = calculate_y_bit_offset(y) + x + x + x;
+    // Calculate bit offset using cached stride for better performance
+    unsigned short bit_offset = get_y_bit_offset_fast(y) + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
 
@@ -76,8 +122,8 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     __assume(y < 80);
     __assume(tile <= 7);  // 3-bit tile encoding
 
-    // Calculate bit offset dynamically using actual map width
-    unsigned short bit_offset = calculate_y_bit_offset(y) + x + x + x;
+    // Calculate bit offset using cached stride for better performance
+    unsigned short bit_offset = get_y_bit_offset_fast(y) + x + x + x;
     unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
     unsigned char bit_pos = bit_offset & 7;
 
@@ -97,27 +143,21 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     }
 }
 
-
 unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
     // No bounds check - get_compact_tile() already validates
     unsigned char raw_tile = get_compact_tile(map_x, map_y);
     
     switch(raw_tile) {
-        case TILE_EMPTY:      return EMPTY;
-        case TILE_WALL:       return WALL;
-        case TILE_FLOOR:      return FLOOR;
-        case TILE_DOOR:       return DOOR;
+        case TILE_EMPTY:       return EMPTY;
+        case TILE_WALL:        return WALL;
+        case TILE_FLOOR:       return FLOOR;
+        case TILE_DOOR:        return DOOR;
         case TILE_SECRET_PATH: return SECRET_PATH;
-        case TILE_UP:         return UP;
-        case TILE_DOWN:       return DOWN;
-        default:              return EMPTY;
+        case TILE_UP:          return UP;
+        case TILE_DOWN:        return DOWN;
+        default:               return EMPTY;
     }
 }
-
-// Inline wrappers removed for size optimization - use direct calls:
-// get_tile_raw() -> get_compact_tile()
-// set_compact_tile() -> set_compact_tile()
-// tile_is_*() -> get_compact_tile() == TILE_*
 
 void clear_map(void) {
     // Calculate actual bytes based on current map size
@@ -182,9 +222,6 @@ unsigned char point_in_any_room(unsigned char x, unsigned char y, unsigned char 
     return 0;
 }
 
-
-
-
 unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
     unsigned char i;
     for (i = 0; i < room_count; i++) {
@@ -205,6 +242,14 @@ unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
     }
     return 0;
 }
+
+inline unsigned char abs_diff(unsigned char a, unsigned char b) {
+    return (a > b) ? a - b : b - a;
+}
+
+// Rest of the file continues with the original implementation...
+// (Progress bar functions, wall placement, door placement, etc.)
+// These remain unchanged from the original file.
 
 inline unsigned char abs_diff(unsigned char a, unsigned char b) {
     return (a > b) ? a - b : b - a;
@@ -586,7 +631,6 @@ void place_door(unsigned char x, unsigned char y) {
 // =============================================================================
 // WALL AND DOOR VALIDATION UTILITIES
 // =============================================================================
-// (Unused 400-byte room_distance_cache removed - never called, wastes RAM)
 
 // Get wall side from door position - room geometry utility
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y) {
@@ -597,5 +641,3 @@ unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit
     if (exit_y < room->y) return 2; // Top
     return 3; // Bottom
 }
-
-
