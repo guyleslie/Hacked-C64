@@ -22,7 +22,7 @@
 - **6x Speed Improvement** in room placement validation:
   - Original: ~100 Y offset calculations per 10×10 room check (~15,000 CPU cycles)
   - Optimized: ~10 Y offset calculations per 10×10 room check (~2,500 CPU cycles)
-  - Typical dungeon generation: ~0.27s → ~0.045s (0.225s time savings)
+  - Typical dungeon generation: ~5x faster
   - Operations eliminated: ~90 redundant multiplications per room placement attempt
   - User experience improvement: From noticeable pause to near-instantaneous generation
 
