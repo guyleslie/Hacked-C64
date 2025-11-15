@@ -4,6 +4,7 @@
 #include "mapgen_utils.h"
 #include "mapgen_internal.h"
 #include "mapgen_config.h"  // For MapParameters
+#include "tmea_core.h"      // For is_door_secret() and TMEA functions
 
 // External reference to current generation parameters
 extern MapParameters current_params;
@@ -146,13 +147,25 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
 unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
     // No bounds check - get_compact_tile() already validates
     unsigned char raw_tile = get_compact_tile(map_x, map_y);
-    
+
     switch(raw_tile) {
         case TILE_EMPTY:       return EMPTY;
         case TILE_WALL:        return WALL;
         case TILE_FLOOR:       return FLOOR;
-        case TILE_DOOR:        return DOOR;
-        case TILE_SECRET_DOOR: return SECRET_PATH;
+        case TILE_DOOR:
+            // Check if door is secret (hidden) via TMEA metadata
+            if (is_door_secret(map_x, map_y)) {
+                return SECRET_DOOR; // Hidden door (checkerboard pattern)
+            }
+            return DOOR;
+        case TILE_MARKER:
+            // TMEA metadata marker - secret doors are marked with TILE_MARKER
+            // Check if this is a secret door
+            if (is_door_secret(map_x, map_y)) {
+                return SECRET_DOOR; // Hidden door (checkerboard pattern)
+            }
+            // Default to DOOR if metadata exists (most common metadata use)
+            return DOOR;
         case TILE_UP:          return UP;
         case TILE_DOWN:        return DOWN;
         default:               return EMPTY;
@@ -365,6 +378,10 @@ void reset_all_generation_data(void) {
     }
 
     room_count = 0;
+
+    // Reset TMEA metadata for new generation
+    reset_tmea_data();
+
     // Cache functions removed for OSCAR64 efficiency
 }
 
