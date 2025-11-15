@@ -4,6 +4,11 @@
 #include "mapgen_types.h"
 #include "mapgen_internal.h"  // For ExitPoint structure
 
+// Calculate and cache the Y bit stride for current map dimensions
+void calculate_y_bit_stride(void);
+// External reference to cached Y bit stride
+extern unsigned short y_bit_stride;
+
 // RNG functions
 void init_rnd(void);
 unsigned char rnd(unsigned char max);
