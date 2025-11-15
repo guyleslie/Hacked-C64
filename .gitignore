@@ -1,9 +1,11 @@
-# CMake generated files (exclude all CMake artifacts)
+# CMake generated files (exclude all CMake artifacts, OSCAR64 and VICE)
 build/CMakeCache.txt
 build/CMakeFiles/
 build/cmake_install.cmake
 build/build.ninja
-build/*.ninja
+build/.cmake
+oscar64
+vice
 
 # Keep OSCAR64 build outputs in build/
 # (allow *.prg, *.map, *.asm, *.lbl, *.dbj files)
