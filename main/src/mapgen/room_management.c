@@ -1,5 +1,5 @@
 // =============================================================================
-// ROOM MANAGEMENT MODULE 
+// ROOM MANAGEMENT MODULE - OPTIMIZED VERSION
 // Room placement, validation, and connection management
 // =============================================================================
 
@@ -20,13 +20,7 @@ static const unsigned char BORDER_PADDING = 1;
 static const unsigned char PLACEMENT_ATTEMPTS = 15;
 
 // =============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================="
-
-// get_grid_position() wrapper removed - inlined for OSCAR64 efficiency
-
-// =============================================================================
-// ROOM VALIDATION FUNCTIONS
+// ROOM VALIDATION FUNCTIONS 
 // =============================================================================
 
 /**
@@ -36,8 +30,11 @@ static const unsigned char PLACEMENT_ATTEMPTS = 15;
  * @param w Room width in tiles
  * @param h Room height in tiles
  * @return 1 if placement is valid, 0 if placement conflicts
+ * 
+ * NOTE: This is the original implementation, kept for reference.
+ * Use can_place_room_optimized() for better performance in room generation.
  */
-unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
+unsigned char can_place_room_original(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     // Calculate safety margin boundaries with minimum room distance
     unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? x - MIN_ROOM_DISTANCE : BORDER_PADDING;
     unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? y - MIN_ROOM_DISTANCE : BORDER_PADDING;
@@ -61,6 +58,90 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
     }
     
     return 1;
+}
+
+/**
+ * @brief OPTIMIZED: Validates if a room can be placed at the specified location
+ * @param x Room top-left X coordinate
+ * @param y Room top-left Y coordinate  
+ * @param w Room width in tiles
+ * @param h Room height in tiles
+ * @return 1 if placement is valid, 0 if placement conflicts
+ * 
+ * OPTIMIZATION STRATEGY:
+ * 1. Calculate Y bit offset ONCE per row (outer loop) instead of per tile
+ * 2. Inline the bit-packing logic to avoid function call overhead
+ * 3. Eliminate redundant multiplication of (y * map_width * 3) in inner loop
+ * 
+ * PERFORMANCE GAIN:
+ * - Original: N×M calls to get_compact_tile() = N×M Y offset calculations
+ * - Optimized: N Y offset calculations + M inline bit reads per row
+ * - For 10×10 room: 100 → 10 multiplications (90% reduction!)
+ * 
+ * COMPATIBILITY:
+ * - Must call calculate_y_bit_stride() after map initialization
+ * - Requires y_bit_stride to be properly set
+ */
+unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
+    // Calculate safety margin boundaries with minimum room distance
+    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? x - MIN_ROOM_DISTANCE : BORDER_PADDING;
+    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? y - MIN_ROOM_DISTANCE : BORDER_PADDING;
+    unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
+    unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
+    
+    // Check map boundaries - early return if placement exceeds map
+    if (buffer_x2 + BORDER_PADDING >= current_params.map_width || 
+        buffer_y2 + BORDER_PADDING >= current_params.map_height) {
+        return 0;
+    }
+
+    // OPTIMIZATION: Check if safety margin is clear
+    // Key insight: Y offset calculation moved to outer loop
+    for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
+        // --- OPTIMIZATION 1: Calculate Y bit offset ONCE per row ---
+        // This eliminates repeated (y * map_width * 3) calculations
+        // Old approach: Every get_compact_tile() call recalculated this
+        // New approach: Calculate once, reuse for entire row
+        unsigned short y_bit_offset = (unsigned short)iy * y_bit_stride;
+
+        for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
+            // --- OPTIMIZATION 2: Inline bit-packing logic ---
+            // Instead of calling get_compact_tile(), we inline the logic
+            // This avoids function call overhead and allows compiler optimization
+            
+            // Bounds check (only X needs checking, Y already validated in outer loop)
+            if (ix >= current_params.map_width) continue;
+
+            // Calculate bit offset WITHOUT Y multiplication (already in y_bit_offset)
+            // Formula: bit_offset = y_bit_offset + (x * 3)
+            // We use (x + x + x) instead of (x * 3) for better 6510 performance
+            unsigned short bit_offset = y_bit_offset + ix + ix + ix;
+            
+            // Get pointer to byte containing our tile data
+            unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
+            unsigned char bit_pos = bit_offset & 7;
+
+            // Extract 3-bit tile value from compact storage
+            unsigned char tile;
+            if (bit_pos <= 5) {
+                // Simple case: tile fits within single byte
+                tile = (*byte_ptr >> bit_pos) & TILE_MASK;
+            } else {
+                // Complex case: tile spans two bytes
+                unsigned char low_bits = 8 - bit_pos;
+                unsigned char first_part = *byte_ptr >> bit_pos;
+                unsigned char second_part = (*(byte_ptr + 1) & ((1 << (3 - low_bits)) - 1)) << low_bits;
+                tile = (first_part | second_part) & TILE_MASK;
+            }
+
+            // Check if position is occupied
+            if (tile != TILE_EMPTY) {
+                return 0; // Collision detected
+            }
+        }
+    }
+    
+    return 1; // All positions clear, placement valid
 }
 
 // =============================================================================
@@ -120,7 +201,7 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
         const unsigned char x = placement_min_x + rnd(range_x);
         const unsigned char y = placement_min_y + rnd(range_y);
 
-        // Test placement validity
+        // Test placement validity using optimized function
         if (can_place_room(x, y, w, h)) {
             *result_x = x;
             *result_y = y;
@@ -251,7 +332,7 @@ unsigned char remove_last_connection_from_room(unsigned char room_idx) {
 // Clean implementation - all metadata management through atomic operations
 
 // =============================================================================
-// ROOM GENERATION
+// ROOM GENERATION - WITH OPTIMIZATION INITIALIZATION
 // =============================================================================
 
 // Initialize room data structures
@@ -266,7 +347,7 @@ void init_rooms(void) {
         room_list[i].connections = 0;
         room_list[i].state = 0;
 
-        // Initialize wall door counters (optimization)
+        // Initialize wall door counters 
         for (unsigned char w = 0; w < 4; w++) {
             room_list[i].wall_door_count[w] = 0;
         }
@@ -292,7 +373,7 @@ void init_rooms(void) {
             room_list[i].breakpoints[j][1].y = 255;
         }
 
-        // Initialize treasure and corridor metadata (optimized - wall_side only)
+        // Initialize treasure and corridor metadata 
         room_list[i].treasure_wall_side = 255;       // 255 = no treasure
         room_list[i].false_corridor_wall_side = 255; // 255 = no false corridor
         room_list[i].false_corridor_end_x = 255;
@@ -309,6 +390,11 @@ void create_rooms(void) {
 
     // Initialize room structures
     init_rooms();
+    
+    // OPTIMIZATION: Pre-calculate Y bit stride before room placement
+    // This must be called after map parameters are set
+    // Allows can_place_room() to use fast cached multiplication
+    calculate_y_bit_stride();
     
     // Room creation phase - progress handled by main generation loop
     
