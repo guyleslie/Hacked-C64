@@ -15,6 +15,7 @@
 #include "mapgen/mapgen_config.h"     // For configuration management
 
 // Include C files for OSCAR64 linking
+#include "mapgen/tmea_core.c"          // TMEA system (must be first)
 #include "mapgen/mapgen_config.c"
 #include "mapgen/mapgen_utils.c"
 #include "mapgen/map_generation.c"
@@ -45,6 +46,9 @@ int main(void) {
 
     // Switch to mixed (lowercase/uppercase) character set for C64
     set_mixed_charset();
+
+    // Initialize TMEA system (must be called once at startup)
+    init_tmea_system();
 
     // Initialize default configuration
     init_default_config(&config);
