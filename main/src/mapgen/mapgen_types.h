@@ -36,7 +36,7 @@ const unsigned char EMPTY = 32;
 const unsigned char WALL = 160;
 const unsigned char FLOOR = 46;
 const unsigned char DOOR = 219;
-const unsigned char SECRET_PATH = 94;    // Secret doors use checkerboard pattern (░ symbol)
+const unsigned char SECRET_DOOR = 94;    // Secret doors use checkerboard pattern (░ symbol)
 const unsigned char UP = 60;
 const unsigned char DOWN = 62;
 
@@ -48,9 +48,10 @@ const unsigned char TILE_EMPTY = 0;
 const unsigned char TILE_WALL = 1;
 const unsigned char TILE_FLOOR = 2;
 const unsigned char TILE_DOOR = 3;
-const unsigned char TILE_SECRET_DOOR = 6;
 const unsigned char TILE_UP = 4;
 const unsigned char TILE_DOWN = 5;
+// Value 6 reserved for future use
+const unsigned char TILE_MARKER = 7;  // TMEA metadata marker (tile has extended metadata)
 #define TILE_MASK   7
 
 
@@ -78,11 +79,10 @@ const unsigned char MAX_PATH_LENGTH = 20;
 typedef struct {
     unsigned char x, y;                    // 2 bytes - door position
     unsigned char wall_side : 2;           // 0-3 wall sides (2 bits)
-    unsigned char is_secret_door : 1;      // 1 bit - secret room entrance flag
     unsigned char has_treasure : 1;        // 1 bit - treasure chamber attached flag
     unsigned char is_branching : 1;        // 1 bit - multiple corridors on this wall (elágazó ajtó)
-    unsigned char reserved : 3;            // 3 bits reserved for future use
-} Door; // 3 bytes total - removed connected_room (redundant with conn_data[].room_id)
+    unsigned char reserved : 4;            // 4 bits reserved for future use
+} Door; // 3 bytes total - removed is_secret_door (now in TMEA metadata)
 
 // Packed connection structure (1 byte vs 2 bytes)  
 typedef struct {
