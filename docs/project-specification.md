@@ -68,7 +68,7 @@ Limited keyboard support for essential commands:
 - **Secret Rooms**: 10%/20%/30% of max rooms
 - **False Corridors**: 3/5/8 dead-end passages
 - **Secret Treasures**: 2/4/6 hidden chambers
-- **Hidden Corridors**: 1/2/3 non-branching corridors converted to secret paths
+- **Hidden Corridors**: 1/2/3 non-branching corridor doors converted to secret doors
 
 **Implementation Details:**
 - Configuration stored in `MapConfig` structure
@@ -242,10 +242,11 @@ The secret room system provides a special gameplay mechanic:
 - Room `state` field receives `ROOM_SECRET` flag marking (prevents treasure placement)
 
 **Secret Door Conversion:**
-- Only the entrance door in the normal room becomes `TILE_SECRET_PATH`
-- The corridor remains normal, but the secret room door is converted to `TILE_FLOOR`
+- Only the entrance door in the normal room becomes a secret door (`TILE_SECRET_DOOR`)
+- The corridor and secret room interior remain normal
 - This creates a hidden entrance mechanism to the secret room
-- Visual representation uses special character (`░` symbol) only at entrance
+- Visual representation: `░` symbol represents the secret door
+- Implementation uses `is_non_branching_corridor()` shared validation function
 
 ### Phase 4: Placing Secret Treasures
 
@@ -260,7 +261,7 @@ The secret treasure system creates hidden treasure chambers accessible through w
 - Validates wall availability using `wall_door_count[wall_side]` to ensure no existing doors
 
 **Treasure Chamber Construction:**
-- Wall position becomes `TILE_SECRET_PATH` (secret passage through wall)
+- Wall position becomes a secret door (`TILE_SECRET_DOOR`) - secret entrance through wall
 - Adjacent position outside room becomes `TILE_FLOOR` (treasure chamber)
 - `place_walls_around_corridor_tile()` builds protective walls around chamber
 - Maintains wall_side consistency with existing door system (0=Left, 1=Right, 2=Top, 3=Bottom)
@@ -322,14 +323,14 @@ The hidden corridor system identifies and conceals non-branching corridors to in
 **Selection Process:**
 - Candidate search iterates all room pairs with connections
 - Uses `room_has_connection_to()` and `is_non_branching_corridor()` for O(1) validation
-- Fisher-Yates shuffle randomizes candidate selection
+- Random selection with retry logic from candidate pool
 - Hides up to N corridors (configurable: Small=1, Medium=2, Large=3)
 - Maximum capped at 2/3 of room count to preserve navigability
 
 **Corridor Hiding:**
-- Converts both door tiles to `TILE_SECRET_PATH`
+- Converts both door tiles to secret doors (`TILE_SECRET_DOOR`)
 - Updates `is_secret_door` flag in door metadata
-- Maintains corridor structure (only doors change, not corridor tiles)
+- Maintains corridor structure (only doors change to secret doors, corridor floor tiles remain normal)
 
 ### Phase 7: Placing Stairs
 
@@ -378,7 +379,7 @@ Map data is stored using a 3-bit per tile encoding:
 - `TILE_DOOR` (3): Standard door
 - `TILE_UP` (4): Upward staircase
 - `TILE_DOWN` (5): Downward staircase
-- `TILE_SECRET_PATH` (6): Secret passage
+- `TILE_SECRET_DOOR` (6): Secret door
 
 ### Room Data Structure
 
@@ -524,11 +525,12 @@ typedef struct {
 1. **Initialization**: Map clearing, random seed setup
 2. **Room Creation**: Grid-based placement with collision detection and immediate wall construction
 3. **Connection System**: MST algorithm execution with corridor walls built during creation
-4. **Secret Rooms**: Single-connection room conversion
-5. **Secret Treasures**: Hidden treasure chamber placement on available walls
-6. **False Corridors**: Dead-end corridor placement on available room walls
-7. **Stair Placement**: Distance-based optimal placement (maximum separation)
-8. **Camera Initialization**: Viewport setup for navigation
+4. **Secret Rooms**: Single-connection room conversion using `place_secret_rooms()`
+5. **Secret Treasures**: Hidden treasure chamber placement using `place_secret_treasures()`
+6. **False Corridors**: Dead-end corridor placement using `place_false_corridors()`
+7. **Hidden Corridors**: Non-branching corridor concealment using `place_hidden_corridors()`
+8. **Stair Placement**: Distance-based optimal placement (maximum separation)
+9. **Camera Initialization**: Viewport setup for navigation
 
 ## Technical Architecture
 
@@ -538,7 +540,7 @@ typedef struct {
 |-----------|---------------|
 | **Core Generator** (`map_generation.c`) | Pipeline orchestration and master control |
 | **Room System** (`room_management.c`) | Placement algorithms with grid distribution |
-| **MST Connectivity** (`connection_system.c`) | Prim's algorithm, corridor generation, secret rooms |
+| **MST Connectivity** (`connection_system.c`) | Prim's algorithm, corridor generation, feature systems (secret rooms, treasures, false/hidden corridors) |
 | **Display Engine** (`mapgen_display.c`) | Viewport management, delta rendering, input |
 | **Utility Layer** (`mapgen_utils.c`) | Bit manipulation, math operations, validation |
 | **Export System** (`map_export.c`) | KERNAL-based file I/O operations |
@@ -552,12 +554,15 @@ oscar64.exe -O0 -g -n -dDEBUG -d__oscar64__ -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -
 
 **Release Build Flags:**
 ```bash
-oscar64.exe -Os -Oo -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci
+oscar64.exe -Os -Oo -Oi -Op -Oz -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci
 ```
 
 **Flag Details:**
 - `-Os`: Size optimization priority (release only)
 - `-Oo`: Code outlining optimization (release only)
+- `-Oi`: Auto inline small functions (release only)
+- `-Op`: Optimize constant parameters (release only)
+- `-Oz`: Auto zero page placement for globals (release only)
 - `-O0`: No optimization (development only)
 - `-g`: Debug symbols (development only)
 - `-n`: Generate additional debug files (development only)

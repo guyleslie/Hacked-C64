@@ -127,7 +127,7 @@ dir build\"Hacked C64.prg"
 3. **Secret Rooms**: Single-connection rooms converted to secret areas
 4. **Secret Treasures**: Hidden treasure chambers placed on walls without doors (excludes secret rooms, max 1 per room)
 5. **False Corridors**: Dead-end corridors from room wall centers (configurable count, straight/L-shaped/Z-shaped, 2 tile margin)
-6. **Hidden Corridors**: Non-branching corridors randomly converted to secret paths (configurable count, identified via branching flags)
+6. **Hidden Corridors**: Non-branching corridor doors randomly converted to secret doors (configurable count, identified via branching flags)
 7. **Stair Placement**: Distance-based optimal placement - up/down stairs placed in room centers with maximum separation
 
 ## Code Style & Conventions
@@ -183,47 +183,66 @@ unsigned char get_connection_info(unsigned char room_idx, unsigned char target_r
 // Atomic rollback for error handling
 unsigned char remove_last_connection_from_room(unsigned char room_idx);
 
-// Secret room system functions
-// - convert_secret_rooms_doors: Converts single-connection rooms to secret with entrance-only secret doors
-// - Secret room door is converted to floor, normal room door becomes TILE_SECRET_PATH
-// - Validates connection constraints and marks doors with is_secret_door flag
+// =============================================================================
+// FEATURE GENERATION SYSTEMS (Unified Architecture)
+// =============================================================================
+// All feature systems follow the same pattern:
+// - create_FEATURE(): Creates single instance (static, internal)
+// - place_FEATURES(): Placement controller (public API)
 
-// Secret treasure system functions (in connection_system.c)
-// - place_treasure_for_room: Places treasure in room if eligible (not secret, no existing treasure)
-//   - Validates treasure chamber + walls stay ≥3 tiles from map edges (3×3 structure boundary check)
-// - place_secret_treasures: Main function placing N treasures across available rooms
-unsigned char place_treasure_for_room(unsigned char room_idx);
-void place_secret_treasures(unsigned char treasure_count);
+// Shared helper functions (in connection_system.c)
+// - is_non_branching_corridor: Checks if corridor between two rooms has no branches
+//   - Used by both secret rooms and hidden corridors for eligibility checking
+//   - Validates: not secret room, not already secret door, not branching (is_branching flag)
+unsigned char is_non_branching_corridor(unsigned char room1, unsigned char room2);
 
 // Wall validation utilities (in mapgen_utils.c)
 // - get_wall_side_from_exit: Determines which wall side a door/exit is on
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y);
 
-// Hidden corridor system functions (in connection_system.c)
-// - is_non_branching_corridor: Checks if corridor between two rooms has no branches (uses is_branching flags)
-// - hide_corridor_between_rooms: Converts both doors of a corridor to TILE_SECRET_PATH
-// - place_hidden_corridors: Randomly hides N non-branching corridors (configurable count)
-//   - Identifies candidates by checking is_branching flag on door metadata
-//   - Fisher-Yates shuffle for random selection
-//   - Excludes secret rooms and already-secret doors
-void place_hidden_corridors(unsigned char corridor_count);
+// Secret Room System (in connection_system.c)
+// - create_secret_room: Creates single secret room from single-connection room (static)
+//   - Eligibility: exactly 1 connection, non-branching, 50% random chance
+//   - Reuses is_non_branching_corridor() for validation
+//   - Converts normal room door to secret door (TILE_SECRET_DOOR), marks as secret
+// - place_secret_rooms: Main placement controller
+//   - Iterates through rooms, attempts to create N secret rooms
+void place_secret_rooms(unsigned char room_count_target);
 
-// False corridor system functions (correct wall-first algorithm)
-// - create_false_corridor: Creates dead-end corridor with intelligent endpoint generation
-// - place_false_corridors: Places N false corridors (configurable count) across map with retry logic
-// Algorithm:
-//   1. Select random wall_side (0=left, 1=right, 2=top, 3=bottom) where no doors exist
-//   2. Calculate door position on selected wall (center of wall)
-//   3. Generate endpoint AWAY from door based on wall_side:
-//      - Left wall (0): endpoint LEFT of door (negative X direction)
-//      - Right wall (1): endpoint RIGHT of door (positive X direction)
-//      - Top wall (2): endpoint UP from door (negative Y direction)
-//      - Bottom wall (3): endpoint DOWN from door (positive Y direction)
-//   4. Add perpendicular random offset for L-shaped corridors
-//   5. Use same corridor drawing logic as normal room connections (determine_corridor_type, process_corridor_path)
-// - Guarantees L-shaped corridors always move away from doors, never along walls
-// - Higher success rate due to intelligent generation vs. post-hoc validation
+// Secret Treasure System (in connection_system.c)
+// - create_secret_treasure: Creates single treasure chamber for a room (static)
+//   - Eligibility: not secret room, no existing treasure, wall without doors
+//   - Validates treasure chamber + walls stay ≥3 tiles from map edges (3×3 boundary check)
+//   - Places secret door (TILE_SECRET_DOOR) in wall, TILE_FLOOR in chamber, surrounds with walls
+// - place_secret_treasures: Main placement controller
+//   - Random room selection with retry logic, creates N treasures
+void place_secret_treasures(unsigned char treasure_count);
+
+// False Corridor System (in connection_system.c)
+// - create_false_corridor: Creates single dead-end corridor from room wall (static)
+//   - Algorithm (wall-first approach):
+//     1. Select wall_side (0=left, 1=right, 2=top, 3=bottom) without doors
+//     2. Calculate door position on wall center
+//     3. Generate endpoint AWAY from door based on wall_side:
+//        - Left wall (0): endpoint LEFT of door (negative X direction)
+//        - Right wall (1): endpoint RIGHT of door (positive X direction)
+//        - Top wall (2): endpoint UP from door (negative Y direction)
+//        - Bottom wall (3): endpoint DOWN from door (positive Y direction)
+//     4. Add perpendicular random offset for L-shaped corridors
+//     5. Use same corridor drawing logic as normal connections
+//   - Guarantees corridors move away from walls, never along them
+// - place_false_corridors: Main placement controller
+//   - Random room/wall selection with retry logic, creates N false corridors
 void place_false_corridors(unsigned char corridor_count);
+
+// Hidden Corridor System (in connection_system.c)
+// - create_hidden_corridor: Creates single hidden corridor between two rooms (static)
+//   - Eligibility: uses is_non_branching_corridor() validation
+//   - Converts both door tiles to secret doors (TILE_SECRET_DOOR), marks metadata as secret
+// - place_hidden_corridors: Main placement controller
+//   - Builds candidate list of all non-branching corridors
+//   - Random selection from candidates with retry logic, hides N corridors
+void place_hidden_corridors(unsigned char corridor_count);
 
 // Progress tracking system functions (in mapgen_utils.c)
 // - init_progress_weights: Pre-calculates phase boundaries from current_params at generation start

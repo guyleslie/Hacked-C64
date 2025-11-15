@@ -152,7 +152,7 @@ unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
         case TILE_WALL:        return WALL;
         case TILE_FLOOR:       return FLOOR;
         case TILE_DOOR:        return DOOR;
-        case TILE_SECRET_PATH: return SECRET_PATH;
+        case TILE_SECRET_DOOR: return SECRET_PATH;
         case TILE_UP:          return UP;
         case TILE_DOWN:        return DOWN;
         default:               return EMPTY;

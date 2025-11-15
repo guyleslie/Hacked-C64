@@ -36,7 +36,7 @@ const unsigned char EMPTY = 32;
 const unsigned char WALL = 160;
 const unsigned char FLOOR = 46;
 const unsigned char DOOR = 219;
-const unsigned char SECRET_PATH = 94;    // Secret paths and doors use checkerboard pattern
+const unsigned char SECRET_PATH = 94;    // Secret doors use checkerboard pattern (░ symbol)
 const unsigned char UP = 60;
 const unsigned char DOWN = 62;
 
@@ -48,7 +48,7 @@ const unsigned char TILE_EMPTY = 0;
 const unsigned char TILE_WALL = 1;
 const unsigned char TILE_FLOOR = 2;
 const unsigned char TILE_DOOR = 3;
-const unsigned char TILE_SECRET_PATH = 6;
+const unsigned char TILE_SECRET_DOOR = 6;
 const unsigned char TILE_UP = 4;
 const unsigned char TILE_DOWN = 5;
 #define TILE_MASK   7

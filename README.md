@@ -91,7 +91,7 @@ Final dungeon map:
 | █ | Wall | Solid barrier |
 | . | Floor | Walkable room area |
 | + | Door | Room entrance/exit |
-| ░ | Secret Path | Hidden passage/treasure chamber |
+| ░ | Secret Door | Secret door (hidden entrance, treasure, corridor) |
 | < | Up Stairs | Level exit up |
 | > | Down Stairs | Level exit down |
 
@@ -108,11 +108,11 @@ Final dungeon map:
   - Secret Rooms (10%/20%/30% of max rooms)
   - False Corridors (3/5/8)
   - Secret Treasures (2/4/6)
-  - Hidden Corridors (1/2/3) - Non-branching corridors converted to secret paths
-- **Secret Rooms**: Hidden areas accessible through secret passages (configurable percentage of single-connection rooms)
+  - Hidden Corridors (1/2/3) - Non-branching corridor doors converted to secret doors
+- **Secret Rooms**: Hidden areas accessible through secret doors (configurable percentage of single-connection rooms)
 - **Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances
 - **False Corridors**: Misleading dead-end passages validated by a two-pass corridor walker; doors are wall-specific and never share a wall with treasure alcoves
-- **Hidden Corridors**: Non-branching corridors between rooms are randomly converted to secret passages, obscuring direct paths and increasing navigation difficulty
+- **Hidden Corridors**: Non-branching corridor doors between rooms are randomly converted to secret doors, obscuring direct paths and increasing navigation difficulty
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
 - **Map Export**: Save generated maps to disk in binary format
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
@@ -161,9 +161,9 @@ The dungeon is generated in real-time with a progress bar showing each phase:
 1. **Building Rooms**: Creates rooms of various sizes across the map
 2. **Connecting Rooms**: Links all rooms together with corridors so every area is reachable
 3. **Creating Secret Areas**: Converts some isolated rooms into hidden secret areas
-4. **Placing Secret Treasures**: Adds hidden treasure chambers accessible through secret passages
+4. **Placing Secret Treasures**: Adds hidden treasure chambers accessible through secret doors
 5. **Placing False Corridors**: Creates dead-end passages to add exploration challenge
-6. **Hiding Corridors**: Randomly converts non-branching corridors to secret paths to obscure navigation routes
+6. **Hiding Corridors**: Randomly converts non-branching corridor doors to secret doors to obscure navigation routes
 7. **Placing Stairs**: Positions up and down stairs for level navigation
 8. **Finalizing**: Prepares the map for exploration
 
