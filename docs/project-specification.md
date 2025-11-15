@@ -27,7 +27,10 @@ main/src/
 │   ├── connection_system.c  # MST and corridor generation (optimized)
 │   ├── mapgen_display.c/.h  # Viewport and rendering
 │   ├── mapgen_utils.c/.h    # Utility functions and math (with inline optimizations)
-│   └── map_export.c/.h      # File I/O operations
+│   ├── map_export.c/.h      # File I/O operations
+│   ├── tmea_types.h         # TMEA type definitions and flag enums
+│   ├── tmea_core.h          # TMEA API declarations
+│   └── tmea_core.c          # TMEA implementation (metadata and entity pools)
 build-dev.bat                # Development build with debug information
 build-release.bat            # Optimized production build
 build.bat                    # Interactive build selection
@@ -241,12 +244,14 @@ The secret room system provides a special gameplay mechanic:
 - 50% probability of conversion to secret status
 - Room `state` field receives `ROOM_SECRET` flag marking (prevents treasure placement)
 
-**Secret Door Conversion:**
-- Only the entrance door in the normal room becomes a secret door (`TILE_SECRET_DOOR`)
+**Secret Door Conversion (TMEA-First Architecture):**
+- Base tile remains `TILE_DOOR`, TMEA metadata marks it as secret (`TMFLAG_DOOR_SECRET`)
+- Uses `add_secret_door_metadata()` to add TMEA metadata instead of changing tile type
 - The corridor and secret room interior remain normal
 - This creates a hidden entrance mechanism to the secret room
-- Visual representation: `░` symbol represents the secret door
+- Visual representation: Display system checks `is_door_secret()` and renders `░` symbol
 - Implementation uses `is_non_branching_corridor()` shared validation function
+- Enables 5 door states (secret, locked, trapped, revealed, open) vs previous 2 states
 
 ### Phase 4: Placing Secret Treasures
 
@@ -260,11 +265,14 @@ The secret treasure system creates hidden treasure chambers accessible through w
 - Excludes corners to prevent placement conflicts
 - Validates wall availability using `wall_door_count[wall_side]` to ensure no existing doors
 
-**Treasure Chamber Construction:**
-- Wall position becomes a secret door (`TILE_SECRET_DOOR`) - secret entrance through wall
+**Treasure Chamber Construction (TMEA-First Architecture):**
+- Wall position becomes a door with TMEA secret metadata - secret entrance through wall
+  - Base tile: `TILE_DOOR`, TMEA metadata: `TMFLAG_DOOR_SECRET`
+  - Uses `add_secret_door_metadata()` instead of `TILE_SECRET_DOOR` tile type
 - Adjacent position outside room becomes `TILE_FLOOR` (treasure chamber)
 - `place_walls_around_corridor_tile()` builds protective walls around chamber
 - Maintains wall_side consistency with existing door system (0=Left, 1=Right, 2=Top, 3=Bottom)
+- Treasure wall_side stored in room metadata for runtime queries
 
 **Wall Selection Algorithm:**
 - Early return if room has `ROOM_SECRET` or `ROOM_HAS_TREASURE` flags
@@ -327,10 +335,13 @@ The hidden corridor system identifies and conceals non-branching corridors to in
 - Hides up to N corridors (configurable: Small=1, Medium=2, Large=3)
 - Maximum capped at 2/3 of room count to preserve navigability
 
-**Corridor Hiding:**
-- Converts both door tiles to secret doors (`TILE_SECRET_DOOR`)
-- Updates `is_secret_door` flag in door metadata
-- Maintains corridor structure (only doors change to secret doors, corridor floor tiles remain normal)
+**Corridor Hiding (TMEA-First Architecture):**
+- Converts both door tiles to secret doors using TMEA metadata
+  - Base tile remains `TILE_DOOR`, adds `TMFLAG_DOOR_SECRET` metadata
+  - Uses `add_secret_door_metadata()` for both doors
+- Door metadata `is_branching` flag remains unchanged (already set to 0 for non-branching)
+- Maintains corridor structure (only doors get secret metadata, corridor floor tiles remain normal)
+- Display system checks `is_door_secret()` to render appropriate visual representation
 
 ### Phase 7: Placing Stairs
 
@@ -376,10 +387,10 @@ Map data is stored using a 3-bit per tile encoding:
 - `TILE_EMPTY` (0): Empty space
 - `TILE_WALL` (1): Wall structure
 - `TILE_FLOOR` (2): Room floor
-- `TILE_DOOR` (3): Standard door
+- `TILE_DOOR` (3): Standard door (secret doors use TMEA metadata)
 - `TILE_UP` (4): Upward staircase
 - `TILE_DOWN` (5): Downward staircase
-- `TILE_SECRET_DOOR` (6): Secret door
+- `TILE_MARKER` (7): TMEA metadata presence flag (reserved for future tile types)
 
 ### Room Data Structure
 
@@ -467,11 +478,12 @@ typedef struct {
 typedef struct {
     unsigned char x, y;                    // Door coordinates
     unsigned char wall_side : 2;           // Wall side (0-3)
-    unsigned char is_secret_door : 1;      // Secret room entrance flag
-    unsigned char has_treasure : 1;        // Treasure chamber attached flag
-    unsigned char reserved : 4;            // Reserved for future use
+    unsigned char is_branching : 1;        // Branching corridor flag (used by hidden corridor system)
+    unsigned char reserved : 5;            // Reserved for future use
 } Door;                                    // 3 bytes total
 ```
+
+**Note:** Secret door state is managed via TMEA metadata system (`TMFLAG_DOOR_SECRET`), not in the Door structure. This enables 5 door states (open, closed, locked, secret, trapped) instead of the previous 2 states.
 
 ### Corridor Breakpoint Structure
 ```c
@@ -505,6 +517,130 @@ typedef struct {
 - `false_corridor_end_x, false_corridor_end_y`: Coordinates of corridor dead-end
 - Invalid coordinates (255, 255) indicate no false corridor
 - `place_false_corridors()`: Places configurable number of false corridors (3/5/8) with retry logic and two-pass walker validation
+
+## TMEA: Tile Metadata Extension Architecture
+
+### Overview
+
+**TMEA (Tile Metadata Extension Architecture)** is a lightweight metadata system that extends the base tile system with additional properties and dynamic entities. It provides a way to attach extra information to tiles (doors, walls, floors) without increasing the base tile storage footprint.
+
+**Memory Overhead:** 765 bytes (~1.2% of C64 RAM)
+
+### Architecture Philosophy
+
+TMEA uses a **hybrid two-tier architecture** optimized for room-based dungeon generation:
+
+1. **Room Metadata Pool** (Primary, ~70% of map):
+   - 4 slots per room × 20 rooms = 80 max metadata entries
+   - Compact room-local coordinates (4+4 bits)
+   - Fast O(4) lookup per room
+
+2. **Global Metadata Pool** (Fallback, ~30% of map):
+   - 16 slots for corridors and map-wide features
+   - Global coordinates (8+8 bits)
+   - O(16) linear search
+
+3. **Entity Pools** (Dynamic):
+   - 48 objects (items, keys, potions) - 6 bytes each
+   - 24 monsters (enemies with AI state) - 6 bytes each
+   - Always use global coordinates for movement
+
+### Door State Management (TMEA-First)
+
+**Secret doors** are now managed exclusively via TMEA metadata instead of a dedicated tile type:
+
+- **Base tile:** `TILE_DOOR` (3)
+- **Metadata flag:** `TMFLAG_DOOR_SECRET`
+- **Display:** System checks `is_door_secret()` to render appropriate symbol
+
+**Advantages:**
+- Eliminates tile type redundancy (value 6 freed for future use)
+- Enables 5 door states instead of 2: secret, locked, trapped, revealed, open
+- Single source of truth for door properties
+- Extensible for future door mechanics
+
+**API Functions:**
+```c
+// Add secret door metadata
+unsigned char add_secret_door_metadata(unsigned char x, unsigned char y);
+
+// Query door state
+unsigned char is_door_secret(unsigned char x, unsigned char y);
+unsigned char is_door_locked(unsigned char x, unsigned char y);
+unsigned char is_door_trapped(unsigned char x, unsigned char y);
+
+// Reveal secret door
+unsigned char reveal_secret_door(unsigned char x, unsigned char y);
+
+// Set door open/closed state
+unsigned char set_door_open(unsigned char x, unsigned char y, unsigned char is_open);
+```
+
+### TMEA Type System
+
+**8-bit Flag Encoding:** `TTTFFFFF`
+- **TTT:** Type classification (3 bits, 8 types)
+- **FFFFF:** Type-specific flags (5 bits, 32 flags)
+
+**Door Flags (TMTYPE_DOOR = 0x20):**
+- `TMFLAG_DOOR_SECRET` (0x01): Hidden from player
+- `TMFLAG_DOOR_TRAPPED` (0x02): Triggers trap on open
+- `TMFLAG_DOOR_LOCKED` (0x04): Requires key/lockpick
+- `TMFLAG_DOOR_REVEALED` (0x08): Secret door discovered
+- `TMFLAG_DOOR_OPEN` (0x10): Door is open
+
+**Wall Flags (TMTYPE_WALL = 0x00):**
+- `TMFLAG_WALL_ILLUSORY` (0x01): Passable fake wall
+- `TMFLAG_WALL_SECRET` (0x02): Hidden wall
+- `TMFLAG_WALL_REVEALED` (0x04): Discovered
+- `TMFLAG_WALL_DESTRUCTIBLE` (0x10): Can be destroyed
+
+**Trap Flags (TMTYPE_TRAP = 0x40):**
+- `TMFLAG_TRAP_HIDDEN` (0x01): Not visible
+- `TMFLAG_TRAP_TRIGGERED` (0x02): Already activated
+- `TMFLAG_TRAP_DISARMED` (0x04): Disabled
+
+### Performance Characteristics
+
+| Operation | Room Pool | Global Pool | Notes |
+|-----------|-----------|-------------|-------|
+| **add_tile_metadata** | ~240 cycles | ~230 cycles | Automatic routing |
+| **get_tile_metadata** | ~260 cycles | ~440 cycles | Quick reject: ~50 cycles |
+| **Quick reject** | ~50 cycles | ~50 cycles | TILE_MARKER check |
+| **spawn_object** | ~90 cycles | - | Free list alloc |
+| **spawn_monster** | ~90 cycles | - | Free list alloc |
+
+**Weighted Average:** ~0.31ms per lookup (70% room, 30% global)
+
+### Integration with Generation
+
+TMEA is initialized at program startup and reset before each new dungeon:
+
+```c
+// In main()
+init_tmea_system();  // One-time initialization
+
+// Before each generation
+reset_tmea_data();   // Clear metadata, rebuild entity pools
+```
+
+All secret door creation now uses TMEA:
+- Secret rooms: `add_secret_door_metadata()` instead of `TILE_SECRET_DOOR`
+- Secret treasures: `add_secret_door_metadata()` for treasure chamber entrance
+- Hidden corridors: `add_secret_door_metadata()` for both corridor doors
+
+### Future Extensibility
+
+TMEA provides a foundation for advanced dungeon features:
+- **Locked doors** with key requirements
+- **Trapped doors** with damage values
+- **Illusory walls** (passable fake walls)
+- **Floor traps** (hidden, pressure plates)
+- **Teleport pads** with destination links
+- **Objects** (gold, keys, potions, quest items)
+- **Monsters** (enemies with HP and AI state)
+
+For complete TMEA documentation, see **[docs/TMEA.md](TMEA.md)**
 
 ## Algorithm Performance
 
@@ -646,16 +782,17 @@ total_size = 2 (PRG header) + 1 (size byte) + data_bytes
 
 ### Tile Encoding (3 bits per tile)
 
-| Value | Tile Type    | PETSCII Display |
-|-------|--------------|-----------------|
-| 0     | Empty        | Space (32)      |
-| 1     | Wall         | Block (160)     |
-| 2     | Floor        | Period (46)     |
-| 3     | Door         | Plus (219)      |
-| 4     | Up stairs    | Less-than (60)  |
-| 5     | Down stairs  | Greater (62)    |
-| 6     | Secret path  | Caret (94)      |
-| 7     | (reserved)   | -               |
+| Value | Tile Type    | PETSCII Display | Notes |
+|-------|--------------|-----------------|-------|
+| 0     | Empty        | Space (32)      | Background |
+| 1     | Wall         | Block (160)     | Solid barrier |
+| 2     | Floor        | Period (46)     | Walkable area |
+| 3     | Door         | Plus (219) / Checkerboard (176) | Normal or secret (via TMEA) |
+| 4     | Up stairs    | Less-than (60)  | Level exit up |
+| 5     | Down stairs  | Greater (62)    | Level exit down |
+| 7     | TILE_MARKER  | -               | TMEA metadata flag (reserved) |
+
+**Note:** Value 6 is freed for future tile types. Secret doors use `TILE_DOOR` (3) with TMEA metadata (`TMFLAG_DOOR_SECRET`). Display system queries TMEA to determine rendering.
 
 ### Implementation Details
 
