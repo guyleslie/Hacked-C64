@@ -112,7 +112,7 @@ unsigned char generate_level(void) {
 
     // Phase 2.5: Convert single-connection rooms to secret rooms
     show_phase(2); // "Secret Areas"
-    convert_secret_rooms_doors();
+    place_secret_rooms(current_params.secret_room_count);
 
     // Phase 2.6: Place secret treasures
     show_phase(3); // "Secret Treasures"

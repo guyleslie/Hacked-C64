@@ -19,7 +19,7 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
 void init_rooms(void);
 
 // Secret room management
-void convert_secret_rooms_doors(void);
+void place_secret_rooms(unsigned char room_count_target);
 
 // Secret treasure management
 void place_secret_treasures(unsigned char treasure_count);

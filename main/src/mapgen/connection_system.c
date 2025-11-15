@@ -40,7 +40,7 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y, unsigned char
         }
 
         unsigned char tile = get_compact_tile(x, y);
-        if (tile == TILE_FLOOR || tile == TILE_DOOR || tile == TILE_SECRET_PATH) {
+        if (tile == TILE_FLOOR || tile == TILE_DOOR || tile == TILE_SECRET_DOOR) {
             return 0;
         }
     }
@@ -207,7 +207,7 @@ static unsigned char process_corridor_path(unsigned char start_x, unsigned char 
 void draw_corridor_from_door(unsigned char exit1_x, unsigned char exit1_y,
                             unsigned char wall1_side, unsigned char exit2_x, unsigned char exit2_y,
                             unsigned char corridor_type, unsigned char is_secret) {
-    unsigned char tile_type = is_secret ? TILE_SECRET_PATH : TILE_FLOOR;
+    unsigned char tile_type = is_secret ? TILE_SECRET_DOOR : TILE_FLOOR;
     process_corridor_path(exit1_x, exit1_y, exit2_x, exit2_y, wall1_side, corridor_type,
                           CORRIDOR_MODE_DRAW, tile_type);
 }
@@ -420,8 +420,8 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
 
     // Place doors
     if (is_secret) {
-        set_compact_tile(exit1_x, exit1_y, TILE_SECRET_PATH);
-        set_compact_tile(exit2_x, exit2_y, TILE_SECRET_PATH);
+        set_compact_tile(exit1_x, exit1_y, TILE_SECRET_DOOR);
+        set_compact_tile(exit2_x, exit2_y, TILE_SECRET_DOOR);
     } else {
         place_door(exit1_x, exit1_y);
         place_door(exit2_x, exit2_y);
@@ -516,71 +516,10 @@ void build_room_network(void) {
 }
 
 // =============================================================================
-// SECRET ROOM SYSTEM
+// SHARED HELPER FUNCTIONS
 // =============================================================================
 
-// Convert doors to secret rooms into secret passages
-void convert_secret_rooms_doors(void) {
-    // Secret room conversion phase - progress handled by main generation loop
-    unsigned char secrets_made = 0;
-    unsigned char target_secret_count = current_params.secret_room_count;
-
-    for (unsigned char i = 0; i < room_count && secrets_made < target_secret_count; i++) {
-        __assume(room_count <= MAX_ROOMS);
-        // Only rooms with exactly one connection can be secret
-        if (room_list[i].connections == 1 && rnd(100) < SECRET_ROOM_PERCENTAGE) {
-            unsigned char connected_room = room_list[i].conn_data[0].room_id;
-
-            // Get the connected room's door position for this connection
-            unsigned char connected_door_x, connected_door_y, connected_wall_side, temp_corridor_type;
-            if (!get_connection_info(connected_room, i, &connected_door_x, &connected_door_y, &connected_wall_side, &temp_corridor_type)) {
-                continue; // Connection not found, skip this room
-            }
-
-            // OPTIMIZED: Instant O(1) wall door count check
-            // If more than 1 door on this wall, skip (would delete existing corridor)
-            if (room_list[connected_room].wall_door_count[connected_wall_side] > 1) continue;
-            room_list[i].state |= ROOM_SECRET;
-
-            if (room_list[i].connections > 0) {
-                Door *secret_door = &room_list[i].doors[0];
-
-                // Use the door coordinates we already retrieved above
-                unsigned char normal_door_x = connected_door_x;
-                unsigned char normal_door_y = connected_door_y;
-
-                // Only convert the normal room door to secret passage
-                // The corridor and secret room door remain normal
-                // This creates a hidden entrance to the secret room
-                set_compact_tile(normal_door_x, normal_door_y, TILE_SECRET_PATH);
-
-                // Mark the door as secret in metadata - find the door index in connected room
-                for (unsigned char door_idx = 0; door_idx < room_list[connected_room].connections; door_idx++) {
-                    if (room_list[connected_room].doors[door_idx].x == normal_door_x &&
-                        room_list[connected_room].doors[door_idx].y == normal_door_y) {
-                        room_list[connected_room].doors[door_idx].is_secret_door = 1;
-                        break;
-                    }
-                }
-
-                secrets_made++;
-                // Phase 2: Secret room progress
-                update_progress_step(2, secrets_made, current_params.secret_room_count);
-            }
-        }
-    }
-}
-
-// =============================================================================
-// SECRET TREASURE PLACEMENT SYSTEM
-// =============================================================================
-
-
-// =============================================================================
-// HIDDEN CORRIDOR SYSTEM
-// =============================================================================
-
-// Check if corridor between two rooms is non-branching (eligible for hiding)
+// Check if corridor between two rooms is non-branching (shared by secret rooms and hidden corridors)
 static unsigned char is_non_branching_corridor(unsigned char room1, unsigned char room2) {
     // Skip secret rooms (already hidden via different mechanism)
     if (room_list[room1].state & ROOM_SECRET) return 0;
@@ -609,8 +548,91 @@ static unsigned char is_non_branching_corridor(unsigned char room1, unsigned cha
     return 0; // Connection not found or invalid
 }
 
-// Hide corridor by converting both doors to TILE_SECRET_PATH
-static unsigned char hide_corridor_between_rooms(unsigned char room1, unsigned char room2) {
+// =============================================================================
+// SECRET ROOM SYSTEM
+// =============================================================================
+
+// Create a single secret room from a room with exactly one connection
+static unsigned char create_secret_room(unsigned char room_idx) {
+    Room *room = &room_list[room_idx];
+
+    // Skip if already secret or doesn't have exactly one connection
+    if (room->state & ROOM_SECRET) return 0;
+    if (room->connections != 1) return 0;
+
+    // Random chance to convert (50% of eligible rooms)
+    if (rnd(100) >= SECRET_ROOM_PERCENTAGE) return 0;
+
+    unsigned char connected_room = room->conn_data[0].room_id;
+
+    // Reuse is_non_branching_corridor logic - check if the connection is non-branching
+    if (!is_non_branching_corridor(room_idx, connected_room)) {
+        return 0; // Connection is branching or invalid
+    }
+
+    // Get the connected room's door position for this connection
+    unsigned char connected_door_x, connected_door_y, connected_wall_side, temp_corridor_type;
+    if (!get_connection_info(connected_room, room_idx, &connected_door_x, &connected_door_y, &connected_wall_side, &temp_corridor_type)) {
+        return 0; // Connection not found
+    }
+
+    // OPTIMIZED: Instant O(1) wall door count check
+    // If more than 1 door on this wall, skip (would delete existing corridor)
+    if (room_list[connected_room].wall_door_count[connected_wall_side] > 1) {
+        return 0;
+    }
+
+    // Mark room as secret
+    room->state |= ROOM_SECRET;
+
+    // Convert the normal room's door to secret door
+    // This creates a hidden entrance to the secret room
+    set_compact_tile(connected_door_x, connected_door_y, TILE_SECRET_DOOR);
+
+    // Mark the door as secret in metadata - find the door index in connected room
+    for (unsigned char door_idx = 0; door_idx < room_list[connected_room].connections; door_idx++) {
+        if (room_list[connected_room].doors[door_idx].x == connected_door_x &&
+            room_list[connected_room].doors[door_idx].y == connected_door_y) {
+            room_list[connected_room].doors[door_idx].is_secret_door = 1;
+            break;
+        }
+    }
+
+    return 1; // Successfully created secret room
+}
+
+// Main secret room placement function
+void place_secret_rooms(unsigned char room_count_target) {
+    if (room_count == 0 || room_count_target == 0) return;
+
+    unsigned char secrets_made = 0;
+
+    for (unsigned char i = 0; i < room_count && secrets_made < room_count_target; i++) {
+        __assume(room_count <= MAX_ROOMS);
+
+        if (create_secret_room(i)) {
+            secrets_made++;
+            // Phase 2: Secret room progress
+            update_progress_step(2, secrets_made, room_count_target);
+        }
+    }
+}
+
+// =============================================================================
+// SECRET TREASURE PLACEMENT SYSTEM
+// =============================================================================
+
+
+// =============================================================================
+// HIDDEN CORRIDOR SYSTEM
+// =============================================================================
+
+// Create a hidden corridor by converting both door tiles to secret doors
+static unsigned char create_hidden_corridor(unsigned char room1, unsigned char room2) {
+    // Reuse eligibility check from shared helper
+    if (!is_non_branching_corridor(room1, room2)) {
+        return 0; // Not eligible for hiding
+    }
     // Get door positions
     unsigned char door1_x, door1_y, wall1_side, corridor_type;
     if (!get_connection_info(room1, room2, &door1_x, &door1_y, &wall1_side, &corridor_type)) {
@@ -622,9 +644,9 @@ static unsigned char hide_corridor_between_rooms(unsigned char room1, unsigned c
         return 0;
     }
 
-    // Convert tiles to secret paths
-    set_compact_tile(door1_x, door1_y, TILE_SECRET_PATH);
-    set_compact_tile(door2_x, door2_y, TILE_SECRET_PATH);
+    // Convert door tiles to secret doors
+    set_compact_tile(door1_x, door1_y, TILE_SECRET_DOOR);
+    set_compact_tile(door2_x, door2_y, TILE_SECRET_DOOR);
 
     // Update metadata flags - room1's door
     for (unsigned char i = 0; i < room_list[room1].connections; i++) {
@@ -647,7 +669,7 @@ static unsigned char hide_corridor_between_rooms(unsigned char room1, unsigned c
     return 1;
 }
 
-// Main entry point - randomly hide non-branching corridors
+// Main hidden corridor placement function
 void place_hidden_corridors(unsigned char corridor_count) {
     if (room_count < 2 || corridor_count == 0) return;
 
@@ -677,29 +699,19 @@ void place_hidden_corridors(unsigned char corridor_count) {
         return;
     }
 
-    // Determine how many to hide (min of requested and available)
-    unsigned char to_hide = (corridor_count < candidate_count) ? corridor_count : candidate_count;
+    // Hide random corridors from candidates
     unsigned char hidden = 0;
+    unsigned char attempts = 0;
+    unsigned char max_attempts = candidate_count * 2; // Reasonable attempt limit
 
-    // Fisher-Yates shuffle (partial - only first 'to_hide' elements)
-    for (unsigned char i = 0; i < to_hide; i++) {
-        unsigned char j = i + rnd(candidate_count - i);
+    while (hidden < corridor_count && attempts < max_attempts) {
+        unsigned char idx = rnd(candidate_count);
 
-        // Swap candidates[i] and candidates[j]
-        unsigned char temp_r1 = candidates_room1[i];
-        unsigned char temp_r2 = candidates_room2[i];
-        candidates_room1[i] = candidates_room1[j];
-        candidates_room2[i] = candidates_room2[j];
-        candidates_room1[j] = temp_r1;
-        candidates_room2[j] = temp_r2;
-    }
-
-    // Hide selected corridors
-    for (unsigned char i = 0; i < to_hide; i++) {
-        if (hide_corridor_between_rooms(candidates_room1[i], candidates_room2[i])) {
+        if (create_hidden_corridor(candidates_room1[idx], candidates_room2[idx])) {
             hidden++;
-            update_progress_step(5, hidden, to_hide);
+            update_progress_step(5, hidden, corridor_count);
         }
+        attempts++;
     }
 }
 
@@ -844,8 +856,8 @@ void place_false_corridors(unsigned char corridor_count) {
     }
 }
 
-// Place a single secret treasure for a room
-unsigned char place_treasure_for_room(unsigned char room_idx) {
+// Create a single secret treasure for a room
+static unsigned char create_secret_treasure(unsigned char room_idx) {
     Room *room = &room_list[room_idx];
 
     // Skip rooms that already have treasure or are secret rooms
@@ -911,8 +923,8 @@ unsigned char place_treasure_for_room(unsigned char room_idx) {
         }
 
         // set_compact_tile() already handles bounds checking
-        // Create secret path in wall only, normal floor in treasure chamber
-        set_compact_tile(wall_x, wall_y, TILE_SECRET_PATH);
+        // Create secret door in wall, normal floor in treasure chamber
+        set_compact_tile(wall_x, wall_y, TILE_SECRET_DOOR);
         set_compact_tile(treasure_x, treasure_y, TILE_FLOOR);
 
         // Place walls around treasure chamber
@@ -940,7 +952,7 @@ void place_secret_treasures(unsigned char treasure_count) {
     while (treasures_placed < treasure_count && attempts < max_attempts) {
         unsigned char room_idx = rnd(room_count);
 
-        if (place_treasure_for_room(room_idx)) {
+        if (create_secret_treasure(room_idx)) {
             treasures_placed++;
             // Phase 3: Treasure placement progress
             update_progress_step(3, treasures_placed, treasure_count);
