@@ -361,7 +361,6 @@ void init_rooms(void) {
             room_list[i].doors[j].x = 0;
             room_list[i].doors[j].y = 0;
             room_list[i].doors[j].wall_side = 0;
-            room_list[i].doors[j].is_secret_door = 0;
             room_list[i].doors[j].has_treasure = 0;
             room_list[i].doors[j].is_branching = 0; // Initialize as non-branching
             room_list[i].doors[j].reserved = 0; // Clear reserved bits
