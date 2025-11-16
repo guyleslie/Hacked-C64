@@ -105,14 +105,14 @@ Final dungeon map:
 - **Configurable Parameters**:
   - Map Size (Small: 48×48, Medium: 64×64, Large: 80×80)
   - Room Count (Small: 8, Medium: 12, Large: 16)
-  - Secret Rooms (10%/20%/30% of max rooms)
-  - False Corridors (3/5/8)
-  - Secret Treasures (2/4/6)
-  - Hidden Corridors (1/2/3) - Non-branching corridor doors converted to secret doors
-- **Secret Rooms**: Hidden areas accessible through secret doors (configurable percentage of single-connection rooms)
-- **Secret Treasures**: Hidden treasure chambers placed only on walls without doors or false corridor entrances
-- **False Corridors**: Misleading dead-end passages validated by a two-pass corridor walker; doors are wall-specific and never share a wall with treasure alcoves
-- **Hidden Corridors**: Non-branching corridor doors between rooms are randomly converted to secret doors, obscuring direct paths and increasing navigation difficulty
+  - Secret Rooms (10%/25%/50% of total rooms)
+  - Secret Treasures (10%/25%/50% of non-secret rooms)
+  - False Corridors (10%/25%/50% of available walls in non-secret rooms)
+  - Hidden Corridors (10%/25%/50% of non-branching corridors)
+- **Secret Rooms**: Hidden areas accessible through secret doors (percentage of single-connection rooms)
+- **Secret Treasures**: Hidden treasure chambers placed on walls without doors in non-secret rooms only
+- **False Corridors**: Misleading dead-end passages on available walls (walls without doors in non-secret rooms)
+- **Hidden Corridors**: Non-branching corridor doors between rooms randomly converted to secret doors (percentage of eligible corridors)
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
 - **Map Export**: Save generated maps to disk in binary format
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
@@ -137,7 +137,7 @@ Final dungeon map:
 
 ### Performance
 
-- **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
+- **Generation Time**: ~3-4 seconds on C64 hardware (varies by map size and configuration)
 - **Executable Size**: Release build optimized for size (significantly smaller than development build)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Map Storage**: 2400 bytes max buffer (handles all map sizes: 48×48=864, 64×64=1536, 80×80=2400)
