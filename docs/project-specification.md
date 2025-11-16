@@ -68,14 +68,16 @@ Limited keyboard support for essential commands:
 **Pre-Generation Parameters:**
 - **Map Size**: Small (48×48), Medium (64×64), Large (80×80)
 - **Room Count**: Small (8), Medium (12), Large (16)
-- **Secret Rooms**: 10%/20%/30% of max rooms
-- **False Corridors**: 3/5/8 dead-end passages
-- **Secret Treasures**: 2/4/6 hidden chambers
-- **Hidden Corridors**: 1/2/3 non-branching corridor doors converted to secret doors
+- **Secret Rooms**: 10%/25%/50% of max rooms (percentage-based)
+- **Secret Treasures**: 10%/25%/50% of non-secret rooms (percentage-based, calculated post-MST)
+- **False Corridors**: 10%/25%/50% of available walls (percentage-based, calculated post-MST)
+- **Hidden Corridors**: 10%/25%/50% of non-branching corridors (percentage-based, calculated post-MST)
 
 **Implementation Details:**
-- Configuration stored in `MapConfig` structure
-- Values validated and converted to `MapParameters`
+- Configuration stored in `MapConfig` structure with preset levels (Small/Medium/Large)
+- Values validated and converted to `MapParameters` with percentage ratios
+- **Post-MST Calculation**: Feature counts calculated from actual network topology using runtime counters
+- **Runtime Tracking**: 6-byte counter system (total_connections, total_secret_rooms, total_treasures, total_false_corridors, total_hidden_corridors, available_walls_count)
 - Dynamic parameter passing to generation pipeline
 - Real-time value updates in menu display
 
@@ -243,22 +245,36 @@ The secret room system provides a special gameplay mechanic:
 - Connected room must not have other doors on the same wall (prevents corridor deletion)
 - 50% probability of conversion to secret status
 - Room `state` field receives `ROOM_SECRET` flag marking (prevents treasure placement)
+- **Target count**: 10%/25%/50% of max_rooms based on preset level
 
 **Secret Door Conversion (TMEA-First Architecture):**
 - Base tile remains `TILE_DOOR`, TMEA metadata marks it as secret (`TMFLAG_DOOR_SECRET`)
 - Uses `add_secret_door_metadata()` to add TMEA metadata instead of changing tile type
-- The corridor and secret room interior remain normal
-- This creates a hidden entrance mechanism to the secret room
 - Visual representation: Display system checks `is_door_secret()` and renders `░` symbol
 - Implementation uses `is_non_branching_corridor()` shared validation function
 - Enables 5 door states (secret, locked, trapped, revealed, open) vs previous 2 states
+
+**Runtime Tracking:**
+- Increments `total_secret_rooms` counter when secret room created
+- Decrements `available_walls_count` for each unused wall in secret room (walls become unavailable for false corridors)
+
+### Phase 3.5: Post-MST Feature Count Calculation
+
+After secret rooms are placed, the system calculates actual feature counts based on network topology:
+
+**Calculation Logic:**
+- **Treasure count**: `calculate_percentage_count(room_count - total_secret_rooms, treasure_ratio[preset])`
+- **Hidden corridor count**: `calculate_percentage_count(count_non_branching_from_flags(), hidden_corridor_ratio[preset])`
+- **False corridor count**: `calculate_percentage_count(available_walls_count, false_corridor_ratio[preset])`
+- Uses round-up formula: `(total * percentage + 99) / 100` to ensure minimum 1 feature when base > 0
+- Progress weights recalculated with updated feature counts for accurate progress bar
 
 ### Phase 4: Placing Secret Treasures
 
 The secret treasure system creates hidden treasure chambers accessible through walls:
 
 **Secret Treasure Criteria:**
-- Places secret treasures randomly across available rooms (configurable: 2/4/6)
+- **Target count**: Calculated post-MST as percentage of non-secret rooms (10%/25%/50%)
 - Only places treasures on walls without doors, false corridor entrances, or treasure metadata
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
 - Prevents duplicate treasures per room using `ROOM_HAS_TREASURE` flag
@@ -284,9 +300,17 @@ The secret treasure system creates hidden treasure chambers accessible through w
   - Validation: `treasure_x < 3 || treasure_x >= map_width - 3 || treasure_y < 3 || treasure_y >= map_height - 3`
 - Sets `ROOM_HAS_TREASURE` flag upon successful placement
 
+**Runtime Tracking:**
+- Increments `total_treasures` counter when treasure created
+- Decrements `available_walls_count` (treasure uses 1 wall)
+
 ### Phase 5: Placing False Corridors
 
 The false corridor system creates Nethack-style misleading dead-end passages using wall-first intelligent endpoint generation:
+
+**Target Count:**
+- **Calculated post-MST** as percentage of available walls (10%/25%/50%)
+- Based on `available_walls_count` which excludes walls with doors and secret room walls
 
 **Algorithm (Wall-First Approach):**
 1. **Select Wall Side First**: Random wall_side (0=left, 1=right, 2=top, 3=bottom) where no doors exist
@@ -300,7 +324,6 @@ The false corridor system creates Nethack-style misleading dead-end passages usi
 5. **Use Proven Corridor Logic**: Same `determine_corridor_type()` and `process_corridor_path()` as normal room connections
 
 **False Corridor Criteria:**
-- Places false corridors randomly across available rooms (configurable: 3/5/8)
 - Retry logic continues until target reached or maximum attempts exceeded
 - Only places on walls with no doors, treasure entrances, or recorded false corridor metadata
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
@@ -318,12 +341,24 @@ The false corridor system creates Nethack-style misleading dead-end passages usi
 - Bounds validation keeps corridors inside the playable area
 - Successful placements record entrance and endpoint metadata and set `ROOM_HAS_FALSE_CORRIDOR`
 
+**Runtime Tracking:**
+- Increments `total_false_corridors` counter when false corridor created
+- `available_walls_count` already decremented in `add_connection_to_room()` when door added
+
 ### Phase 6: Hiding Corridors
 
 The hidden corridor system identifies and conceals non-branching corridors to increase navigation difficulty:
 
+**Target Count:**
+- **Calculated post-MST** as percentage of non-branching corridors (10%/25%/50%)
+- Uses `count_non_branching_from_flags()` which counts corridors with `is_non_branching=1` in PackedConnection
+
 **Non-Branching Detection:**
 - Corridors identified as "non-branching" if both door endpoints have no other doors on the same wall
+- **PackedConnection bitfield optimization**: `is_non_branching` flag (1 bit) tracked during connection creation
+  - Initially set to 1 when corridor created
+  - Updated to 0 if wall becomes branching (multiple doors on same wall)
+  - Enables O(1) queries via `count_non_branching_from_flags()` without iteration
 - Branching detection uses pre-computed `is_branching` flag in Door structure (set during connection creation)
 - Excludes secret rooms (already hidden via different mechanism)
 - Excludes doors already marked as secret
@@ -332,8 +367,6 @@ The hidden corridor system identifies and conceals non-branching corridors to in
 - Candidate search iterates all room pairs with connections
 - Uses `room_has_connection_to()` and `is_non_branching_corridor()` for O(1) validation
 - Random selection with retry logic from candidate pool
-- Hides up to N corridors (configurable: Small=1, Medium=2, Large=3)
-- Maximum capped at 2/3 of room count to preserve navigability
 
 **Corridor Hiding (TMEA-First Architecture):**
 - Converts both door tiles to secret doors using TMEA metadata
@@ -342,6 +375,9 @@ The hidden corridor system identifies and conceals non-branching corridors to in
 - Door metadata `is_branching` flag remains unchanged (already set to 0 for non-branching)
 - Maintains corridor structure (only doors get secret metadata, corridor floor tiles remain normal)
 - Display system checks `is_door_secret()` to render appropriate visual representation
+
+**Runtime Tracking:**
+- Increments `total_hidden_corridors` counter when corridor hidden
 
 ### Phase 7: Placing Stairs
 
@@ -468,10 +504,17 @@ typedef struct {
 ### Packed Connection Structure
 ```c
 typedef struct {
-    unsigned char room_id : 5;             // Connected room ID (0-31)
-    unsigned char corridor_type : 3;       // Corridor type (0-7, expanded for future use)
-} PackedConnection;                        // 1 byte total 
+    unsigned char room_id : 5;              // Connected room ID (0-31)
+    unsigned char corridor_type : 2;        // Corridor type (0-3): Straight=0, L-shaped=1, Z-shaped=2
+    unsigned char is_non_branching : 1;     // Non-branching corridor flag (runtime tracking for hidden corridors)
+} PackedConnection;                         // 1 byte total (optimized: corridor_type reduced 3→2 bits)
 ```
+
+**Optimization Notes:**
+- `corridor_type` reduced from 3 bits to 2 bits (only 3 types used: 0-2)
+- `is_non_branching` flag added (1 bit) for O(1) non-branching corridor queries
+- Still 1 byte total with zero memory overhead
+- Enables fast `count_non_branching_from_flags()` without iteration
 
 ### Door Structure
 ```c
@@ -658,15 +701,16 @@ For complete TMEA documentation, see **[docs/TMEA.md](TMEA.md)**
 
 ## Generation Pipeline
 
-1. **Initialization**: Map clearing, random seed setup
+1. **Initialization**: Map clearing, random seed setup, runtime counter initialization
 2. **Room Creation**: Grid-based placement with collision detection and immediate wall construction
-3. **Connection System**: MST algorithm execution with corridor walls built during creation
-4. **Secret Rooms**: Single-connection room conversion using `place_secret_rooms()`
-5. **Secret Treasures**: Hidden treasure chamber placement using `place_secret_treasures()`
-6. **False Corridors**: Dead-end corridor placement using `place_false_corridors()`
-7. **Hidden Corridors**: Non-branching corridor concealment using `place_hidden_corridors()`
-8. **Stair Placement**: Distance-based optimal placement (maximum separation)
-9. **Camera Initialization**: Viewport setup for navigation
+3. **Connection System**: MST algorithm execution with corridor walls built during creation (updates `total_connections`, `available_walls_count`)
+4. **Secret Rooms**: Single-connection room conversion using `place_secret_rooms()` (updates `total_secret_rooms`, `available_walls_count`)
+5. **Post-MST Calculation**: `calculate_post_mst_feature_counts()` computes actual feature counts from percentages using runtime counters
+6. **Secret Treasures**: Hidden treasure chamber placement using `place_secret_treasures()` (updates `total_treasures`, `available_walls_count`)
+7. **False Corridors**: Dead-end corridor placement using `place_false_corridors()` (updates `total_false_corridors`)
+8. **Hidden Corridors**: Non-branching corridor concealment using `place_hidden_corridors()` (updates `total_hidden_corridors`)
+9. **Stair Placement**: Distance-based optimal placement (maximum separation)
+10. **Camera Initialization**: Viewport setup for navigation
 
 ## Technical Architecture
 
