@@ -33,16 +33,13 @@ main/src/
 │   └── tmea_core.c          # TMEA implementation (metadata and entity pools)
 build-dev.bat                # Development build with debug information
 build-release.bat            # Optimized production build
-build.bat                    # Interactive build selection
 run_vice.bat                 # VICE emulator launcher
 docs/                        # Comprehensive technical documentation
 ```
 
 ## User Input System
 
-### Joystick 2 Control (Primary)
-
-The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC00):
+The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC00) and Limited keyboard support for essential commands via `getchx()`:
 
 **Map Navigation:**
 - Reads joystick directions via CIA1 Port A register
@@ -51,17 +48,7 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 - Bit mapping: UP(0), DOWN(1), LEFT(2), RIGHT(3), FIRE(4) - active low
 
 **Configuration Menu:**
-- Fire button opens configuration menu
-- Up/Down navigates menu options
-- Left/Right adjusts values (Small/Medium/Large)
-- Fire button confirms and starts generation
 - Debounce logic prevents repeated inputs
-
-### Keyboard Input (Secondary)
-
-Limited keyboard support for essential commands:
-- **Q key**: Quit program (via `getchx()`)
-- **M key**: Export map to disk (via `getchx()`)
 
 ### Configuration System
 
@@ -521,8 +508,9 @@ typedef struct {
 typedef struct {
     unsigned char x, y;                    // Door coordinates
     unsigned char wall_side : 2;           // Wall side (0-3)
+    unsigned char has_treasure : 1;        // Treasure chamber attached flag
     unsigned char is_branching : 1;        // Branching corridor flag (used by hidden corridor system)
-    unsigned char reserved : 5;            // Reserved for future use
+    unsigned char reserved : 4;            // Reserved for future use
 } Door;                                    // 3 bytes total
 ```
 
@@ -834,7 +822,7 @@ total_size = 2 (PRG header) + 1 (size byte) + data_bytes
 | 3     | Door         | Plus (219) / Checkerboard (176) | Normal or secret (via TMEA) |
 | 4     | Up stairs    | Less-than (60)  | Level exit up |
 | 5     | Down stairs  | Greater (62)    | Level exit down |
-| 7     | TILE_MARKER  | -               | TMEA metadata flag (reserved) |
+| 7     | TILE_MARKER  | -               | TMEA metadata flag |
 
 **Note:** Value 6 is freed for future tile types. Secret doors use `TILE_DOOR` (3) with TMEA metadata (`TMFLAG_DOOR_SECRET`). Display system queries TMEA to determine rendering.
 
