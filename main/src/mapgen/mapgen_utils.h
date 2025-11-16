@@ -67,6 +67,10 @@ void reset_all_generation_data(void);
 // Wall and door validation utilities
 unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit_x, unsigned char exit_y);
 
+// Percentage-based generation utilities
+unsigned char calculate_percentage_count(unsigned char total, unsigned char percentage);
+unsigned char count_non_branching_from_flags(void);
+
 // Incremental wall placement functions
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
 void place_walls_around_corridor_tile(unsigned char x, unsigned char y);

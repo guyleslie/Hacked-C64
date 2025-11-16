@@ -30,29 +30,29 @@ const unsigned char room_size_table[3][2] = {
 // Secret room ratio (percentage of max rooms)
 const unsigned char secret_room_ratio[3] = {
     10,  // SMALL (10%)
-    20,  // MEDIUM (20%)
-    30   // LARGE (30%)
+    25,  // MEDIUM (25%)
+    50   // LARGE (50%)
 };
 
-// False corridor count table
-const unsigned char false_corridor_table[3] = {
-    3,   // SMALL
-    5,   // MEDIUM (current default)
-    8    // LARGE
+// False corridor ratio (percentage of available walls)
+const unsigned char false_corridor_ratio[3] = {
+    10,  // SMALL (10%)
+    25,  // MEDIUM (25%)
+    50   // LARGE (50%)
 };
 
-// Secret treasure count table
-const unsigned char treasure_table[3] = {
-    2,   // SMALL
-    4,   // MEDIUM
-    6    // LARGE
+// Secret treasure ratio (percentage of non-secret rooms)
+const unsigned char treasure_ratio[3] = {
+    10,  // SMALL (10%)
+    25,  // MEDIUM (25%)
+    50   // LARGE (50%)
 };
 
-// Hidden corridor count table
-const unsigned char hidden_corridor_table[3] = {
-    1,   // SMALL
-    2,   // MEDIUM
-    3    // LARGE
+// Hidden corridor ratio (percentage of non-branching corridors)
+const unsigned char hidden_corridor_ratio[3] = {
+    10,  // SMALL (10%)
+    25,  // MEDIUM (25%)
+    50   // LARGE (50%)
 };
 
 // Level name strings (compact storage, lowercase for mixed charset)
@@ -76,7 +76,7 @@ void init_default_config(MapConfig *config) {
 
 // Validate and compute concrete parameters from configuration
 void validate_and_adjust_config(MapConfig *config, MapParameters *params) {
-    unsigned char total_room_area, map_area, max_treasure_rooms;
+    unsigned char total_room_area, map_area;
 
     // Map size setup
     params->map_width = map_size_table[config->map_size][0];
@@ -106,26 +106,14 @@ void validate_and_adjust_config(MapConfig *config, MapParameters *params) {
         params->secret_room_count = (params->max_rooms * secret_room_ratio[config->secret_rooms]) / 100;
     }
 
-    // False corridor count
-    params->false_corridor_count = false_corridor_table[config->false_corridors];
+    // Percentage-based feature configuration (actual counts calculated post-MST)
+    // Store preset for post-MST percentage calculation
+    params->preset = config->secret_treasures; // Use secret_treasures preset as primary
 
-    // Secret treasure count
-    params->treasure_count = treasure_table[config->secret_treasures];
-
-    // Secret treasure validation: can't be more than non-secret rooms
-    max_treasure_rooms = params->max_rooms - params->secret_room_count;
-    if (params->treasure_count > max_treasure_rooms) {
-        params->treasure_count = max_treasure_rooms;
-    }
-
-    // Hidden corridor count
-    params->hidden_corridor_count = hidden_corridor_table[config->hidden_corridors];
-
-    // Hidden corridor validation: limit to 2/3 of max rooms (leave some visible corridors)
-    unsigned char max_hidden = (params->max_rooms * 2) / 3;
-    if (params->hidden_corridor_count > max_hidden) {
-        params->hidden_corridor_count = max_hidden;
-    }
+    // These are placeholder values - will be recalculated in calculate_post_mst_feature_counts()
+    params->false_corridor_count = false_corridor_ratio[config->false_corridors];
+    params->treasure_count = treasure_ratio[config->secret_treasures];
+    params->hidden_corridor_count = hidden_corridor_ratio[config->hidden_corridors];
 
     // Ensure at least 1 of each if not zero preset
     if (params->secret_room_count == 0 && config->secret_rooms > LEVEL_SMALL) {

@@ -279,6 +279,29 @@ unsigned char get_connection_info(unsigned char room_idx, unsigned char target_r
     return 0; // Connection not found
 }
 
+/**
+ * @brief Update is_non_branching flag in connected room when corridor becomes branching
+ * @param from_room Room index where branching was detected
+ * @param to_room Connected room that needs flag update
+ *
+ * This helper maintains consistency between both rooms' PackedConnection.is_non_branching flags.
+ * Called when a corridor becomes branching (wall_door_count > 1).
+ */
+void update_corridor_branching_status(unsigned char from_room, unsigned char to_room) {
+    // Find connection in to_room that points back to from_room
+    Room *room = &room_list[to_room];
+
+    for (unsigned char i = 0; i < room->connections; i++) {
+        if (room->conn_data[i].room_id == from_room) {
+            // Found the reciprocal connection - mark as branching
+            if (room->conn_data[i].is_non_branching == 1) {
+                room->conn_data[i].is_non_branching = 0;
+                // No need to recurse - we're already in the reciprocal update
+            }
+            break;
+        }
+    }
+}
 
 // Atomic connection management - adds connection metadata in single operation
 unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
@@ -294,6 +317,7 @@ unsigned char add_connection_to_room(unsigned char room_idx, unsigned char conne
     // Atomic update - all metadata synchronized in single operation
     room_list[room_idx].conn_data[idx].room_id = connected_room;
     room_list[room_idx].conn_data[idx].corridor_type = corridor_type;
+    room_list[room_idx].conn_data[idx].is_non_branching = 1; // Initially non-branching
 
     room_list[room_idx].doors[idx].x = door_x;
     room_list[room_idx].doors[idx].y = door_y;
@@ -303,6 +327,9 @@ unsigned char add_connection_to_room(unsigned char room_idx, unsigned char conne
     // Increment wall door counter for instant O(1) wall queries
     room_list[room_idx].wall_door_count[wall_side]++;
 
+    // Runtime tracking: Decrement available walls when door added
+    available_walls_count--;
+
     // Auto-mark branching if multiple doors on this wall
     // This eliminates the need for mark_branching_doors_for_connection()
     if (room_list[room_idx].wall_door_count[wall_side] > 1) {
@@ -310,6 +337,13 @@ unsigned char add_connection_to_room(unsigned char room_idx, unsigned char conne
         for (unsigned char i = 0; i <= idx; i++) {
             if (room_list[room_idx].doors[i].wall_side == wall_side) {
                 room_list[room_idx].doors[i].is_branching = 1;
+
+                // Update is_non_branching flag in PackedConnection
+                if (room_list[room_idx].conn_data[i].is_non_branching == 1) {
+                    room_list[room_idx].conn_data[i].is_non_branching = 0;
+                    // Update reciprocal connection in other room
+                    update_corridor_branching_status(room_idx, room_list[room_idx].conn_data[i].room_id);
+                }
             }
         }
     }

@@ -46,6 +46,7 @@ typedef struct {
     unsigned char false_corridor_count;
     unsigned char treasure_count;
     unsigned char hidden_corridor_count;  // Hidden corridor count (non-branching corridors to hide)
+    unsigned char preset;  // Feature preset level (for percentage ratio lookups)
 } MapParameters;
 
 // Initialize default configuration

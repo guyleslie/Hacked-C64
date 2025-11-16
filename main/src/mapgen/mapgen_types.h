@@ -84,11 +84,12 @@ typedef struct {
     unsigned char reserved : 4;            // 4 bits reserved for future use
 } Door; // 3 bytes total - removed is_secret_door (now in TMEA metadata)
 
-// Packed connection structure (1 byte vs 2 bytes)  
+// Packed connection structure (1 byte vs 2 bytes)
 typedef struct {
-    unsigned char room_id : 5;             // 0-31 room ID (5 bits, enough for MAX_ROOMS=20)
-    unsigned char corridor_type : 3;       // 0-7 corridor types (3 bits, expanded for future use)
-} PackedConnection; // 1 byte total - removed 'used' flag (redundant with connections counter)
+    unsigned char room_id : 5;              // 0-31 room ID (5 bits, enough for MAX_ROOMS=20)
+    unsigned char corridor_type : 2;        // 0-3 corridor types (2 bits: Straight=0, L-shaped=1, Z-shaped=2)
+    unsigned char is_non_branching : 1;     // 1 bit - non-branching corridor flag (runtime tracking)
+} PackedConnection; // 1 byte total - optimized bitfield (corridor_type reduced 3→2 bits)
 
 // Corridor breakpoint structure (2 bytes per breakpoint)
 typedef struct {

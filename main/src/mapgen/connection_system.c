@@ -504,6 +504,7 @@ void build_room_network(void) {
             if (connect_rooms(best_room1, best_room2, 0)) {
                 connected[best_room2] = 1;
                 connections_made++;
+                total_connections++; // Runtime tracking for percentage calculation
                 // Batch progress updates - only update every 2 connections for performance
                 if ((connections_made & 1) == 0 || connections_made == room_count - 1) {
                     update_progress_step(1, connections_made, room_count - 1);
@@ -610,6 +611,16 @@ void place_secret_rooms(unsigned char room_count_target) {
 
         if (create_secret_room(i)) {
             secrets_made++;
+            total_secret_rooms++; // Runtime tracking for percentage calculation
+
+            // Exclude secret room walls from available_walls_count
+            Room *room = &room_list[i];
+            for (unsigned char w = 0; w < 4; w++) {
+                if (room->wall_door_count[w] == 0) {
+                    available_walls_count--; // Unused walls in secret rooms not available
+                }
+            }
+
             // Phase 2: Secret room progress
             update_progress_step(2, secrets_made, room_count_target);
         }
@@ -690,6 +701,7 @@ void place_hidden_corridors(unsigned char corridor_count) {
 
         if (create_hidden_corridor(candidates_room1[idx], candidates_room2[idx])) {
             hidden++;
+            total_hidden_corridors++; // Runtime tracking for percentage calculation
             update_progress_step(5, hidden, corridor_count);
         }
         attempts++;
@@ -830,6 +842,8 @@ void place_false_corridors(unsigned char corridor_count) {
 
         if (create_false_corridor(room_idx, wall_side)) {
             corridors_placed++;
+            total_false_corridors++; // Runtime tracking for percentage calculation
+            // NOTE: available_walls_count-- already handled in create_false_corridor() line ~811
             // Phase 4: False corridor placement progress
             update_progress_step(4, corridors_placed, corridor_count);
         }
@@ -936,6 +950,8 @@ void place_secret_treasures(unsigned char treasure_count) {
 
         if (create_secret_treasure(room_idx)) {
             treasures_placed++;
+            total_treasures++; // Runtime tracking for percentage calculation
+            available_walls_count--; // Treasure uses 1 wall
             // Phase 3: Treasure placement progress
             update_progress_step(3, treasures_placed, treasure_count);
         }

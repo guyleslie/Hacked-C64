@@ -46,6 +46,14 @@ extern unsigned char rnd_state;
 // Generation parameters (defined in map_generation.c)
 extern MapParameters current_params;
 
+// Runtime feature counters for percentage-based generation (defined in map_generation.c)
+extern unsigned char total_connections;         // Total MST corridors created
+extern unsigned char total_secret_rooms;        // Secret rooms placed
+extern unsigned char total_treasures;           // Treasure chambers placed
+extern unsigned char total_false_corridors;     // False corridors placed
+extern unsigned char total_hidden_corridors;    // Hidden corridors placed
+extern unsigned char available_walls_count;     // Walls without doors (non-secret rooms)
+
 // Zero page variables for MST performance
 extern __zeropage unsigned char mst_best_room1;
 extern __zeropage unsigned char mst_best_room2; 

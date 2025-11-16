@@ -382,6 +382,14 @@ void reset_all_generation_data(void) {
     // Reset TMEA metadata for new generation
     reset_tmea_data();
 
+    // Reset runtime feature counters for percentage-based generation
+    total_connections = 0;
+    total_secret_rooms = 0;
+    total_treasures = 0;
+    total_false_corridors = 0;
+    total_hidden_corridors = 0;
+    available_walls_count = 0;  // Will be set to room_count * 4 after create_rooms()
+
     // Cache functions removed for OSCAR64 efficiency
 }
 
@@ -427,7 +435,7 @@ static const unsigned char progress_x = 9;  // X position (centered: (40-22)/2 =
 static const unsigned char progress_y = 12; // Y position (screen center)
 
 // Dynamic phase boundaries - calculated from current_params at generation start
-static unsigned char phase_boundaries[8];   // Phase start positions (0-80 scale)
+static unsigned char phase_boundaries[9];   // Phase start positions (0-80 scale) - 9 phases including hidden corridors
 static unsigned char phase_total_weight = 0; // Total weight cache for fast calculation
 
 // External reference to current generation parameters
@@ -436,25 +444,26 @@ extern MapParameters current_params;
 // Initialize dynamic progress weights based on current_params
 void init_progress_weights(void) {
     // Calculate weights from current generation parameters
-    unsigned char weights[8];
+    unsigned char weights[9];
     weights[0] = current_params.max_rooms;                    // Rooms
     weights[1] = current_params.max_rooms - 1;                // Connections (MST: n-1 edges)
     weights[2] = current_params.secret_room_count;            // Secrets
     weights[3] = current_params.treasure_count;               // Treasures
     weights[4] = current_params.false_corridor_count;         // False corridors
-    weights[5] = 2;                                           // Stairs (fixed: 2 stairs)
-    weights[6] = 1;                                           // Finalize (fixed: camera init)
-    weights[7] = 1;                                           // Complete (fixed: display)
+    weights[5] = current_params.hidden_corridor_count;        // Hidden corridors (FIXED: was missing!)
+    weights[6] = 2;                                           // Stairs (fixed: 2 stairs)
+    weights[7] = 1;                                           // Finalize (fixed: camera init)
+    weights[8] = 1;                                           // Complete (fixed: display)
 
     // Calculate total weight
     phase_total_weight = 0;
-    for (unsigned char i = 0; i < 8; i++) {
+    for (unsigned char i = 0; i < 9; i++) {
         phase_total_weight += weights[i];
     }
 
     // Pre-calculate phase boundaries on 0-80 scale
     unsigned char accumulated = 0;
-    for (unsigned char i = 0; i < 8; i++) {
+    for (unsigned char i = 0; i < 9; i++) {
         // Boundary = (accumulated * 80) / total_weight
         phase_boundaries[i] = ((unsigned short)accumulated * 80) / phase_total_weight;
         accumulated += weights[i];
@@ -657,4 +666,49 @@ unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit
     if (exit_x >= room->x + room->w) return 1; // Right
     if (exit_y < room->y) return 2; // Top
     return 3; // Bottom
+}
+
+// =============================================================================
+// PERCENTAGE-BASED GENERATION UTILITIES
+// =============================================================================
+
+/**
+ * @brief Calculate feature count from percentage with round-up
+ * @param total Base count (e.g., total rooms, total corridors)
+ * @param percentage Percentage to calculate (0-100)
+ * @return Calculated count with round-up: (total * percentage + 99) / 100
+ *
+ * Examples:
+ * - calculate_percentage_count(20, 10) = 2 (10% of 20)
+ * - calculate_percentage_count(7, 10) = 1 (rounds up from 0.7)
+ * - calculate_percentage_count(20, 50) = 10 (50% of 20)
+ */
+unsigned char calculate_percentage_count(unsigned char total, unsigned char percentage) {
+    // Round-up formula: (total * percentage + 99) / 100
+    // This ensures at least 1 feature when total > 0 and percentage > 0
+    return (total * percentage + 99) / 100;
+}
+
+/**
+ * @brief Count non-branching corridors from PackedConnection flags
+ * @return Number of non-branching corridors (corridors counted once, not per-room)
+ *
+ * Iterates through all room connections and counts those with is_non_branching=1.
+ * Each corridor is counted twice (once per connected room), so result is divided by 2.
+ */
+unsigned char count_non_branching_from_flags(void) {
+    unsigned char count = 0;
+
+    // Iterate all rooms and check PackedConnection.is_non_branching flags
+    for (unsigned char i = 0; i < room_count; i++) {
+        Room *room = &room_list[i];
+        for (unsigned char c = 0; c < room->connections; c++) {
+            if (room->conn_data[c].is_non_branching == 1) {
+                count++;
+            }
+        }
+    }
+
+    // Each corridor counted twice (once per room), divide by 2
+    return count / 2;
 }
