@@ -1,8 +1,11 @@
 {
   "permissions": {
-    "defaultMode": "acceptEdits",
     "allow": [
-      "WebSearch"
-    ]
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "defaultMode": "acceptEdits"
   }
 }
