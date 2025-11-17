@@ -128,22 +128,17 @@ Final dungeon map:
 
 ### Map Specifications
 
-- **Map Size**: Dynamically configurable (48×48, 64×64, or 80×80) with 40×25 viewport
+- **Map Size**: 48×48, 64×64, or 80×80
 - **Room Count**: Up to 20 rooms (4×4 to 8×8 tiles each)
-- **Storage**: 3-bit tile encoding with runtime calculated offsets
-  - 48×48 map: 864 bytes
-  - 64×64 map: 1536 bytes
-  - 80×80 map: 2400 bytes (max buffer size)
 
 ### Performance
 
-- **Generation Time**: ~3-4 seconds on C64 hardware (varies by map size and configuration)
-- **Executable Size**: Release build optimized for size (significantly smaller than development build)
-- **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
-- **Map Storage**: 2400 bytes max buffer (handles all map sizes: 48×48=864, 64×64=1536, 80×80=2400)
-- **Room Data**: 48 bytes per room (optimized packed structures with center cache)
-- **Scrolling**: Optimized partial screen updates with no slowdown at map boundaries
-- **Debug Information**: Development builds include .map, .asm, .lbl, .dbj files for analysis
+- **Generation Time**: Fast real-time generation on C64 hardware ( ~ 4 sec varies by map size and configuration)
+- **Executable Size**: Release builds optimized for minimal size
+- **Memory Management**: Static allocation with runtime bounds checking for efficient C64 memory usage
+- **Map Storage**: 3-bit tile encoding with packed data structures for optimal memory efficiency
+- **Room Data**: Compact structures with cached calculations for fast access
+- **Scrolling**: Optimized viewport rendering with smooth navigation at all map boundaries
 
 ## Generation Process
 

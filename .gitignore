@@ -1,4 +1,5 @@
 # CMake generated files (exclude all CMake artifacts, OSCAR64 and VICE)
+.claude
 build/CMakeCache.txt
 build/CMakeFiles/
 build/cmake_install.cmake
