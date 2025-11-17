@@ -1,0 +1,46 @@
+TILE TABLE
+----------
+
+| No./code | Description |
+|  0/($0)  | Empty |
+|  1/($0)  | Floor |
+|  2/($0)  | Vert./horiz. wall |
+|  3/($0)  | Left wall |
+|  4/($0)  | Right wall |
+|  5/($0)  | Top-left corner wall |
+|  6/($0)  | Top-right corner wall |
+|  7/($0)  | Bottom-left corner wall |
+|  8/($0)  | Bottom-right corner wall |
+|  9/($0)  | Up/down stair |
+| 10/($A)  | Top-left corner frame |
+| 11/($B)  | Top-right corner frame |
+| 12/($C)  | Bottom-left corner frame |
+| 13/($D)  | Bottom-right corner frame |
+| 14/($E)  | Left frame |
+| 15/($F)  | Right frame |
+| 16/($10) | Bottom frame |
+| 17/($11) | Top frame |
+| 18/($12) | Vertical closed door |
+| 19/($13) | Horizontal closed door |
+| 20/($14) | Vertical opened door |
+| 21/($15) | Horizontal opened door |
+
+CHAR TABLE
+----------
+
+C64 standard upper case system rom PETSCII characters: 0/($0) - 63/($3F)
+
+Scrollbar frame and main characters:
+
+| No./code | Description |
+| 64/($40) | Top-left corner frame |
+| 65/($41) | Top-right corner frame |
+| 66/($42) | Bottom-left corner frame |
+| 67/($43) | Bottom-right corner frame |
+| 68/($44) | Top frame |
+| 69/($45) | Bottom frame |
+| 70/($46) | Right frame |
+| 71/($47) | Left frame / quarter scrollbar |
+| 72/($48) | Half scrollbar |
+| 73/($49) | Three quarters scrollbar |
+| 74/($4A) | Full quarters scrollbar / Inverse space |
