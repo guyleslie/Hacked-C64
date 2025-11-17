@@ -95,19 +95,13 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
         return 0;
     }
 
-    // OPTIMIZATION: Check if safety margin is clear
-    // Key insight: Y offset calculation moved to outer loop
+    // Check if safety margin is clear
     for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
-        // --- OPTIMIZATION 1: Calculate Y bit offset ONCE per row ---
-        // This eliminates repeated (y * map_width * 3) calculations
-        // Old approach: Every get_compact_tile() call recalculated this
-        // New approach: Calculate once, reuse for entire row
+        // Calculate Y bit offset once per row
         unsigned short y_bit_offset = (unsigned short)iy * y_bit_stride;
 
         for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
-            // --- OPTIMIZATION 2: Inline bit-packing logic ---
-            // Instead of calling get_compact_tile(), we inline the logic
-            // This avoids function call overhead and allows compiler optimization
+            // Inline bit-packing logic for performance
             
             // Bounds check (only X needs checking, Y already validated in outer loop)
             if (ix >= current_params.map_width) continue;
@@ -395,7 +389,6 @@ void init_rooms(void) {
             room_list[i].doors[j].x = 0;
             room_list[i].doors[j].y = 0;
             room_list[i].doors[j].wall_side = 0;
-            room_list[i].doors[j].has_treasure = 0;
             room_list[i].doors[j].is_branching = 0; // Initialize as non-branching
             room_list[i].doors[j].reserved = 0; // Clear reserved bits
 

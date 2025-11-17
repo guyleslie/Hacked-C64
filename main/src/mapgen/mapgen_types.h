@@ -77,14 +77,13 @@ const unsigned char SECRET_ROOM_PERCENTAGE = 50;  // Percentage of single-connec
 const unsigned char MAX_PATH_LENGTH = 20;
 const unsigned char MAX_CORRIDOR_LENGTH = 60;  // Maximum tiles in a single corridor (for tile cache)
 
-// Packed door structure (3 bytes vs 4 bytes)
+// Packed door structure (3 bytes)
 typedef struct {
     unsigned char x, y;                    // 2 bytes - door position
     unsigned char wall_side : 2;           // 0-3 wall sides (2 bits)
-    unsigned char has_treasure : 1;        // 1 bit - treasure chamber attached flag
-    unsigned char is_branching : 1;        // 1 bit - multiple corridors on this wall (elágazó ajtó)
-    unsigned char reserved : 4;            // 4 bits reserved for future use
-} Door; // 3 bytes total - removed is_secret_door (now in TMEA metadata)
+    unsigned char is_branching : 1;        // 1 bit - multiple corridors on this wall
+    unsigned char reserved : 5;            // 5 bits reserved for future use
+} Door; // 3 bytes total
 
 // Packed connection structure (1 byte vs 2 bytes)
 typedef struct {
