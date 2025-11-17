@@ -71,14 +71,6 @@ unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit
 unsigned char calculate_percentage_count(unsigned char total, unsigned char percentage);
 unsigned char count_non_branching_from_flags(void);
 
-// Corridor tile cache API
-unsigned char find_corridor_cache_index(unsigned char room1, unsigned char room2);
-unsigned char get_corridor_tile_count(unsigned char room1, unsigned char room2);
-unsigned char get_corridor_tiles(unsigned char room1, unsigned char room2,
-                                 unsigned char **tiles_x, unsigned char **tiles_y);
-unsigned char get_random_corridor_tile(unsigned char room1, unsigned char room2,
-                                       unsigned char *x, unsigned char *y);
-
 // Incremental wall placement functions
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
 void place_walls_around_corridor_tile(unsigned char x, unsigned char y);
