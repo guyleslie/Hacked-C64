@@ -15,6 +15,7 @@ enum MapConstants {
     VIEW_W = 40,
     VIEW_H = 25,
     MAX_ROOMS = 20,  // Maximum for stable operation (16 grid positions + buffer)
+    MAX_CONNECTIONS = 20,  // Maximum corridor connections (MST + extras)
     MIN_SIZE = 4,
     MAX_SIZE = 8,
     MIN_ROOM_DISTANCE = 4,
@@ -74,6 +75,7 @@ const unsigned char SECRET_ROOM_PERCENTAGE = 50;  // Percentage of single-connec
 
 // Corridor and connection parameters
 const unsigned char MAX_PATH_LENGTH = 20;
+const unsigned char MAX_CORRIDOR_LENGTH = 60;  // Maximum tiles in a single corridor (for tile cache)
 
 // Packed door structure (3 bytes vs 4 bytes)
 typedef struct {
@@ -95,6 +97,14 @@ typedef struct {
 typedef struct {
     unsigned char x, y;                    // 2 bytes - breakpoint coordinates
 } CorridorBreakpoint; // 2 bytes total - compact coordinate storage
+
+// Corridor tile cache (post-generation walkable tile storage)
+typedef struct {
+    unsigned char room1, room2;            // 2 bytes - connected room IDs (room1 < room2)
+    unsigned char tile_count;              // 1 byte - number of walkable tiles in corridor
+    unsigned char tiles_x[MAX_CORRIDOR_LENGTH]; // 60 bytes - X coordinates
+    unsigned char tiles_y[MAX_CORRIDOR_LENGTH]; // 60 bytes - Y coordinates
+} CorridorTileCache; // 123 bytes total - enables O(1) corridor tile queries
 
 // Room structure (48 bytes total, optimized layout with wall counters)
 typedef struct {

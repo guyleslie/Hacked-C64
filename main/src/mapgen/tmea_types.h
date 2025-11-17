@@ -51,11 +51,11 @@ enum TileMetaType {
 
 // Wall-specific flags (TMTYPE_WALL)
 enum TileMetaWallFlags {
-    TMFLAG_WALL_ILLUSORY    = 0x01,  // Illusory wall (passable)
-    TMFLAG_WALL_SECRET      = 0x02,  // Secret wall (hidden)
-    TMFLAG_WALL_REVEALED    = 0x04,  // Secret wall discovered
-    TMFLAG_WALL_CRACKED     = 0x08,  // Cracked/weak wall
-    TMFLAG_WALL_DESTRUCTIBLE= 0x10   // Destructible wall
+    TMFLAG_WALL_ILLUSORY     = 0x01,  // Illusory wall (passable)
+    TMFLAG_WALL_SECRET       = 0x02,  // Secret wall (hidden)
+    TMFLAG_WALL_REVEALED     = 0x04,  // Secret wall discovered
+    TMFLAG_WALL_CRACKED      = 0x08,  // Cracked/weak wall
+    TMFLAG_WALL_DESTRUCTIBLE = 0x10   // Destructible wall
 };
 
 // Door-specific flags (TMTYPE_DOOR)
