@@ -154,8 +154,7 @@ static void step_towards_target(unsigned char *x, unsigned char *y, unsigned cha
 
 static unsigned char build_corridor_line(unsigned char start_x, unsigned char start_y,
                                          unsigned char end_x, unsigned char end_y,
-                                         unsigned char mode, unsigned char tile_type,
-                                         CorridorTileCache *cache) {
+                                         unsigned char mode, unsigned char tile_type) {
     unsigned char x = start_x;
     unsigned char y = start_y;
 
@@ -168,13 +167,6 @@ static unsigned char build_corridor_line(unsigned char start_x, unsigned char st
         }
     } else {
         while (x != end_x || y != end_y) {
-            // Cache tiles during drawing if cache pointer provided
-            if (cache != 0 && cache->tile_count < MAX_CORRIDOR_LENGTH) {
-                cache->tiles_x[cache->tile_count] = x;
-                cache->tiles_y[cache->tile_count] = y;
-                cache->tile_count++;
-            }
-
             set_compact_tile(x, y, tile_type);
             place_walls_around_corridor_tile(x, y);
             step_towards_target(&x, &y, end_x, end_y);
@@ -187,37 +179,26 @@ static unsigned char build_corridor_line(unsigned char start_x, unsigned char st
 static unsigned char process_corridor_path(unsigned char start_x, unsigned char start_y,
                                            unsigned char end_x, unsigned char end_y,
                                            unsigned char wall_side, unsigned char corridor_type,
-                                           unsigned char mode, unsigned char tile_type,
-                                           CorridorTileCache *cache,
-                                           CorridorBreakpoints *out_breakpoints) {
+                                           unsigned char mode, unsigned char tile_type) {
     CorridorBreakpoints breakpoints;
     unsigned char current_x = start_x;
     unsigned char current_y = start_y;
 
     compute_corridor_breakpoints(start_x, start_y, end_x, end_y, wall_side, corridor_type, &breakpoints);
 
-    // Store breakpoints if output pointer provided (eliminates calculate_and_store_breakpoints!)
-    if (out_breakpoints != 0) {
-        out_breakpoints->count = breakpoints.count;
-        for (unsigned char i = 0; i < breakpoints.count && i < 2; i++) {
-            out_breakpoints->x[i] = breakpoints.x[i];
-            out_breakpoints->y[i] = breakpoints.y[i];
-        }
-    }
-
     // Loop only over valid breakpoints - count is accurate, no sentinel check needed
     for (unsigned char i = 0; i < breakpoints.count; i++) {
         unsigned char next_x = breakpoints.x[i];
         unsigned char next_y = breakpoints.y[i];
 
-        if (!build_corridor_line(current_x, current_y, next_x, next_y, mode, tile_type, cache)) {
+        if (!build_corridor_line(current_x, current_y, next_x, next_y, mode, tile_type)) {
             return 0;
         }
         current_x = next_x;
         current_y = next_y;
     }
 
-    if (!build_corridor_line(current_x, current_y, end_x, end_y, mode, tile_type, cache)) {
+    if (!build_corridor_line(current_x, current_y, end_x, end_y, mode, tile_type)) {
         return 0;
     }
 
@@ -226,13 +207,10 @@ static unsigned char process_corridor_path(unsigned char start_x, unsigned char 
 
 void draw_corridor_from_door(unsigned char exit1_x, unsigned char exit1_y,
                             unsigned char wall1_side, unsigned char exit2_x, unsigned char exit2_y,
-                            unsigned char corridor_type, unsigned char is_secret,
-                            CorridorTileCache *cache,
-                            CorridorBreakpoints *out_breakpoints) {
+                            unsigned char corridor_type, unsigned char is_secret) {
     // Always draw corridor as TILE_FLOOR (doors placed separately with metadata)
-    // Cache tiles and breakpoints during drawing (eliminates post-drawing recalculation!)
     process_corridor_path(exit1_x, exit1_y, exit2_x, exit2_y, wall1_side, corridor_type,
-                          CORRIDOR_MODE_DRAW, TILE_FLOOR, cache, out_breakpoints);
+                          CORRIDOR_MODE_DRAW, TILE_FLOOR);
 }
 
 // =============================================================================
@@ -435,29 +413,11 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
         calculate_exit_from_target(room2, r1_center_x, r1_center_y, &exit2_x, &exit2_y);
     }
 
-    // Create corridor cache entry before drawing
-    if (corridor_cache_count >= MAX_CONNECTIONS) {
-        return 0; // Cache full
-    }
-
-    CorridorTileCache *cache_entry = &corridor_cache[corridor_cache_count];
-    cache_entry->room1 = (room1 < room2) ? room1 : room2; // Normalize order
-    cache_entry->room2 = (room1 < room2) ? room2 : room1;
-    cache_entry->tile_count = 0; // Will be filled during drawing
-
-    CorridorBreakpoints computed_breakpoints;
-    computed_breakpoints.count = 0;
-
     // Draw corridor
     unsigned char wall1 = get_wall_side_from_exit(room1, exit1_x, exit1_y);
     unsigned char wall2 = get_wall_side_from_exit(room2, exit2_x, exit2_y);
 
-    // Corridor tiles and breakpoints are cached during drawing
-    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret,
-                            cache_entry, &computed_breakpoints);
-
-    // Increment cache count now that corridor is successfully drawn
-    corridor_cache_count++;
+    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret);
 
     // Place doors (always TILE_DOOR, metadata marks secret doors)
     place_door(exit1_x, exit1_y);
@@ -477,25 +437,12 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
 
     // Store connection metadata
     if (!add_connection_to_room(room1, room2, exit1_x, exit1_y, wall1, corridor_type)) {
-        corridor_cache_count--; // Rollback cache entry
         return 0;
     }
 
     if (!add_connection_to_room(room2, room1, exit2_x, exit2_y, wall2, corridor_type)) {
         remove_last_connection_from_room(room1);
-        corridor_cache_count--; // Rollback cache entry
         return 0;
-    }
-
-    // Store breakpoints directly (computed during drawing, no recalculation needed!)
-    unsigned char conn1_idx = room_list[room1].connections - 1;
-    unsigned char conn2_idx = room_list[room2].connections - 1;
-
-    for (unsigned char i = 0; i < computed_breakpoints.count && i < 2; i++) {
-        room_list[room1].breakpoints[conn1_idx][i].x = computed_breakpoints.x[i];
-        room_list[room1].breakpoints[conn1_idx][i].y = computed_breakpoints.y[i];
-        room_list[room2].breakpoints[conn2_idx][i].x = computed_breakpoints.x[i];
-        room_list[room2].breakpoints[conn2_idx][i].y = computed_breakpoints.y[i];
     }
 
     // Branching door detection is now automatic in add_connection_to_room()
@@ -876,14 +823,13 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
     // Step 3: Use the SAME corridor drawing logic as normal corridors
     unsigned char corridor_type = determine_corridor_type(door_x, door_y, endpoint_x, endpoint_y);
 
-    // False corridors don't need cache/breakpoints (dead-end corridors, no gameplay features)
     if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
-                               CORRIDOR_MODE_CHECK, TILE_FLOOR, 0, 0)) {
+                               CORRIDOR_MODE_CHECK, TILE_FLOOR)) {
         return 0;
     }
 
     process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
-                          CORRIDOR_MODE_DRAW, TILE_FLOOR, 0, 0);
+                          CORRIDOR_MODE_DRAW, TILE_FLOOR);
 
     place_door(door_x, door_y);
 
