@@ -51,10 +51,6 @@ extern unsigned char total_false_corridors;     // False corridors placed
 extern unsigned char total_hidden_corridors;    // Hidden corridors placed
 extern unsigned char available_walls_count;     // Walls without doors (non-secret rooms)
 
-// Corridor tile cache for O(1) tile queries (defined in map_generation.c)
-extern CorridorTileCache corridor_cache[MAX_CONNECTIONS];
-extern unsigned char corridor_cache_count;
-
 // Zero page variables for MST performance
 extern __zeropage unsigned char mst_best_room1;
 extern __zeropage unsigned char mst_best_room2; 
