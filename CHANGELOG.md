@@ -2,6 +2,32 @@
 
 ## [Unreleased] - 2025-11-17
 
+### Code Cleanup
+- **Removed Deprecated Functions**: Fully removed unused deprecated functions
+  - `calculate_and_store_breakpoints()` - Breakpoints now computed inline during corridor drawing
+  - `build_corridor_tile_cache()` - Cache now built inline during corridor drawing
+  - `collect_corridor_tiles()` - Helper function no longer needed
+  - Removed function declarations from `mapgen_internal.h`
+
+- **Renamed Function for Clarity**: `walk_corridor_line()` → `build_corridor_line()`
+  - Better reflects functionality: validates, draws tiles, places walls, and caches coordinates
+  - Updated all references in code and documentation
+
+- **Removed Unused Door Field**: `Door.has_treasure` field removed from structure
+  - Treasure metadata tracked via room `ROOM_HAS_TREASURE` flag instead
+  - Updated `Door` structure bitfield: `reserved` changed from 4 bits to 5 bits
+
+- **Documentation Cleanup**: Removed historical context and optimization statistics
+  - Phase numbering corrected (0-8 to match code, previously documented as 1-9)
+  - Removed "Old approach" vs "New approach" comparison comments
+  - Removed optimization statistics ("eliminated ~400-600 calculations")
+  - Documentation now describes only current implementation
+
+- **Removed Invalid Concept**: "Trap placement in corridors" references removed
+  - Traps are room-based features only (stairs cannot spawn in corridors)
+  - Corridor tile cache use cases updated: monster spawning, AI pathfinding, fog of war
+  - Trapped doors (on room walls) remain valid feature
+
 ### Performance Optimization
 - **Corridor Tile Cache Inline Building**: Major generation speed improvement through elimination of redundant calculations
   - Cache now built DURING corridor drawing instead of post-generation reconstruction
