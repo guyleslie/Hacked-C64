@@ -75,7 +75,6 @@ const unsigned char SECRET_ROOM_PERCENTAGE = 50;  // Percentage of single-connec
 
 // Corridor and connection parameters
 const unsigned char MAX_PATH_LENGTH = 20;
-const unsigned char MAX_CORRIDOR_LENGTH = 60;  // Maximum tiles in a single corridor (for tile cache)
 
 // Packed door structure (3 bytes)
 typedef struct {
@@ -97,15 +96,7 @@ typedef struct {
     unsigned char x, y;                    // 2 bytes - breakpoint coordinates
 } CorridorBreakpoint; // 2 bytes total - compact coordinate storage
 
-// Corridor tile cache (post-generation walkable tile storage)
-typedef struct {
-    unsigned char room1, room2;            // 2 bytes - connected room IDs (room1 < room2)
-    unsigned char tile_count;              // 1 byte - number of walkable tiles in corridor
-    unsigned char tiles_x[MAX_CORRIDOR_LENGTH]; // 60 bytes - X coordinates
-    unsigned char tiles_y[MAX_CORRIDOR_LENGTH]; // 60 bytes - Y coordinates
-} CorridorTileCache; // 123 bytes total - enables O(1) corridor tile queries
-
-// Room structure (48 bytes total, optimized layout with wall counters)
+// Room structure (32 bytes total, optimized layout with wall counters)
 typedef struct {
     // Most frequently accessed during generation (ordered by access frequency)
     unsigned char x, y, w, h;              // 4 bytes - room position and size
@@ -122,9 +113,6 @@ typedef struct {
 
     // Door metadata (12 bytes vs 16 bytes)
     Door doors[4];                         // 12 bytes - packed door positions
-
-    // Corridor breakpoint metadata (16 bytes) - 2 breakpoints per connection max
-    CorridorBreakpoint breakpoints[4][2];  // 16 bytes - corridor turn points (L=1, Z=2)
 
     // Secret treasure metadata (1 byte) - wall side only (coordinates calculated on-demand)
     unsigned char treasure_wall_side;      // 1 byte - wall side (0-3) or 255=no treasure
