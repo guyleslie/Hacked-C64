@@ -72,7 +72,7 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 
 The generation process displays real-time progress with centered progress bar and phase indicators. Progress boundaries are calculated dynamically at generation start based on current parameters, ensuring accurate progress representation regardless of configuration:
 
-### Phase 1: Building Rooms
+### Phase 0: Building Rooms
 
 The room generation operates on a 4×4 grid system providing 16 potential positions across the map. The process works as follows:
 
@@ -99,7 +99,7 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - 8-directional wall placement covers cardinal and diagonal positions
 - Existing tiles are not overwritten to preserve previously placed structures
 
-### Phase 2: Connecting Rooms (MST Algorithm)
+### Phase 1: Connecting Rooms
 
 Room interconnection uses Prim's algorithm to guarantee that all rooms remain reachable:
 
@@ -219,20 +219,20 @@ return 3; // Bottom wall
 
 **Two-pass Walker:** `process_corridor_path()` drives both validation and drawing using shared breakpoints for straight, L, and Z paths.
 **Wall Building:** Walls are constructed around each corridor tile as it's placed.
-**Inline Cache Building:** Tiles and breakpoints cached during drawing (single-pass optimization, no post-generation reconstruction).
+**Cache Building:** Tiles and breakpoints cached during corridor drawing.
 **Atomic Operations:** All corridor metadata stored atomically to prevent inconsistent states.
 **Geometric Validation:** Each corridor type validates path safety before construction.
 **System Integration:** Door metadata includes position, wall direction, and corridor type.
 
-**Optimization Flow:**
+**Construction Flow:**
 1. `connect_rooms()` creates `CorridorTileCache` entry before drawing
 2. `draw_corridor_from_door()` passes cache pointer to drawing functions
-3. `walk_corridor_line()` stores tiles during drawing loop (if cache pointer non-NULL)
+3. `build_corridor_line()` builds corridor segments and caches tiles
 4. `process_corridor_path()` captures breakpoints during computation
 5. Success: increment cache counter, store breakpoints in room structures
 6. Failure: decrement cache counter (rollback)
 
-### Phase 3: Creating Secret Areas
+### Phase 2: Secret Areas
 
 The secret room system provides a special gameplay mechanic:
 
@@ -254,7 +254,7 @@ The secret room system provides a special gameplay mechanic:
 - Increments `total_secret_rooms` counter when secret room created
 - Decrements `available_walls_count` for each unused wall in secret room (walls become unavailable for false corridors)
 
-### Phase 3.5: Post-MST Feature Count Calculation
+### Phase 2.5: Post-MST Feature Count Calculation
 
 After secret rooms are placed, the system calculates actual feature counts based on network topology:
 
@@ -265,7 +265,7 @@ After secret rooms are placed, the system calculates actual feature counts based
 - Uses round-up formula: `(total * percentage + 99) / 100` to ensure minimum 1 feature when base > 0
 - Progress weights recalculated with updated feature counts for accurate progress bar
 
-### Phase 4: Placing Secret Treasures
+### Phase 3: Secret Treasures
 
 The secret treasure system creates hidden treasure chambers accessible through walls:
 
@@ -300,7 +300,7 @@ The secret treasure system creates hidden treasure chambers accessible through w
 - Increments `total_treasures` counter when treasure created
 - Decrements `available_walls_count` (treasure uses 1 wall)
 
-### Phase 5: Placing False Corridors
+### Phase 4: False Corridors
 
 The false corridor system creates Nethack-style misleading dead-end passages using wall-first intelligent endpoint generation:
 
@@ -341,7 +341,7 @@ The false corridor system creates Nethack-style misleading dead-end passages usi
 - Increments `total_false_corridors` counter when false corridor created
 - `available_walls_count` already decremented in `add_connection_to_room()` when door added
 
-### Phase 6: Hiding Corridors
+### Phase 5: Hidden Corridors
 
 The hidden corridor system identifies and conceals non-branching corridors to increase navigation difficulty:
 
@@ -375,7 +375,7 @@ The hidden corridor system identifies and conceals non-branching corridors to in
 **Runtime Tracking:**
 - Increments `total_hidden_corridors` counter when corridor hidden
 
-### Phase 7: Placing Stairs
+### Phase 6: Placing Stairs
 
 Stair placement system ensures optimal level navigation with maximum separation:
 
@@ -447,9 +447,7 @@ Each room maintains metadata for:
 - L-shaped corridors (type 1): Single pivot point at bend location
 - Z-shaped corridors (type 2): Two breakpoints at segment transition points
 - Invalid breakpoints marked with coordinates (255, 255)
-- **Inline storage optimization**: Breakpoints captured during corridor drawing (no post-drawing recalculation)
-- Computed once via `compute_corridor_breakpoints()` and stored directly in both room structures
-- Eliminates ~38 redundant breakpoint recalculations per generation (2 per corridor)
+- Breakpoints captured during corridor drawing via `compute_corridor_breakpoints()` and stored directly in both room structures
 
 **Corridor Tile Cache System:**
 - **O(1) tile queries**: Pre-computed tile coordinate arrays for fast corridor access
@@ -459,16 +457,13 @@ Each room maintains metadata for:
   - `tiles_x[MAX_CORRIDOR_LENGTH]`: X coordinates array (60 tiles max)
   - `tiles_y[MAX_CORRIDOR_LENGTH]`: Y coordinates array (60 tiles max)
 - **Global cache array**: `corridor_cache[MAX_CONNECTIONS]` (~2460 bytes, 20 corridors)
-- **Inline cache building**: Tiles stored DURING corridor drawing (single-pass optimization)
-  - `walk_corridor_line()` caches tiles while drawing (if cache pointer provided)
+- **Cache building**: Tiles stored during corridor drawing in `build_corridor_line()`
   - `connect_rooms()` creates cache entry before drawing, increments counter after success
-  - Eliminates ~400-600 redundant tile-walking calculations per generation
-- **Use cases**: Trap placement, monster spawning, AI pathfinding, corridor lighting effects
+- **Use cases**: Monster spawning, AI pathfinding, fog of war
 - **API functions**:
   - `get_corridor_tile_count(room1, room2)`: Get corridor length
   - `get_corridor_tiles(room1, room2, **x, **y)`: Get all tile coordinates
   - `get_random_corridor_tile(room1, room2, *x, *y)`: Random tile selection
-- **Performance**: O(1) lookup vs O(corridor_length) path reconstruction
 
 ### Memory Optimization Strategy
 
@@ -489,6 +484,15 @@ Each room maintains metadata for:
 ## Data Structures
 
 ### Core Room Structure
+
+**Room State Flags:**
+```c
+#define ROOM_SECRET 0x01             // Designated as a secret room
+#define ROOM_HAS_TREASURE 0x02       // Room contains a secret treasure (wall placement)
+#define ROOM_HAS_FALSE_CORRIDOR 0x04 // Room contains a false corridor
+```
+
+**Room Structure:**
 ```c
 typedef struct {
     // Most frequently accessed (ordered by access frequency)
@@ -540,13 +544,12 @@ typedef struct {
 typedef struct {
     unsigned char x, y;                    // Door coordinates
     unsigned char wall_side : 2;           // Wall side (0-3)
-    unsigned char has_treasure : 1;        // Treasure chamber attached flag
     unsigned char is_branching : 1;        // Branching corridor flag (used by hidden corridor system)
-    unsigned char reserved : 4;            // Reserved for future use
+    unsigned char reserved : 5;            // Reserved for future use
 } Door;                                    // 3 bytes total
 ```
 
-**Note:** Secret door state is managed via TMEA metadata system (`TMFLAG_DOOR_SECRET`), not in the Door structure. This enables 5 door states (open, closed, locked, secret, trapped) instead of the previous 2 states.
+**Note:** Secret door state is managed via TMEA metadata system (`TMFLAG_DOOR_SECRET`), not in the Door structure. This enables 5 door states (open, closed, locked, secret, trapped).
 
 ### Corridor Breakpoint Structure
 ```c
@@ -574,22 +577,11 @@ typedef struct {
 **Cache Implementation:**
 - **Global array**: `corridor_cache[MAX_CONNECTIONS]` (20 corridors, ~2460 bytes total)
 - **Normalized room order**: room1 < room2 for consistent lookup
-- **Inline building**: Tiles stored during `walk_corridor_line()` drawing
-- **Single-pass optimization**: No post-generation path reconstruction
+- **Building**: Tiles stored during `build_corridor_line()` drawing
 - **Reset on regeneration**: `corridor_cache_count = 0` in `reset_all_generation_data()`
-
-**Performance Benefits:**
-- O(1) corridor tile queries (vs O(corridor_length) path reconstruction)
-- Eliminates ~400-600 redundant tile-walking calculations per generation
-- Enables efficient trap placement, monster spawning, AI pathfinding
+- **Use cases**: Monster spawning, AI pathfinding, fog of war
 
 ### Secret Metadata Tracking
-
-**Room State Flags:**
-- `ROOM_SECRET`: Marks rooms converted to secret status (prevents treasure placement)
-- `ROOM_HAS_TREASURE`: Prevents duplicate treasure placement per room
-- `ROOM_HAS_FALSE_CORRIDOR`: Marks rooms with false corridor attachments
-- State flags stored in room `state` field using bitwise operations
 
 **Secret Treasure System:**
 - `treasure_wall_side`: Wall side index (0-3) or 255 for no treasure
@@ -743,16 +735,17 @@ For complete TMEA documentation, see **[docs/TMEA.md](TMEA.md)**
 
 ## Generation Pipeline
 
-1. **Initialization**: Map clearing, random seed setup, runtime counter initialization
-2. **Room Creation**: Grid-based placement with collision detection and immediate wall construction
-3. **Connection System**: MST algorithm execution with corridor walls built during creation (updates `total_connections`, `available_walls_count`)
-4. **Secret Rooms**: Single-connection room conversion using `place_secret_rooms()` (updates `total_secret_rooms`, `available_walls_count`)
-5. **Post-MST Calculation**: `calculate_post_mst_feature_counts()` computes actual feature counts from percentages using runtime counters
-6. **Secret Treasures**: Hidden treasure chamber placement using `place_secret_treasures()` (updates `total_treasures`, `available_walls_count`)
-7. **False Corridors**: Dead-end corridor placement using `place_false_corridors()` (updates `total_false_corridors`)
-8. **Hidden Corridors**: Non-branching corridor concealment using `place_hidden_corridors()` (updates `total_hidden_corridors`)
-9. **Stair Placement**: Distance-based optimal placement (maximum separation)
-10. **Camera Initialization**: Viewport setup for navigation
+0. **Initialization**: Map clearing, random seed setup, runtime counter initialization
+1. **Building Rooms**: Grid-based placement with collision detection and immediate wall construction
+2. **Connecting Rooms**: MST algorithm execution with corridor walls built during creation (updates `total_connections`, `available_walls_count`)
+3. **Secret Areas**: Single-connection room conversion using `place_secret_rooms()` (updates `total_secret_rooms`, `available_walls_count`)
+4. **Post-MST Calculation**: `calculate_post_mst_feature_counts()` computes actual feature counts from percentages using runtime counters
+5. **Secret Treasures**: Hidden treasure chamber placement using `place_secret_treasures()` (updates `total_treasures`, `available_walls_count`)
+6. **False Corridors**: Dead-end corridor placement using `place_false_corridors()` (updates `total_false_corridors`)
+7. **Hidden Corridors**: Non-branching corridor concealment using `place_hidden_corridors()` (updates `total_hidden_corridors`)
+8. **Placing Stairs**: Distance-based optimal placement (maximum separation)
+9. **Finalizing**: Viewport setup for navigation
+10. **Complete**: Generation finished
 
 ## Technical Architecture
 
