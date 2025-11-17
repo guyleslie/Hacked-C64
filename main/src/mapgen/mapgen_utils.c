@@ -387,11 +387,6 @@ void reset_all_generation_data(void) {
     total_false_corridors = 0;
     total_hidden_corridors = 0;
     available_walls_count = 0;  // Will be set to room_count * 4 after create_rooms()
-
-    // Reset corridor tile cache for new generation
-    corridor_cache_count = 0;
-
-    // Cache functions removed for OSCAR64 efficiency
 }
 
 void mapgen_init(unsigned int seed) {
@@ -718,91 +713,3 @@ unsigned char count_non_branching_from_flags(void) {
 // CORRIDOR TILE CACHE API
 // =============================================================================
 
-/**
- * @brief Find corridor cache index for given room pair
- * @param room1 First room ID
- * @param room2 Second room ID
- * @return Cache index if found, 255 if not found
- */
-unsigned char find_corridor_cache_index(unsigned char room1, unsigned char room2) {
-    // Normalize room order (cache stores room1 < room2)
-    unsigned char r1 = (room1 < room2) ? room1 : room2;
-    unsigned char r2 = (room1 < room2) ? room2 : room1;
-
-    for (unsigned char i = 0; i < corridor_cache_count; i++) {
-        if (corridor_cache[i].room1 == r1 && corridor_cache[i].room2 == r2) {
-            return i;
-        }
-    }
-
-    return 255; // Not found
-}
-
-/**
- * @brief Get number of walkable tiles in corridor
- * @param room1 First room ID
- * @param room2 Second room ID
- * @return Number of tiles, 0 if corridor not found
- */
-unsigned char get_corridor_tile_count(unsigned char room1, unsigned char room2) {
-    unsigned char idx = find_corridor_cache_index(room1, room2);
-    if (idx == 255) return 0;
-
-    return corridor_cache[idx].tile_count;
-}
-
-/**
- * @brief Get corridor tile coordinate arrays (O(1) lookup)
- * @param room1 First room ID
- * @param room2 Second room ID
- * @param tiles_x Pointer to store X coordinates array
- * @param tiles_y Pointer to store Y coordinates array
- * @return Number of tiles, 0 if corridor not found
- *
- * Usage:
- *   unsigned char *x_coords, *y_coords;
- *   unsigned char count = get_corridor_tiles(3, 7, &x_coords, &y_coords);
- *   for (unsigned char i = 0; i < count; i++) {
- *       // Use x_coords[i], y_coords[i]
- *   }
- */
-unsigned char get_corridor_tiles(unsigned char room1, unsigned char room2,
-                                 unsigned char **tiles_x, unsigned char **tiles_y) {
-    unsigned char idx = find_corridor_cache_index(room1, room2);
-    if (idx == 255) {
-        *tiles_x = 0;
-        *tiles_y = 0;
-        return 0;
-    }
-
-    *tiles_x = corridor_cache[idx].tiles_x;
-    *tiles_y = corridor_cache[idx].tiles_y;
-    return corridor_cache[idx].tile_count;
-}
-
-/**
- * @brief Get random walkable tile from corridor (for monster placement)
- * @param room1 First room ID
- * @param room2 Second room ID
- * @param x Pointer to store random X coordinate
- * @param y Pointer to store random Y coordinate
- * @return 1 if successful, 0 if corridor not found or empty
- *
- * Usage:
- *   unsigned char monster_x, monster_y;
- *   if (get_random_corridor_tile(5, 8, &monster_x, &monster_y)) {
- *       spawn_monster(monster_x, monster_y);
- *   }
- */
-unsigned char get_random_corridor_tile(unsigned char room1, unsigned char room2,
-                                       unsigned char *x, unsigned char *y) {
-    unsigned char idx = find_corridor_cache_index(room1, room2);
-    if (idx == 255 || corridor_cache[idx].tile_count == 0) {
-        return 0;
-    }
-
-    unsigned char random_idx = rnd(corridor_cache[idx].tile_count);
-    *x = corridor_cache[idx].tiles_x[random_idx];
-    *y = corridor_cache[idx].tiles_y[random_idx];
-    return 1;
-}

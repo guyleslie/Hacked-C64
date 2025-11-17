@@ -41,15 +41,6 @@ unsigned char total_hidden_corridors = 0;    // Hidden corridors placed
 unsigned char available_walls_count = 0;     // Walls without doors (non-secret rooms)
 
 // =============================================================================
-// CORRIDOR TILE CACHE (post-generation, ~2460 bytes)
-// =============================================================================
-// Stores walkable tile coordinates for O(1) corridor queries
-// Enables efficient monster spawning, AI pathfinding, and fog of war
-
-CorridorTileCache corridor_cache[MAX_CONNECTIONS];  // ~2460 bytes (20 × 123 bytes)
-unsigned char corridor_cache_count = 0;              // Number of cached corridors
-
-// =============================================================================
 // PHASE 1: ROOM CREATION
 // =============================================================================
 // Note: create_rooms() function is implemented in room_management.c
@@ -246,23 +237,3 @@ unsigned char mapgen_get_map_size(void) {
     return current_params.map_width;
 }
 
-// =============================================================================
-// CORRIDOR TILE CACHE PUBLIC API
-// =============================================================================
-
-// Get number of walkable tiles in corridor between two rooms
-unsigned char mapgen_get_corridor_tile_count(unsigned char room1, unsigned char room2) {
-    return get_corridor_tile_count(room1, room2);
-}
-
-// Get corridor tile coordinate arrays (O(1) lookup)
-unsigned char mapgen_get_corridor_tiles(unsigned char room1, unsigned char room2,
-                                        unsigned char **tiles_x, unsigned char **tiles_y) {
-    return get_corridor_tiles(room1, room2, tiles_x, tiles_y);
-}
-
-// Get random walkable tile from corridor (for monster placement)
-unsigned char mapgen_get_random_corridor_tile(unsigned char room1, unsigned char room2,
-                                              unsigned char *x, unsigned char *y) {
-    return get_random_corridor_tile(room1, room2, x, y);
-}
