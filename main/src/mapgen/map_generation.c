@@ -44,7 +44,7 @@ unsigned char available_walls_count = 0;     // Walls without doors (non-secret 
 // CORRIDOR TILE CACHE (post-generation, ~2460 bytes)
 // =============================================================================
 // Stores walkable tile coordinates for O(1) corridor queries
-// Enables efficient trap placement, monster spawning, and AI pathfinding
+// Enables efficient monster spawning, AI pathfinding, and fog of war
 
 CorridorTileCache corridor_cache[MAX_CONNECTIONS];  // ~2460 bytes (20 × 123 bytes)
 unsigned char corridor_cache_count = 0;              // Number of cached corridors
@@ -197,9 +197,6 @@ unsigned char generate_level(void) {
     show_phase(7); // "Finalizing"
     update_progress_step(7, 0, 1);
 
-    // Corridor tile cache built inline during connect_rooms() - no post-generation rebuild needed!
-    // build_corridor_tile_cache() removed - eliminated ~400-600 redundant tile calculations
-
     initialize_camera();
     update_progress_step(7, 1, 1);
 
@@ -264,7 +261,7 @@ unsigned char mapgen_get_corridor_tiles(unsigned char room1, unsigned char room2
     return get_corridor_tiles(room1, room2, tiles_x, tiles_y);
 }
 
-// Get random walkable tile from corridor (for trap/monster placement)
+// Get random walkable tile from corridor (for monster placement)
 unsigned char mapgen_get_random_corridor_tile(unsigned char room1, unsigned char room2,
                                               unsigned char *x, unsigned char *y) {
     return get_random_corridor_tile(room1, room2, x, y);

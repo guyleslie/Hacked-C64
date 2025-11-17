@@ -49,10 +49,8 @@ void calculate_y_bit_stride(void) {
  * @brief Fast Y bit offset calculation using pre-computed stride
  * @param y Y coordinate
  * @return Bit offset for the start of row y
- * 
- * OPTIMIZATION: Uses cached y_bit_stride to avoid repeated multiplication
- * Old: y * map_width * 3 (two 8-bit multiplications)
- * New: y * y_bit_stride (one 8-bit × 16-bit multiplication)
+ *
+ * Uses cached y_bit_stride (map_width * 3) for efficient row offset calculation
  */
 static inline unsigned short get_y_bit_offset_fast(unsigned char y) {
     return (unsigned short)y * y_bit_stride;
@@ -783,7 +781,7 @@ unsigned char get_corridor_tiles(unsigned char room1, unsigned char room2,
 }
 
 /**
- * @brief Get random walkable tile from corridor (for trap/monster placement)
+ * @brief Get random walkable tile from corridor (for monster placement)
  * @param room1 First room ID
  * @param room2 Second room ID
  * @param x Pointer to store random X coordinate
@@ -791,9 +789,9 @@ unsigned char get_corridor_tiles(unsigned char room1, unsigned char room2,
  * @return 1 if successful, 0 if corridor not found or empty
  *
  * Usage:
- *   unsigned char trap_x, trap_y;
- *   if (get_random_corridor_tile(5, 8, &trap_x, &trap_y)) {
- *       place_trap(trap_x, trap_y);
+ *   unsigned char monster_x, monster_y;
+ *   if (get_random_corridor_tile(5, 8, &monster_x, &monster_y)) {
+ *       spawn_monster(monster_x, monster_y);
  *   }
  */
 unsigned char get_random_corridor_tile(unsigned char room1, unsigned char room2,
