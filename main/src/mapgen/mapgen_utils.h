@@ -19,7 +19,7 @@ void print_text(const char* text);
 void init_progress_weights(void);  // Initialize dynamic phase boundaries from current_params
 void init_progress_bar_simple(const char* title);
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total);
-void finish_progress_bar_simple(void);
+void finish_progress_bar(void);
 void show_phase(unsigned char phase_id);  // Optimized indexed phase display
 void init_generation_progress(void);
 
@@ -70,6 +70,14 @@ unsigned char get_wall_side_from_exit(unsigned char room_idx, unsigned char exit
 // Percentage-based generation utilities
 unsigned char calculate_percentage_count(unsigned char total, unsigned char percentage);
 unsigned char count_non_branching_from_flags(void);
+
+// Corridor tile cache API
+unsigned char find_corridor_cache_index(unsigned char room1, unsigned char room2);
+unsigned char get_corridor_tile_count(unsigned char room1, unsigned char room2);
+unsigned char get_corridor_tiles(unsigned char room1, unsigned char room2,
+                                 unsigned char **tiles_x, unsigned char **tiles_y);
+unsigned char get_random_corridor_tile(unsigned char room1, unsigned char room2,
+                                       unsigned char *x, unsigned char *y);
 
 // Incremental wall placement functions
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);

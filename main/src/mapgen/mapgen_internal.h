@@ -33,6 +33,9 @@ void place_hidden_corridors(unsigned char corridor_count);
 // Corridor breakpoint management
 void calculate_and_store_breakpoints(unsigned char room_idx, unsigned char connection_idx);
 
+// Corridor tile cache management
+void build_corridor_tile_cache(void);
+
 // =============================================================================
 // CONSOLIDATED GLOBAL VARIABLE DECLARATIONS
 // =============================================================================
@@ -53,6 +56,10 @@ extern unsigned char total_treasures;           // Treasure chambers placed
 extern unsigned char total_false_corridors;     // False corridors placed
 extern unsigned char total_hidden_corridors;    // Hidden corridors placed
 extern unsigned char available_walls_count;     // Walls without doors (non-secret rooms)
+
+// Corridor tile cache for O(1) tile queries (defined in map_generation.c)
+extern CorridorTileCache corridor_cache[MAX_CONNECTIONS];
+extern unsigned char corridor_cache_count;
 
 // Zero page variables for MST performance
 extern __zeropage unsigned char mst_best_room1;
