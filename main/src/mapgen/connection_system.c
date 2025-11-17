@@ -152,10 +152,10 @@ static void step_towards_target(unsigned char *x, unsigned char *y, unsigned cha
     else if (*y > target_y) (*y)--;
 }
 
-static unsigned char walk_corridor_line(unsigned char start_x, unsigned char start_y,
-                                        unsigned char end_x, unsigned char end_y,
-                                        unsigned char mode, unsigned char tile_type,
-                                        CorridorTileCache *cache) {
+static unsigned char build_corridor_line(unsigned char start_x, unsigned char start_y,
+                                         unsigned char end_x, unsigned char end_y,
+                                         unsigned char mode, unsigned char tile_type,
+                                         CorridorTileCache *cache) {
     unsigned char x = start_x;
     unsigned char y = start_y;
 
@@ -210,14 +210,14 @@ static unsigned char process_corridor_path(unsigned char start_x, unsigned char 
         unsigned char next_x = breakpoints.x[i];
         unsigned char next_y = breakpoints.y[i];
 
-        if (!walk_corridor_line(current_x, current_y, next_x, next_y, mode, tile_type, cache)) {
+        if (!build_corridor_line(current_x, current_y, next_x, next_y, mode, tile_type, cache)) {
             return 0;
         }
         current_x = next_x;
         current_y = next_y;
     }
 
-    if (!walk_corridor_line(current_x, current_y, end_x, end_y, mode, tile_type, cache)) {
+    if (!build_corridor_line(current_x, current_y, end_x, end_y, mode, tile_type, cache)) {
         return 0;
     }
 
@@ -435,7 +435,7 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
         calculate_exit_from_target(room2, r1_center_x, r1_center_y, &exit2_x, &exit2_y);
     }
 
-    // Create corridor cache entry BEFORE drawing (inline cache building!)
+    // Create corridor cache entry before drawing
     if (corridor_cache_count >= MAX_CONNECTIONS) {
         return 0; // Cache full
     }
@@ -448,11 +448,11 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
     CorridorBreakpoints computed_breakpoints;
     computed_breakpoints.count = 0;
 
-    // Draw corridor using original working algorithm
+    // Draw corridor
     unsigned char wall1 = get_wall_side_from_exit(room1, exit1_x, exit1_y);
     unsigned char wall2 = get_wall_side_from_exit(room2, exit2_x, exit2_y);
 
-    // Draw corridor AND cache tiles/breakpoints simultaneously (eliminates post-drawing recalculation!)
+    // Corridor tiles and breakpoints are cached during drawing
     draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret,
                             cache_entry, &computed_breakpoints);
 
@@ -1037,89 +1037,8 @@ void place_secret_treasures(unsigned char treasure_count) {
 // CORRIDOR BREAKPOINT CALCULATION SYSTEM
 // =============================================================================
 
-// DEPRECATED: Breakpoints now calculated inline during corridor drawing
-// This function is NO LONGER CALLED - breakpoints are computed and stored directly
-// in connect_rooms() during draw_corridor_from_door() to eliminate redundant calculations
-//
-// Optimization: Eliminated ~38 redundant breakpoint recalculations per map generation
-// (Previously called for every connection immediately after drawing the corridor)
-void calculate_and_store_breakpoints(unsigned char room_idx, unsigned char connection_idx) {
-    Room *room = &room_list[room_idx];
-
-    // Validate indices
-    if (room_idx >= room_count || connection_idx >= room->connections) {
-        return; // Invalid parameters
-    }
-
-    // Get connection metadata
-    unsigned char connected_room = room->conn_data[connection_idx].room_id;
-    unsigned char corridor_type = room->conn_data[connection_idx].corridor_type;
-    unsigned char door1_x = room->doors[connection_idx].x;
-    unsigned char door1_y = room->doors[connection_idx].y;
-    unsigned char wall1_side = room->doors[connection_idx].wall_side;
-
-    // Get connected room door position
-    unsigned char door2_x, door2_y, wall2_side, temp_corridor_type;
-    if (!get_connection_info(connected_room, room_idx, &door2_x, &door2_y, &wall2_side, &temp_corridor_type)) {
-        return; // Connection not found
-    }
-
-    // Reset stored breakpoints to invalid markers before recomputing
-    room->breakpoints[connection_idx][0].x = 255;
-    room->breakpoints[connection_idx][0].y = 255;
-    room->breakpoints[connection_idx][1].x = 255;
-    room->breakpoints[connection_idx][1].y = 255;
-
-    CorridorBreakpoints computed;
-    compute_corridor_breakpoints(door1_x, door1_y, door2_x, door2_y, wall1_side, corridor_type, &computed);
-
-    // Store valid breakpoints - count is accurate, no sentinel check needed
-    for (unsigned char i = 0; i < computed.count && i < 2; i++) {
-        room->breakpoints[connection_idx][i].x = computed.x[i];
-        room->breakpoints[connection_idx][i].y = computed.y[i];
-    }
-}
-
 // =============================================================================
 // CORRIDOR TILE CACHE SYSTEM
 // =============================================================================
-
-// DEPRECATED: Post-generation corridor tile cache building is NO LONGER NEEDED
-// Corridor cache is now built INLINE during corridor drawing in connect_rooms()
-// This eliminates ~400-600 redundant tile-walking calculations per map generation
-//
-// Old approach:
-//   1. Draw corridor (walk tiles)
-//   2. build_corridor_tile_cache() - walk ALL corridors AGAIN
-//
-// New approach:
-//   1. Draw corridor AND cache tiles simultaneously (single pass)
-//
-// Helper function: collect corridor tiles between two points (UNUSED - kept for reference)
-static unsigned char collect_corridor_tiles(unsigned char start_x, unsigned char start_y,
-                                             unsigned char end_x, unsigned char end_y,
-                                             unsigned char *tiles_x, unsigned char *tiles_y,
-                                             unsigned char max_tiles, unsigned char offset) {
-    unsigned char x = start_x;
-    unsigned char y = start_y;
-    unsigned char count = offset;
-
-    while ((x != end_x || y != end_y) && count < max_tiles) {
-        tiles_x[count] = x;
-        tiles_y[count] = y;
-        count++;
-        step_towards_target(&x, &y, end_x, end_y);
-    }
-
-    return count;
-}
-
-// DEPRECATED: Corridor cache now built inline during connect_rooms()
-// This function is kept as a no-op for API compatibility
-void build_corridor_tile_cache(void) {
-    // NO-OP: Cache already built during corridor drawing
-    // corridor_cache_count already set correctly by connect_rooms()
-    return;
-}
 
 
