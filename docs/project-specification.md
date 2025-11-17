@@ -217,20 +217,19 @@ return 3; // Bottom wall
 
 ## Corridor Construction Process
 
-**Two-pass Walker:** `process_corridor_path()` drives both validation and drawing using shared breakpoints for straight, L, and Z paths.
+**Two-pass Walker:** `process_corridor_path()` drives both validation and drawing for straight, L, and Z-shaped corridors.
 **Wall Building:** Walls are constructed around each corridor tile as it's placed.
-**Cache Building:** Tiles and breakpoints cached during corridor drawing.
 **Atomic Operations:** All corridor metadata stored atomically to prevent inconsistent states.
 **Geometric Validation:** Each corridor type validates path safety before construction.
 **System Integration:** Door metadata includes position, wall direction, and corridor type.
 
 **Construction Flow:**
-1. `connect_rooms()` creates `CorridorTileCache` entry before drawing
-2. `draw_corridor_from_door()` passes cache pointer to drawing functions
-3. `build_corridor_line()` builds corridor segments and caches tiles
-4. `process_corridor_path()` captures breakpoints during computation
-5. Success: increment cache counter, store breakpoints in room structures
-6. Failure: decrement cache counter (rollback)
+1. `connect_rooms()` determines optimal corridor type (straight, L, or Z-shaped)
+2. `draw_corridor_from_door()` initiates corridor drawing
+3. `build_corridor_line()` builds corridor segments tile-by-tile
+4. `process_corridor_path()` computes breakpoints and draws corridor segments
+5. Success: door metadata stored in both connected rooms
+6. Failure: connection metadata rolled back
 
 ### Phase 2: Secret Areas
 
@@ -438,32 +437,15 @@ Each room maintains metadata for:
 **Connection Metadata:**
 - `conn_data[4]`: Packed connection structures with room ID and corridor type
 - `doors[4]`: Door structures with coordinates and wall side
-- `breakpoints[4][2]`: Corridor turn point coordinates for pathfinding and navigation
 - Connection count tracked in `connections` field (single source of truth)
 - Atomic operations ensure metadata consistency
 
-**Corridor Breakpoint System:**
-- Straight corridors (type 0): No breakpoints stored
-- L-shaped corridors (type 1): Single pivot point at bend location
-- Z-shaped corridors (type 2): Two breakpoints at segment transition points
-- Invalid breakpoints marked with coordinates (255, 255)
-- Breakpoints captured during corridor drawing via `compute_corridor_breakpoints()` and stored directly in both room structures
-
-**Corridor Tile Cache System:**
-- **O(1) tile queries**: Pre-computed tile coordinate arrays for fast corridor access
-- **CorridorTileCache structure**: Stores walkable tile coordinates for each corridor
-  - `room1, room2`: Connected room IDs (normalized order: room1 < room2)
-  - `tile_count`: Number of walkable tiles in corridor
-  - `tiles_x[MAX_CORRIDOR_LENGTH]`: X coordinates array (60 tiles max)
-  - `tiles_y[MAX_CORRIDOR_LENGTH]`: Y coordinates array (60 tiles max)
-- **Global cache array**: `corridor_cache[MAX_CONNECTIONS]` (~2460 bytes, 20 corridors)
-- **Cache building**: Tiles stored during corridor drawing in `build_corridor_line()`
-  - `connect_rooms()` creates cache entry before drawing, increments counter after success
-- **Use cases**: Monster spawning, AI pathfinding, fog of war
-- **API functions**:
-  - `get_corridor_tile_count(room1, room2)`: Get corridor length
-  - `get_corridor_tiles(room1, room2, **x, **y)`: Get all tile coordinates
-  - `get_random_corridor_tile(room1, room2, *x, *y)`: Random tile selection
+**Corridor Path Computation:**
+- Straight corridors (type 0): Direct path between doors
+- L-shaped corridors (type 1): Single bend at optimal pivot point
+- Z-shaped corridors (type 2): Two bends with segment transitions
+- Breakpoints computed on-demand during corridor drawing via `compute_corridor_breakpoints()`
+- No storage overhead - breakpoints recalculated when needed for pathfinding or navigation
 
 ### Memory Optimization Strategy
 
@@ -475,11 +457,10 @@ Each room maintains metadata for:
 **Memory Layout:**
 - `$0400-$07E7`: VIC-II screen memory (1000 bytes)
 - `$0800-$13FF`: Compact map data (3072 bytes, 3-bit packed encoding)
-- `$1400-$17FF`: Room structure arrays (packed data structures, 960 bytes max)
+- `$1400-$17FF`: Room structure arrays (packed data structures, 640 bytes max - 32 bytes × 20 rooms)
 - `$1800-$1BFF`: Display viewport buffer (1000 bytes)
-- `$1C00-$258B`: Corridor tile cache (2460 bytes, 20 corridors × 123 bytes)
-- `$2600+`: TMEA metadata pools (765 bytes)
-- `$3000+`: Program code (OSCAR64 optimized executable)
+- `$1C00+`: TMEA metadata pools (765 bytes)
+- `$2000+`: Program code (OSCAR64 optimized executable)
 
 ## Data Structures
 
@@ -511,9 +492,6 @@ typedef struct {
     // Door metadata (12 bytes)
     Door doors[4];                         // Door positions and metadata
 
-    // Corridor breakpoint metadata (16 bytes)
-    CorridorBreakpoint breakpoints[4][2];  // Corridor turn points (L=1, Z=2)
-
     // Secret treasure metadata (1 byte) - wall side only (coordinates calculated on-demand)
     unsigned char treasure_wall_side;      // Wall side (0-3) or 255=no treasure
 
@@ -521,7 +499,7 @@ typedef struct {
     unsigned char false_corridor_wall_side; // Wall side (0-3) or 255=no false corridor
     unsigned char false_corridor_end_x;     // False corridor end X coordinate
     unsigned char false_corridor_end_y;     // False corridor end Y coordinate
-} Room;                                     // 48 bytes total
+} Room;                                     // 32 bytes total
 ```
 
 ### Packed Connection Structure
@@ -555,31 +533,16 @@ typedef struct {
 ```c
 typedef struct {
     unsigned char x, y;                    // Breakpoint coordinates
-} CorridorBreakpoint;                      // 2 bytes total 
+} CorridorBreakpoint;                      // 2 bytes total
 ```
 
-**Breakpoint Usage by Corridor Type:**
+**Breakpoint Usage:**
+- Used internally during corridor generation for path computation
 - **Straight (0)**: No breakpoints needed
 - **L-shaped (1)**: Single breakpoint at pivot location
 - **Z-shaped (2)**: Two breakpoints at segment transition points
-- **Invalid marker**: Coordinates (255, 255) indicate unused breakpoint slot
-
-### Corridor Tile Cache Structure
-```c
-typedef struct {
-    unsigned char room1, room2;            // Connected room IDs (room1 < room2)
-    unsigned char tile_count;              // Number of walkable tiles in corridor
-    unsigned char tiles_x[MAX_CORRIDOR_LENGTH]; // X coordinates (60 tiles max)
-    unsigned char tiles_y[MAX_CORRIDOR_LENGTH]; // Y coordinates (60 tiles max)
-} CorridorTileCache;                       // 123 bytes total
-```
-
-**Cache Implementation:**
-- **Global array**: `corridor_cache[MAX_CONNECTIONS]` (20 corridors, ~2460 bytes total)
-- **Normalized room order**: room1 < room2 for consistent lookup
-- **Building**: Tiles stored during `build_corridor_line()` drawing
-- **Reset on regeneration**: `corridor_cache_count = 0` in `reset_all_generation_data()`
-- **Use cases**: Monster spawning, AI pathfinding, fog of war
+- Computed on-demand by `compute_corridor_breakpoints()` during corridor drawing
+- Not stored permanently - recalculated when needed for pathfinding or queries
 
 ### Secret Metadata Tracking
 
@@ -908,10 +871,11 @@ void save_compact_map(const char* filename);
 
 ### Performance Metrics
 - **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
-- **Executable Size**: C64 constraints (release build significantly smaller than debug)
+- **Executable Size**: 11,402 bytes (release build with full optimization)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
-- **Room Data**: 48 bytes per room with packed structures, cached center coordinates, and wall door counters
+- **Room Data**: 32 bytes per room with packed structures, cached center coordinates, and wall door counters
+- **Total Room Storage**: 640 bytes (32 bytes × 20 rooms maximum)
 - **Scrolling**: Partial screen updates with no slowdown at map boundaries
 - **Code Quality**: 6502 architecture optimizations with efficient metadata management
 
