@@ -1847,65 +1847,65 @@ result = (total * percentage + 99) / 100
 
 ### Phase 1: PackedConnection Bitfield Optimization
 
-- [ ] Update `PackedConnection` structure in `mapgen_types.h`
-- [ ] Change `corridor_type` from 3 bits to 2 bits
-- [ ] Add `is_non_branching` 1-bit flag
-- [ ] Verify structure still 1 byte (bitfield packing)
+- [x] Update `PackedConnection` structure in `mapgen_types.h`
+- [x] Change `corridor_type` from 3 bits to 2 bits
+- [x] Add `is_non_branching` 1-bit flag
+- [x] Verify structure still 1 byte (bitfield packing)
 
 ### Phase 2: Core Infrastructure (6 Counters)
 
-- [ ] Add 6 counter declarations to `mapgen_internal.h`
-- [ ] Add 6 counter definitions to `map_generation.c`
-- [ ] Add counter initialization in `reset_all_generation_data()`
-  - [ ] Set first 5 counters to 0
-  - [ ] Initialize `available_walls_count = room_count * 4`
-- [ ] Verify counters accessible from all modules
+- [x] Add 6 counter declarations to `mapgen_internal.h`
+- [x] Add 6 counter definitions to `map_generation.c`
+- [x] Add counter initialization in `reset_all_generation_data()`
+- [x] Set first 5 counters to 0
+- [x] Initialize `available_walls_count = room_count * 4`
+- [x] Verify counters accessible from all modules
 
 ### Phase 3: Configuration Updates
 
-- [ ] Rename `treasure_table` → `treasure_ratio` in `mapgen_config.c`
-- [ ] Rename `hidden_corridor_table` → `hidden_corridor_ratio` in `mapgen_config.c`
-- [ ] Rename `false_corridor_table` → `false_corridor_ratio` in `mapgen_config.c`
-- [ ] Update all 3 tables to `{10, 25, 50}` values
-- [ ] Update declarations in `mapgen_config.h`
-- [ ] Update references in `validate_and_adjust_config()`
+- [x] Rename `treasure_table` → `treasure_ratio` in `mapgen_config.c`
+- [x] Rename `hidden_corridor_table` → `hidden_corridor_ratio` in `mapgen_config.c`
+- [x] Rename `false_corridor_table` → `false_corridor_ratio` in `mapgen_config.c`
+- [x] Update all 3 tables to `{10, 25, 50}` values
+- [x] Update declarations in `mapgen_config.h`
+- [x] Update references in `validate_and_adjust_config()`
 
 ### Phase 4: Helper Functions (3 Functions)
 
-- [ ] Implement `calculate_percentage_count()` in `mapgen_utils.c`
-- [ ] Implement `count_non_branching_from_flags()` in `mapgen_utils.c`
-- [ ] Implement `update_corridor_branching_status()` in `room_management.c` or `mapgen_utils.c`
-- [ ] Add declarations to `mapgen_utils.h` (and `room_management.h` if applicable)
-- [ ] Test helper functions with known inputs
+- [x] Implement `calculate_percentage_count()` in `mapgen_utils.c`
+- [x] Implement `count_non_branching_from_flags()` in `mapgen_utils.c`
+- [x] Implement `update_corridor_branching_status()` in `room_management.c` or `mapgen_utils.c`
+- [x] Add declarations to `mapgen_utils.h` (and `room_management.h` if applicable)
+- [x] Test helper functions with known inputs
 
 ### Phase 5: Runtime Updates (7 Update Points)
 
 **add_connection_to_room() updates (room_management.c):**
-- [ ] Set `conn_data[idx].is_non_branching = 1` after connection creation (line ~300)
-- [ ] Add `available_walls_count--` after wall_door_count increment (line ~305)
-- [ ] Update `conn_data[i].is_non_branching = 0` when branching (line ~310-315)
-- [ ] Call `update_corridor_branching_status()` for reciprocal update (line ~695-700)
+- [x] Set `conn_data[idx].is_non_branching = 1` after connection creation (line ~300)
+- [x] Add `available_walls_count--` after wall_door_count increment (line ~305)
+- [x] Update `conn_data[i].is_non_branching = 0` when branching (line ~310-315)
+- [x] Call `update_corridor_branching_status()` for reciprocal update (line ~695-700)
 
 **Feature placement updates (connection_system.c):**
-- [ ] Add `total_connections++` in `build_room_network()` (line ~506)
-- [ ] Add `total_secret_rooms++` + available_walls_count decrement in `place_secret_rooms()` (line ~612)
-- [ ] Add `total_treasures++` + `available_walls_count--` in `place_secret_treasures()` (line ~938)
-- [ ] Add `total_false_corridors++` in `place_false_corridors()` (line ~832)
-- [ ] Add `total_hidden_corridors++` in `place_hidden_corridors()` (line ~692)
+- [x] Add `total_connections++` in `build_room_network()` (line ~506)
+- [x] Add `total_secret_rooms++` + available_walls_count decrement in `place_secret_rooms()` (line ~612)
+- [x] Add `total_treasures++` + `available_walls_count--` in `place_secret_treasures()` (line ~938)
+- [x] Add `total_false_corridors++` in `place_false_corridors()` (line ~832)
+- [x] Add `total_hidden_corridors++` in `place_hidden_corridors()` (line ~692)
 
 ### Phase 6: Post-MST Calculation
 
-- [ ] Implement `calculate_post_mst_feature_counts()` in `map_generation.c`
-- [ ] Implement `count_non_branching_from_flags()` helper (called from post-MST function)
-- [ ] Call post-MST function after `place_secret_rooms()`
-- [ ] Move `init_progress_weights()` call after post-MST calculation
-- [ ] Verify feature counts calculated correctly using runtime counters
+- [x] Implement `calculate_post_mst_feature_counts()` in `map_generation.c`
+- [x] Implement `count_non_branching_from_flags()` helper (called from post-MST function)
+- [x] Call post-MST function after `place_secret_rooms()`
+- [x] Move `init_progress_weights()` call after post-MST calculation
+- [x] Verify feature counts calculated correctly using runtime counters
 
 ### Phase 7: Validation Cleanup
 
-- [ ] Remove treasure cap logic from `validate_and_adjust_config()`
-- [ ] Remove hidden corridor cap logic from `validate_and_adjust_config()`
-- [ ] Verify validation still prevents invalid configurations
+- [x] Remove treasure cap logic from `validate_and_adjust_config()`
+- [x] Remove hidden corridor cap logic from `validate_and_adjust_config()`
+- [x] Verify validation still prevents invalid configurations
 
 ### Phase 8: Documentation
 

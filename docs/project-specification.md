@@ -219,9 +219,18 @@ return 3; // Bottom wall
 
 **Two-pass Walker:** `process_corridor_path()` drives both validation and drawing using shared breakpoints for straight, L, and Z paths.
 **Wall Building:** Walls are constructed around each corridor tile as it's placed.
+**Inline Cache Building:** Tiles and breakpoints cached during drawing (single-pass optimization, no post-generation reconstruction).
 **Atomic Operations:** All corridor metadata stored atomically to prevent inconsistent states.
 **Geometric Validation:** Each corridor type validates path safety before construction.
 **System Integration:** Door metadata includes position, wall direction, and corridor type.
+
+**Optimization Flow:**
+1. `connect_rooms()` creates `CorridorTileCache` entry before drawing
+2. `draw_corridor_from_door()` passes cache pointer to drawing functions
+3. `walk_corridor_line()` stores tiles during drawing loop (if cache pointer non-NULL)
+4. `process_corridor_path()` captures breakpoints during computation
+5. Success: increment cache counter, store breakpoints in room structures
+6. Failure: decrement cache counter (rollback)
 
 ### Phase 3: Creating Secret Areas
 
@@ -438,7 +447,28 @@ Each room maintains metadata for:
 - L-shaped corridors (type 1): Single pivot point at bend location
 - Z-shaped corridors (type 2): Two breakpoints at segment transition points
 - Invalid breakpoints marked with coordinates (255, 255)
-- Automatically calculated and stored during corridor generation
+- **Inline storage optimization**: Breakpoints captured during corridor drawing (no post-drawing recalculation)
+- Computed once via `compute_corridor_breakpoints()` and stored directly in both room structures
+- Eliminates ~38 redundant breakpoint recalculations per generation (2 per corridor)
+
+**Corridor Tile Cache System:**
+- **O(1) tile queries**: Pre-computed tile coordinate arrays for fast corridor access
+- **CorridorTileCache structure**: Stores walkable tile coordinates for each corridor
+  - `room1, room2`: Connected room IDs (normalized order: room1 < room2)
+  - `tile_count`: Number of walkable tiles in corridor
+  - `tiles_x[MAX_CORRIDOR_LENGTH]`: X coordinates array (60 tiles max)
+  - `tiles_y[MAX_CORRIDOR_LENGTH]`: Y coordinates array (60 tiles max)
+- **Global cache array**: `corridor_cache[MAX_CONNECTIONS]` (~2460 bytes, 20 corridors)
+- **Inline cache building**: Tiles stored DURING corridor drawing (single-pass optimization)
+  - `walk_corridor_line()` caches tiles while drawing (if cache pointer provided)
+  - `connect_rooms()` creates cache entry before drawing, increments counter after success
+  - Eliminates ~400-600 redundant tile-walking calculations per generation
+- **Use cases**: Trap placement, monster spawning, AI pathfinding, corridor lighting effects
+- **API functions**:
+  - `get_corridor_tile_count(room1, room2)`: Get corridor length
+  - `get_corridor_tiles(room1, room2, **x, **y)`: Get all tile coordinates
+  - `get_random_corridor_tile(room1, room2, *x, *y)`: Random tile selection
+- **Performance**: O(1) lookup vs O(corridor_length) path reconstruction
 
 ### Memory Optimization Strategy
 
@@ -450,9 +480,11 @@ Each room maintains metadata for:
 **Memory Layout:**
 - `$0400-$07E7`: VIC-II screen memory (1000 bytes)
 - `$0800-$13FF`: Compact map data (3072 bytes, 3-bit packed encoding)
-- `$1400-$17FF`: Room structure arrays (packed data structures)
-- `$1800-$1BFF`: Display viewport buffer
-- `$2000+`: Program code (OSCAR64 optimized executable)
+- `$1400-$17FF`: Room structure arrays (packed data structures, 960 bytes max)
+- `$1800-$1BFF`: Display viewport buffer (1000 bytes)
+- `$1C00-$258B`: Corridor tile cache (2460 bytes, 20 corridors × 123 bytes)
+- `$2600+`: TMEA metadata pools (765 bytes)
+- `$3000+`: Program code (OSCAR64 optimized executable)
 
 ## Data Structures
 
@@ -525,9 +557,31 @@ typedef struct {
 
 **Breakpoint Usage by Corridor Type:**
 - **Straight (0)**: No breakpoints needed
-- **L-shaped (1)**: Single breakpoint at pivot location  
+- **L-shaped (1)**: Single breakpoint at pivot location
 - **Z-shaped (2)**: Two breakpoints at segment transition points
 - **Invalid marker**: Coordinates (255, 255) indicate unused breakpoint slot
+
+### Corridor Tile Cache Structure
+```c
+typedef struct {
+    unsigned char room1, room2;            // Connected room IDs (room1 < room2)
+    unsigned char tile_count;              // Number of walkable tiles in corridor
+    unsigned char tiles_x[MAX_CORRIDOR_LENGTH]; // X coordinates (60 tiles max)
+    unsigned char tiles_y[MAX_CORRIDOR_LENGTH]; // Y coordinates (60 tiles max)
+} CorridorTileCache;                       // 123 bytes total
+```
+
+**Cache Implementation:**
+- **Global array**: `corridor_cache[MAX_CONNECTIONS]` (20 corridors, ~2460 bytes total)
+- **Normalized room order**: room1 < room2 for consistent lookup
+- **Inline building**: Tiles stored during `walk_corridor_line()` drawing
+- **Single-pass optimization**: No post-generation path reconstruction
+- **Reset on regeneration**: `corridor_cache_count = 0` in `reset_all_generation_data()`
+
+**Performance Benefits:**
+- O(1) corridor tile queries (vs O(corridor_length) path reconstruction)
+- Eliminates ~400-600 redundant tile-walking calculations per generation
+- Enables efficient trap placement, monster spawning, AI pathfinding
 
 ### Secret Metadata Tracking
 

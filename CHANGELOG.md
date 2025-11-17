@@ -1,5 +1,103 @@
 # CHANGELOG
 
+## [Unreleased] - 2025-11-17
+
+### Performance Optimization
+- **Corridor Tile Cache Inline Building**: Major generation speed improvement through elimination of redundant calculations
+  - Cache now built DURING corridor drawing instead of post-generation reconstruction
+  - `walk_corridor_line()` modified to store tiles while drawing (added optional `CorridorTileCache*` parameter)
+  - `process_corridor_path()` modified to cache tiles and breakpoints simultaneously
+  - `connect_rooms()` creates cache entry before drawing, increments counter after successful corridor placement
+  - Eliminated `build_corridor_tile_cache()` post-generation function (reduced to no-op for API compatibility)
+  - **Performance impact**: ~400-600 redundant tile-walking calculations eliminated per map generation
+
+- **Inline Breakpoint Storage**: Eliminated redundant breakpoint recalculations
+  - Breakpoints now captured during corridor drawing via `process_corridor_path()` output parameter
+  - `connect_rooms()` stores breakpoints directly after drawing (no separate function call)
+  - `calculate_and_store_breakpoints()` marked deprecated (reduced to no-op, kept for API compatibility)
+  - **Performance impact**: ~38 redundant breakpoint calculations eliminated (2 per corridor × ~19 corridors)
+
+### Added
+- **Corridor Tile Cache API**: O(1) corridor tile queries for gameplay features
+  - `CorridorTileCache` structure (123 bytes/corridor): room1, room2, tile_count, tiles_x[], tiles_y[]
+  - `corridor_cache[]` global array (MAX_CONNECTIONS=20, ~2460 bytes total)
+  - Helper functions in `mapgen_utils.c`:
+    - `find_corridor_cache_index(room1, room2)` - O(1) cache lookup
+    - `get_corridor_tile_count(room1, room2)` - Get corridor length
+    - `get_corridor_tiles(room1, room2, **x, **y)` - Get all tile coordinates
+    - `get_random_corridor_tile(room1, room2, *x, *y)` - Random tile for trap/monster placement
+  - Public API in `mapgen_api.h`:
+    - `mapgen_get_corridor_tile_count()` - Public wrapper
+    - `mapgen_get_corridor_tiles()` - Public wrapper
+    - `mapgen_get_random_corridor_tile()` - Public wrapper
+  - **Use cases**: Trap placement, monster spawning, AI pathfinding, corridor-based lighting effects
+
+### Changed
+- **Corridor Drawing Pipeline**: Modified to support inline cache building
+  - `walk_corridor_line()`: Added `CorridorTileCache *cache` parameter (NULL for false corridors)
+  - `process_corridor_path()`: Added `CorridorTileCache *cache` and `CorridorBreakpoints *out_breakpoints` parameters
+  - `draw_corridor_from_door()`: Added cache and breakpoint output parameters
+  - `connect_rooms()`: Now manages cache entry creation, population, and rollback on failure
+  - False corridors: Pass NULL for cache/breakpoints (dead-end corridors don't need caching)
+
+- **Cache Reset on Regeneration**: Added corridor_cache_count reset to `reset_all_generation_data()`
+  - Fixes bug where cache accumulated across multiple generations
+  - Each generation now starts with clean cache state
+
+### Fixed
+- **False Corridor Endpoint Distance Validation**: Endpoint must be ≥2 tiles from walkable tiles
+  - Added 5×5 tile area check around endpoint (connection_system.c:852-874)
+  - Validates endpoint is not within 2 tiles of any TILE_FLOOR or TILE_DOOR
+  - Prevents false corridors from accidentally connecting to other corridors
+  - Ensures proper dead-end corridor behavior
+
+### Code Quality
+- **Eliminated Redundant Calculations**: Generation pipeline now operates in single pass
+  - Old approach: Draw corridor → Recalculate breakpoints → Recalculate all tiles for cache
+  - New approach: Draw corridor AND cache tiles/breakpoints simultaneously
+  - Single source of truth: tiles/breakpoints captured during drawing, never recalculated
+  - Cleaner code flow: cache building integrated into natural generation sequence
+
+### Performance
+- **Total Optimization Impact**: ~438-638 redundant calculations eliminated per generation
+  - Corridor tile reconstruction: ~400-600 tile-walking operations eliminated
+  - Breakpoint recalculation: ~38 breakpoint computations eliminated
+  - Cache building moved from post-generation O(N) phase to inline O(1) operations
+  - Estimated speedup: ~5-10% faster generation on C64 hardware (~15-30ms improvement)
+
+- **Memory Overhead**: ~2460 bytes (~3.8% of C64 RAM)
+  - CorridorTileCache array: 20 corridors × 123 bytes = 2460 bytes
+  - Cache counter: 1 byte
+  - **Benefit**: Enables O(1) corridor queries vs O(corridor_length) reconstruction
+
+### Technical Details
+- **Cache Entry Lifecycle**:
+  1. `connect_rooms()` checks cache availability (corridor_cache_count < MAX_CONNECTIONS)
+  2. Creates cache entry with normalized room order (room1 < room2)
+  3. Passes cache pointer to `draw_corridor_from_door()`
+  4. Tiles stored during `walk_corridor_line()` drawing loop
+  5. Breakpoints captured during `process_corridor_path()` computation
+  6. Success: increment counter, store breakpoints in room structures
+  7. Failure: decrement counter (rollback)
+
+- **Breakpoint Storage Optimization**:
+  - Computed once during `process_corridor_path()` via `compute_corridor_breakpoints()`
+  - Stored directly in both room structures (bidirectional access)
+  - No recalculation after drawing (eliminated 2 function calls per corridor)
+
+- **False Corridor Endpoint Validation**:
+  - Checks 24 tiles around endpoint (5×5 grid minus center)
+  - Signed arithmetic for boundary checks (handles negative coordinates)
+  - Early rejection on first walkable tile found (average ~12 checks)
+  - Prevents dead-end corridors from becoming accidental shortcuts
+
+### Documentation
+- CHANGELOG.md updated with corridor cache optimization details
+- Code comments added explaining inline cache building approach
+- Deprecated functions documented with optimization rationale
+
+---
+
 ## [Unreleased] - 2025-11-16
 
 ### Architecture
