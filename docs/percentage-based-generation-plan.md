@@ -1907,37 +1907,6 @@ result = (total * percentage + 99) / 100
 - [x] Remove hidden corridor cap logic from `validate_and_adjust_config()`
 - [x] Verify validation still prevents invalid configurations
 
-### Phase 8: Documentation
-
-- [ ] Update CLAUDE.md configuration tables section
-- [ ] Update CLAUDE.md generation algorithm section
-- [ ] Update CLAUDE.md with PackedConnection bitfield optimization
-- [ ] Update project-specification.md algorithm specifications
-- [ ] Update inline comments where needed
-- [ ] Verify all references to old table names updated
-
-### Phase 9: Testing
-
-- [ ] Compile development build successfully
-- [ ] Compile release build successfully
-- [ ] Test small map (48×48) with all presets
-- [ ] Test medium map (64×64) with all presets
-- [ ] Test large map (80×80) with all presets
-- [ ] Verify feature counts match percentages
-- [ ] Verify all 6 counters accurate
-- [ ] Verify `available_walls_count` tracks correctly
-- [ ] Verify `is_non_branching` flags set correctly
-- [ ] Test edge cases (zero eligible rooms, etc.)
-
-### Phase 10: Verification
-
-- [ ] Check memory usage (+6 bytes confirmed, PackedConnection still 1 byte)
-- [ ] Verify no performance regression
-- [ ] Confirm all features place correctly
-- [ ] Validate TMEA integration unchanged
-- [ ] Test map export functionality
-- [ ] Verify PackedConnection bitfield packing (1 byte confirmed)
-
 ---
 
 ## Document Revision History
