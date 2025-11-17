@@ -391,12 +391,6 @@ void init_rooms(void) {
             room_list[i].doors[j].wall_side = 0;
             room_list[i].doors[j].is_branching = 0; // Initialize as non-branching
             room_list[i].doors[j].reserved = 0; // Clear reserved bits
-
-            // Initialize corridor breakpoints (invalid coordinates)
-            room_list[i].breakpoints[j][0].x = 255; // Invalid marker
-            room_list[i].breakpoints[j][0].y = 255;
-            room_list[i].breakpoints[j][1].x = 255; // Invalid marker
-            room_list[i].breakpoints[j][1].y = 255;
         }
 
         // Initialize treasure and corridor metadata 
