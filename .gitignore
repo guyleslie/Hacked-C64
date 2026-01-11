@@ -1,12 +1,14 @@
-# CMake generated files (exclude all CMake artifacts, OSCAR64 and VICE)
-.claude
-build/CMakeCache.txt
-build/CMakeFiles/
-build/cmake_install.cmake
-build/build.ninja
-build/.cmake
-oscar64
-vice
+# Private/Local Configuration
+.claude/
+CLAUDE.md
+SECURITY.md
 
-# Keep OSCAR64 build outputs in build/
-# (allow *.prg, *.map, *.asm, *.lbl, *.dbj files)
+# Build Outputs
+build/
+
+# Development Tools (installed locally)
+oscar64/
+vice/
+
+# GitHub Workflows (removed)
+.github/
