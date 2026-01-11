@@ -47,8 +47,8 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
    ├── main/src/                  (source code directory)
    │   ├── main.c
    │   └── mapgen/                (map generation modules)
-   ├── build-mapgen-test.bat     (DEBUG mode with menu/preview)
-   ├── build-mapgen-release.bat  (Production API mode)
+   ├── build-mapgen-test.bat      (DEBUG mode with menu/preview)
+   ├── build-mapgen-release.bat   (Production API mode)
    └── run_vice.bat
    ```
 
