@@ -67,6 +67,130 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 - Dynamic parameter passing to generation pipeline
 - Real-time value updates in menu display
 
+## TMEA: Tile Metadata Extension Architecture
+
+### Overview
+
+**TMEA (Tile Metadata Extension Architecture)** is a lightweight metadata system that extends the base tile system with additional properties and dynamic entities. It provides a way to attach extra information to tiles (doors, walls, floors) without increasing the base tile storage footprint.
+
+**Memory Overhead:** 765 bytes (~1.2% of C64 RAM)
+
+### Architecture Philosophy
+
+TMEA uses a **hybrid two-tier architecture** optimized for room-based dungeon generation:
+
+1. **Room Metadata Pool** (Primary, ~70% of map):
+   - 4 slots per room × 20 rooms = 80 max metadata entries
+   - Compact room-local coordinates (4+4 bits)
+   - Fast O(4) lookup per room
+
+2. **Global Metadata Pool** (Fallback, ~30% of map):
+   - 16 slots for corridors and map-wide features
+   - Global coordinates (8+8 bits)
+   - O(16) linear search
+
+3. **Entity Pools** (Dynamic):
+   - 48 objects (items, keys, potions) - 6 bytes each
+   - 24 monsters (enemies with AI state) - 6 bytes each
+   - Always use global coordinates for movement
+
+### Door State Management (TMEA-First)
+
+**Secret doors** are now managed exclusively via TMEA metadata instead of a dedicated tile type:
+
+- **Base tile:** `TILE_DOOR` (3)
+- **Metadata flag:** `TMFLAG_DOOR_SECRET`
+- **Display:** System checks `is_door_secret()` to render appropriate symbol
+
+**Advantages:**
+- Eliminates tile type redundancy (value 6 freed for future use)
+- Enables 5 door states instead of 2: secret, locked, trapped, revealed, open
+- Single source of truth for door properties
+- Extensible for future door mechanics
+
+**API Functions:**
+```c
+// Add secret door metadata
+unsigned char add_secret_door_metadata(unsigned char x, unsigned char y);
+
+// Query door state
+unsigned char is_door_secret(unsigned char x, unsigned char y);
+unsigned char is_door_locked(unsigned char x, unsigned char y);
+unsigned char is_door_trapped(unsigned char x, unsigned char y);
+
+// Reveal secret door
+unsigned char reveal_secret_door(unsigned char x, unsigned char y);
+
+// Set door open/closed state
+unsigned char set_door_open(unsigned char x, unsigned char y, unsigned char is_open);
+```
+
+### TMEA Type System
+
+**8-bit Flag Encoding:** `TTTFFFFF`
+- **TTT:** Type classification (3 bits, 8 types)
+- **FFFFF:** Type-specific flags (5 bits, 32 flags)
+
+**Door Flags (TMTYPE_DOOR = 0x20):**
+- `TMFLAG_DOOR_SECRET` (0x01): Hidden from player
+- `TMFLAG_DOOR_TRAPPED` (0x02): Triggers trap on open
+- `TMFLAG_DOOR_LOCKED` (0x04): Requires key/lockpick
+- `TMFLAG_DOOR_REVEALED` (0x08): Secret door discovered
+- `TMFLAG_DOOR_OPEN` (0x10): Door is open
+
+**Wall Flags (TMTYPE_WALL = 0x00):**
+- `TMFLAG_WALL_ILLUSORY` (0x01): Passable fake wall
+- `TMFLAG_WALL_SECRET` (0x02): Hidden wall
+- `TMFLAG_WALL_REVEALED` (0x04): Discovered
+- `TMFLAG_WALL_DESTRUCTIBLE` (0x10): Can be destroyed
+
+**Trap Flags (TMTYPE_TRAP = 0x40):**
+- `TMFLAG_TRAP_HIDDEN` (0x01): Not visible
+- `TMFLAG_TRAP_TRIGGERED` (0x02): Already activated
+- `TMFLAG_TRAP_DISARMED` (0x04): Disabled
+
+### Performance Characteristics
+
+| Operation | Room Pool | Global Pool | Notes |
+|-----------|-----------|-------------|-------|
+| **add_tile_metadata** | ~240 cycles | ~230 cycles | Automatic routing |
+| **get_tile_metadata** | ~260 cycles | ~440 cycles | Quick reject: ~50 cycles |
+| **Quick reject** | ~50 cycles | ~50 cycles | TILE_MARKER check |
+| **spawn_object** | ~90 cycles | - | Free list alloc |
+| **spawn_monster** | ~90 cycles | - | Free list alloc |
+
+**Weighted Average:** ~0.31ms per lookup (70% room, 30% global)
+
+### Integration with Generation
+
+TMEA is initialized at program startup and reset before each new dungeon:
+
+```c
+// In main()
+init_tmea_system();  // One-time initialization
+
+// Before each generation
+reset_tmea_data();   // Clear metadata, rebuild entity pools
+```
+
+All secret door creation now uses TMEA:
+- Secret rooms: `add_secret_door_metadata()` instead of `TILE_SECRET_DOOR`
+- Secret treasures: `add_secret_door_metadata()` for treasure chamber entrance
+- Hidden corridors: `add_secret_door_metadata()` for both corridor doors
+
+### Future Extensibility
+
+TMEA provides a foundation for advanced dungeon features:
+- **Locked doors** with key requirements
+- **Trapped doors** with damage values
+- **Illusory walls** (passable fake walls)
+- **Floor traps** (hidden, pressure plates)
+- **Teleport pads** with destination links
+- **Objects** (gold, keys, potions, quest items)
+- **Monsters** (enemies with HP and AI state)
+
+For complete TMEA documentation, see **[docs/TMEA.md](TMEA.md)**
+
 ## Map Generation Logic
 
 The generation process displays real-time progress with centered progress bar and phase indicators. Progress boundaries are calculated dynamically at generation start based on current parameters, ensuring accurate progress representation regardless of configuration:
@@ -81,10 +205,13 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - Cell order is randomized using Fisher-Yates shuffle algorithm
 
 **Room Sizes and Types:**
-- Fixed size range from 4×4 to 8×8 tiles (not user-configurable)
-- Random width and height generation within range
+- Room size varies by preset (defined in `room_size_table[]`):
+  - **Small**: 3×3 to 5×5 tiles
+  - **Medium**: 4×4 to 7×7 tiles
+  - **Large**: 5×5 to 8×8 tiles
+- Random width and height generation within preset range
 - Room count varies based on configuration (8/12/16)
-- Each room maintains minimum 4-tile distance from others
+- Each room maintains minimum spacing from others
 
 **Collision Detection System:**
 - Pre-placement validation checks against existing rooms
@@ -128,14 +255,7 @@ The connection system implements three distinct corridor types with specific geo
 - **1 segment:** direct line between two doors
 - **Break points:** none
 - **Direction:** straight line path between doors
-
-```c
-// Validation: can_use_straight_corridor() in connection_system.c
-if (r1_cx == r2_cx) {
-    // Vertical alignment - rooms must face each other (not overlap)
-    return (r1_cy < r2_cy) ? (r1->y + r1->h <= r2->y) : (r2->y + r2->h <= r1->y);
-}
-```
+- **Validation:** `can_use_straight_corridor()` ensures rooms face each other without overlap
 
 ### 2. **L-shaped Corridors** - Type 1
 
@@ -152,18 +272,7 @@ if (r1_cx == r2_cx) {
 **Corridor Path:**
 - **2 segments:** door1 → pivot point → door2
 - **1 break point:** right-angle turn at pivot
-- **Direction:** deterministic based on wall side
-
-```c
-// Path logic: compute_corridor_breakpoints() in connection_system.c
-if ((wall1_side & 0x02) == 0) {
-    // Vertical wall -> HORIZONTAL FIRST
-    pivot_x = door2_x; pivot_y = door1_y;
-} else {
-    // Horizontal wall -> VERTICAL FIRST  
-    pivot_x = door1_x; pivot_y = door2_y;
-}
-```
+- **Direction:** deterministic based on wall side (vertical walls → horizontal first, horizontal walls → vertical first)
 
 ### 3. **Z-shaped Corridors** - Type 2
 
@@ -180,18 +289,7 @@ if ((wall1_side & 0x02) == 0) {
 **Corridor Path:**
 - **3 segments:** door1 → segment1 end → segment2 end → door2
 - **2 break points:** two direction changes creating Z-pattern
-- **Segment lengths:** first leg is 1/3 of total distance
-
-```c
-// Segment calculation: compute_corridor_breakpoints() in connection_system.c
-if ((wall_side & 0x02) == 0) { // Vertical walls -> horizontal start
-    unsigned char leg_length = dx / 3;
-    seg1_end_x = (door2_x > door1_x) ? door1_x + leg_length : door1_x - leg_length;
-} else { // Horizontal walls -> vertical start
-    unsigned char leg_length = dy / 3;
-    seg1_end_y = (door2_y > door1_y) ? door1_y + leg_length : door1_y - leg_length;
-}
-```
+- **Segment lengths:** first leg is 1/3 of total distance (calculated by `compute_corridor_breakpoints()`)
 
 ## Corridor Type Selection Priority
 
@@ -201,16 +299,9 @@ if ((wall_side & 0x02) == 0) { // Vertical walls -> horizontal start
 
 ## Wall Side Encoding
 
-```c
-// Wall side determination: get_wall_side_from_exit() in mapgen_utils.c
-if (exit_x < room->x) return 0; // Left wall
-if (exit_x >= room->x + room->w) return 1; // Right wall  
-if (exit_y < room->y) return 2; // Top wall
-return 3; // Bottom wall
-```
-
+Wall side values are determined by `get_wall_side_from_exit()` based on door position relative to room boundaries:
 - **0:** Left wall
-- **1:** Right wall  
+- **1:** Right wall
 - **2:** Top wall
 - **3:** Bottom wall
 
@@ -252,9 +343,9 @@ The secret room system provides a special gameplay mechanic:
 - Increments `total_secret_rooms` counter when secret room created
 - Decrements `available_walls_count` for each unused wall in secret room (walls become unavailable for false corridors)
 
-### Phase 2.5: Post-MST Feature Count Calculation
+**Post-MST Feature Count Calculation:**
 
-After secret rooms are placed, the system calculates actual feature counts based on network topology:
+After secret rooms are placed (end of Phase 2), the system calculates actual feature counts based on network topology. This is not a separate phase, but an internal calculation step:
 
 **Calculation Logic:**
 - **Treasure count**: `calculate_percentage_count(room_count - total_secret_rooms, treasure_ratio[preset])`
@@ -393,13 +484,9 @@ Stair placement system ensures optimal level navigation with maximum separation:
 - Coordinate bounds checking prevents placement errors
 - System guarantees maximum distance between level entry and exit points
 
-### Phase 7: Finalizing
+### Phase 7: Generation Complete
 
-Final generation step completes the map:
-
-**Camera Initialization:**
-- Viewport positioning for interactive navigation
-- System preparation for player movement
+The final phase marks the completion of map generation. All map data (compact_map, room_list, TMEA pools) is now ready in memory and available for use.
 
 ## Data Storage System
 
@@ -453,13 +540,12 @@ Each room maintains metadata for:
 - All data structures use pre-allocated fixed-size arrays
 - Zero page variables for critical path operations
 
-**Memory Layout:**
-- `$0400-$07E7`: VIC-II screen memory (1000 bytes)
-- `$0800-$13FF`: Compact map data (3072 bytes, 3-bit packed encoding)
-- `$1400-$17FF`: Room structure arrays (packed data structures, 640 bytes max - 32 bytes × 20 rooms)
-- `$1800-$1BFF`: Display viewport buffer (1000 bytes)
-- `$1C00+`: TMEA metadata pools (765 bytes)
-- `$2000+`: Program code (OSCAR64 optimized executable)
+**Memory Organization:**
+- Static allocation for all data structures
+- Compact map data: 2400 bytes max (3-bit tile encoding)
+- Room structures: 960 bytes (48 bytes × 20 rooms)
+- TMEA metadata pools: 765 bytes
+- Display viewport buffer: 1000 bytes (DEBUG mode only)
 
 ## Data Structures
 
@@ -498,7 +584,7 @@ typedef struct {
     unsigned char false_corridor_wall_side; // Wall side (0-3) or 255=no false corridor
     unsigned char false_corridor_end_x;     // False corridor end X coordinate
     unsigned char false_corridor_end_y;     // False corridor end Y coordinate
-} Room;                                     // 32 bytes total
+} Room;                                     // 48 bytes total
 ```
 
 ### Packed Connection Structure
@@ -557,130 +643,6 @@ typedef struct {
 - Invalid coordinates (255, 255) indicate no false corridor
 - `place_false_corridors()`: Places configurable number of false corridors (3/5/8) with retry logic and two-pass walker validation
 
-## TMEA: Tile Metadata Extension Architecture
-
-### Overview
-
-**TMEA (Tile Metadata Extension Architecture)** is a lightweight metadata system that extends the base tile system with additional properties and dynamic entities. It provides a way to attach extra information to tiles (doors, walls, floors) without increasing the base tile storage footprint.
-
-**Memory Overhead:** 765 bytes (~1.2% of C64 RAM)
-
-### Architecture Philosophy
-
-TMEA uses a **hybrid two-tier architecture** optimized for room-based dungeon generation:
-
-1. **Room Metadata Pool** (Primary, ~70% of map):
-   - 4 slots per room × 20 rooms = 80 max metadata entries
-   - Compact room-local coordinates (4+4 bits)
-   - Fast O(4) lookup per room
-
-2. **Global Metadata Pool** (Fallback, ~30% of map):
-   - 16 slots for corridors and map-wide features
-   - Global coordinates (8+8 bits)
-   - O(16) linear search
-
-3. **Entity Pools** (Dynamic):
-   - 48 objects (items, keys, potions) - 6 bytes each
-   - 24 monsters (enemies with AI state) - 6 bytes each
-   - Always use global coordinates for movement
-
-### Door State Management (TMEA-First)
-
-**Secret doors** are now managed exclusively via TMEA metadata instead of a dedicated tile type:
-
-- **Base tile:** `TILE_DOOR` (3)
-- **Metadata flag:** `TMFLAG_DOOR_SECRET`
-- **Display:** System checks `is_door_secret()` to render appropriate symbol
-
-**Advantages:**
-- Eliminates tile type redundancy (value 6 freed for future use)
-- Enables 5 door states instead of 2: secret, locked, trapped, revealed, open
-- Single source of truth for door properties
-- Extensible for future door mechanics
-
-**API Functions:**
-```c
-// Add secret door metadata
-unsigned char add_secret_door_metadata(unsigned char x, unsigned char y);
-
-// Query door state
-unsigned char is_door_secret(unsigned char x, unsigned char y);
-unsigned char is_door_locked(unsigned char x, unsigned char y);
-unsigned char is_door_trapped(unsigned char x, unsigned char y);
-
-// Reveal secret door
-unsigned char reveal_secret_door(unsigned char x, unsigned char y);
-
-// Set door open/closed state
-unsigned char set_door_open(unsigned char x, unsigned char y, unsigned char is_open);
-```
-
-### TMEA Type System
-
-**8-bit Flag Encoding:** `TTTFFFFF`
-- **TTT:** Type classification (3 bits, 8 types)
-- **FFFFF:** Type-specific flags (5 bits, 32 flags)
-
-**Door Flags (TMTYPE_DOOR = 0x20):**
-- `TMFLAG_DOOR_SECRET` (0x01): Hidden from player
-- `TMFLAG_DOOR_TRAPPED` (0x02): Triggers trap on open
-- `TMFLAG_DOOR_LOCKED` (0x04): Requires key/lockpick
-- `TMFLAG_DOOR_REVEALED` (0x08): Secret door discovered
-- `TMFLAG_DOOR_OPEN` (0x10): Door is open
-
-**Wall Flags (TMTYPE_WALL = 0x00):**
-- `TMFLAG_WALL_ILLUSORY` (0x01): Passable fake wall
-- `TMFLAG_WALL_SECRET` (0x02): Hidden wall
-- `TMFLAG_WALL_REVEALED` (0x04): Discovered
-- `TMFLAG_WALL_DESTRUCTIBLE` (0x10): Can be destroyed
-
-**Trap Flags (TMTYPE_TRAP = 0x40):**
-- `TMFLAG_TRAP_HIDDEN` (0x01): Not visible
-- `TMFLAG_TRAP_TRIGGERED` (0x02): Already activated
-- `TMFLAG_TRAP_DISARMED` (0x04): Disabled
-
-### Performance Characteristics
-
-| Operation | Room Pool | Global Pool | Notes |
-|-----------|-----------|-------------|-------|
-| **add_tile_metadata** | ~240 cycles | ~230 cycles | Automatic routing |
-| **get_tile_metadata** | ~260 cycles | ~440 cycles | Quick reject: ~50 cycles |
-| **Quick reject** | ~50 cycles | ~50 cycles | TILE_MARKER check |
-| **spawn_object** | ~90 cycles | - | Free list alloc |
-| **spawn_monster** | ~90 cycles | - | Free list alloc |
-
-**Weighted Average:** ~0.31ms per lookup (70% room, 30% global)
-
-### Integration with Generation
-
-TMEA is initialized at program startup and reset before each new dungeon:
-
-```c
-// In main()
-init_tmea_system();  // One-time initialization
-
-// Before each generation
-reset_tmea_data();   // Clear metadata, rebuild entity pools
-```
-
-All secret door creation now uses TMEA:
-- Secret rooms: `add_secret_door_metadata()` instead of `TILE_SECRET_DOOR`
-- Secret treasures: `add_secret_door_metadata()` for treasure chamber entrance
-- Hidden corridors: `add_secret_door_metadata()` for both corridor doors
-
-### Future Extensibility
-
-TMEA provides a foundation for advanced dungeon features:
-- **Locked doors** with key requirements
-- **Trapped doors** with damage values
-- **Illusory walls** (passable fake walls)
-- **Floor traps** (hidden, pressure plates)
-- **Teleport pads** with destination links
-- **Objects** (gold, keys, potions, quest items)
-- **Monsters** (enemies with HP and AI state)
-
-For complete TMEA documentation, see **[docs/TMEA.md](TMEA.md)**
-
 ## Algorithm Performance
 
 ### Computational Complexity
@@ -697,17 +659,14 @@ For complete TMEA documentation, see **[docs/TMEA.md](TMEA.md)**
 
 ## Generation Pipeline
 
-0. **Initialization**: Map clearing, random seed setup, runtime counter initialization
-1. **Building Rooms**: Grid-based placement with collision detection and immediate wall construction
-2. **Connecting Rooms**: MST algorithm execution with corridor walls built during creation (updates `total_connections`, `available_walls_count`)
-3. **Secret Areas**: Single-connection room conversion using `place_secret_rooms()` (updates `total_secret_rooms`, `available_walls_count`)
-4. **Post-MST Calculation**: `calculate_post_mst_feature_counts()` computes actual feature counts from percentages using runtime counters
-5. **Secret Treasures**: Hidden treasure chamber placement using `place_secret_treasures()` (updates `total_treasures`, `available_walls_count`)
-6. **False Corridors**: Dead-end corridor placement using `place_false_corridors()` (updates `total_false_corridors`)
-7. **Hidden Corridors**: Non-branching corridor concealment using `place_hidden_corridors()` (updates `total_hidden_corridors`)
-8. **Placing Stairs**: Distance-based optimal placement (maximum separation)
-9. **Finalizing**: Viewport setup for navigation
-10. **Complete**: Generation finished
+0. **Building Rooms**: Grid-based placement with collision detection and immediate wall construction. Map clearing and runtime counter initialization happen before this phase.
+1. **Connecting Rooms**: MST algorithm execution with corridor walls built during creation (updates `total_connections`, `available_walls_count`)
+2. **Secret Areas**: Single-connection room conversion using `place_secret_rooms()` (updates `total_secret_rooms`, `available_walls_count`). Post-MST calculation (`calculate_post_mst_feature_counts()`) runs after this phase to compute feature counts from percentages.
+3. **Secret Treasures**: Hidden treasure chamber placement using `place_secret_treasures()` (updates `total_treasures`, `available_walls_count`)
+4. **False Corridors**: Dead-end corridor placement using `place_false_corridors()` (updates `total_false_corridors`)
+5. **Hidden Corridors**: Non-branching corridor concealment using `place_hidden_corridors()` (updates `total_hidden_corridors`)
+6. **Placing Stairs**: Distance-based optimal placement (maximum separation)
+7. **Complete**: Generation finished, all map data ready in memory
 
 ## Technical Architecture
 
@@ -722,79 +681,58 @@ For complete TMEA documentation, see **[docs/TMEA.md](TMEA.md)**
 | **Utility Layer** (`mapgen_utils.c`) | Bit manipulation, math operations, validation |
 | **Export System** (`map_export.c`) | KERNAL-based file I/O operations |
 
-### Build Configuration
+### Build System
 
-**Development Build Flags:**
-```bash
-oscar64.exe -O0 -g -n -dDEBUG -d__oscar64__ -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci
-```
+The project uses batch scripts for building:
+- `build-mapgen-test.bat` - DEBUG build with interactive features (~12KB)
+- `build-mapgen-release.bat` - Production API build (~8.2KB)
 
-**Release Build Flags:**
-```bash
-oscar64.exe -Os -Oo -Oi -Op -Oz -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci
-```
-
-**Flag Details:**
-- `-Os`: Size optimization priority (release only)
-- `-Oo`: Code outlining optimization (release only)
-- `-Oi`: Auto inline small functions (release only)
-- `-Op`: Optimize constant parameters (release only)
-- `-Oz`: Auto zero page placement for globals (release only)
-- `-O0`: No optimization (development only)
-- `-g`: Debug symbols (development only)
-- `-n`: Generate additional debug files (development only)
-- `-dDEBUG`: Define DEBUG macro (development only)
-- `-dNOLONG`: Exclude long integer support (saves space)
-- `-dNOFLOAT`: Remove floating point operations (saves space)
-- `-tm=c64`: Target Commodore 64 platform
-- `-tf=prg`: Generate .prg executable format
-- `-psci`: Enable SCI (Screen Character Interface) support
-
-### CMake Integration
-Cross-platform build system with automatic OSCAR64 detection:
-```cmake
-set(OSCAR64_BIN "${OSCAR64_PATH}/oscar64/bin/oscar64.exe")
-add_custom_command(OUTPUT ${OUTPUT_PRG} COMMAND ${OSCAR64_BIN} ...)
-```
+See the batch files for current compiler flags and optimization settings.
 
 ## API Interface
 
-### Public Functions
+The mapgen module provides a clean public API for map generation. All functions are declared in `mapgen_api.h`.
+
+### Public API Functions
 ```c
-// Core generation
+// Initialization and configuration
+void mapgen_init(unsigned int seed);
+void mapgen_set_parameters(const MapParameters *params);
+
+// DEBUG mode API - generates dungeon using current parameters
 unsigned char mapgen_generate_dungeon(void);
 
-// Room queries
-unsigned char mapgen_get_room_info(unsigned char room_index, ...);
-unsigned char mapgen_find_room_at_position(unsigned char x, unsigned char y);
-unsigned char mapgen_get_map_size(void);  // Returns current map width/height
+// Production mode API - direct parameter generation
+unsigned char mapgen_generate_with_params(
+    unsigned char map_size,        // 0=SMALL(48x48), 1=MEDIUM(64x64), 2=LARGE(80x80)
+    unsigned char room_count,      // 0=SMALL(8-12), 1=MEDIUM(12-16), 2=LARGE(16-20)
+    unsigned char room_size,       // Currently unused (preset-based), reserved for future
+    unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
+    unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
+    unsigned char secret_treasures,// 0=10%, 1=25%, 2=50%
+    unsigned char hidden_corridors // 0=10%, 1=25%, 2=50%
+);
+// Returns: 0=success, 1=invalid params, 2=generation failed
 
-// Statistics and validation
-void mapgen_get_statistics(unsigned char *floor_tiles, ...);
-unsigned char mapgen_validate_map(void);
+// Query functions
+unsigned char mapgen_get_map_size(void);  // Returns current map width
+```
 
-// Map export
+### DEBUG-Only Functions
+
+```c
+// Map export (DEBUG mode only, defined in map_export.h)
 void save_compact_map(const char* filename);  // Export map to PRG format
 ```
 
-### Atomic Metadata Management Functions
-```c
-// Atomic connection management - adds connection and door metadata in single operation
-unsigned char add_connection_to_room(unsigned char room_idx, unsigned char connected_room,
-                                    unsigned char door_x, unsigned char door_y, 
-                                    unsigned char wall_side, unsigned char corridor_type);
+### Data Access
 
-// Centralized connection validation - checks if rooms are already connected
-unsigned char room_has_connection_to(unsigned char room_idx, unsigned char target_room);
-
-// Get connection info for specific connected room
-unsigned char get_connection_info(unsigned char room_idx, unsigned char target_room,
-                                 unsigned char *door_x, unsigned char *door_y, 
-                                 unsigned char *wall_side, unsigned char *corridor_type);
-
-// Atomic rollback - removes last connection from room safely
-unsigned char remove_last_connection_from_room(unsigned char room_idx);
-```
+After successful generation, the following global data structures are available:
+- `compact_map[]` - 3-bit packed tile data (access via `get_compact_tile(x, y)`)
+- `room_list[]` - Room structure array (20 rooms maximum)
+- `room_count` - Number of generated rooms
+- `current_params` - Current generation parameters
+- TMEA pools - Metadata and entity data (access via TMEA API)
 
 ## Map Export System
 
@@ -873,8 +811,8 @@ void save_compact_map(const char* filename);
 - **Executable Size**: 11,402 bytes (release build with full optimization)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
-- **Room Data**: 32 bytes per room with packed structures, cached center coordinates, and wall door counters
-- **Total Room Storage**: 640 bytes (32 bytes × 20 rooms maximum)
+- **Room Data**: 48 bytes per room with packed structures, cached center coordinates, and wall door counters
+- **Total Room Storage**: 960 bytes (48 bytes × 20 rooms maximum)
 - **Scrolling**: Partial screen updates with no slowdown at map boundaries
 - **Code Quality**: 6502 architecture optimizations with efficient metadata management
 
