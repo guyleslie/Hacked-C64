@@ -127,7 +127,7 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
 ### Map Specifications
 
 - **Map Size**: 48×48, 64×64, or 80×80
-- **Room Count**: Up to 20 rooms (room size varies by preset: 3×3 to 8×8 tiles)
+- **Room Count**: Up to 20 rooms (4×4 to 8×8 tiles each)
 
 ### Performance
 

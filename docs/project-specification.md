@@ -206,13 +206,12 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - Cell order is randomized using Fisher-Yates shuffle algorithm
 
 **Room Sizes and Types:**
-- Room size varies by preset (defined in `room_size_table[]`):
-  - **Small**: 3×3 to 5×5 tiles
-  - **Medium**: 4×4 to 7×7 tiles
-  - **Large**: 5×5 to 8×8 tiles
-- Random width and height generation within preset range
+- Room size is **fixed at 4×4 to 8×8 tiles** (not configurable by preset)
+- Both width and height are independently random within this range
+- Actual implementation: `min_room_size = 4`, `max_room_size = 8` (hardcoded in `mapgen_config.c`)
 - Room count varies based on configuration (8/12/16)
 - Each room maintains minimum spacing from others
+- Note: `room_size_table[]` exists but is currently unused
 
 **Collision Detection System:**
 - Pre-placement validation checks against existing rooms
@@ -707,7 +706,7 @@ unsigned char mapgen_generate_dungeon(void);
 unsigned char mapgen_generate_with_params(
     unsigned char map_size,        // 0=SMALL(48x48), 1=MEDIUM(64x64), 2=LARGE(80x80)
     unsigned char room_count,      // 0=SMALL(8-12), 1=MEDIUM(12-16), 2=LARGE(16-20)
-    unsigned char room_size,       // Currently unused (preset-based), reserved for future
+    unsigned char room_size,       // Currently unused (fixed 4-8), reserved for future
     unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
     unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
     unsigned char secret_treasures,// 0=10%, 1=25%, 2=50%
