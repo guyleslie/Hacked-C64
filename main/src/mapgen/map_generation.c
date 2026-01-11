@@ -184,16 +184,14 @@ unsigned char generate_level(void) {
     show_phase(6); // "Placing Stairs"
     add_stairs();
 
-    // Phase 4: Initialize camera for new map
-    show_phase(7); // "Finalizing"
-    update_progress_step(7, 0, 1);
-
-    initialize_camera();
-    update_progress_step(7, 1, 1);
-
     // Finish progress bar and show completion message
     finish_progress_bar();
-    show_phase(8); // "Complete"
+    show_phase(7); // "Complete"
+
+#ifdef DEBUG_MAPGEN
+    // Initialize camera for debug preview mode
+    initialize_camera();
+#endif
     
     // VIC-II raster-based delay (more reliable on C64)
     // Wait for multiple frame cycles for visible delay
@@ -207,10 +205,12 @@ unsigned char generate_level(void) {
             // Wait for next frame to start
         }
     }
-    
+
+#ifdef DEBUG_MAPGEN
     // Now render the map after progress bar is complete
     render_map_viewport(1);
-    
+#endif
+
     return 1; // Generation successful
 }
 

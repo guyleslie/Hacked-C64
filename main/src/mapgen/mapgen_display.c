@@ -19,6 +19,8 @@
 extern MapParameters current_params;
 
 
+#ifdef DEBUG_MAPGEN
+
 // =============================================================================
 // DIRECT SCREEN ACCESS
 // =============================================================================
@@ -344,4 +346,5 @@ void update_partial_screen(unsigned char scroll_dir) {
         break;
     }
 }
+#endif // DEBUG_MAPGEN
 

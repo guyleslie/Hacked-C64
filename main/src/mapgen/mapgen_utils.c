@@ -404,6 +404,52 @@ unsigned char mapgen_generate_dungeon(void) {
     return generate_level();
 }
 
+// Production mode API - direct parameter generation
+unsigned char mapgen_generate_with_params(
+    unsigned char map_size,
+    unsigned char room_count,
+    unsigned char room_size,
+    unsigned char secret_rooms,
+    unsigned char false_corridors,
+    unsigned char secret_treasures,
+    unsigned char hidden_corridors
+) {
+    MapConfig config;
+    MapParameters params;
+
+    // Validate input parameters (0-2 range for PresetLevel)
+    if (map_size > 2 || room_count > 2 || room_size > 2 ||
+        secret_rooms > 2 || false_corridors > 2 ||
+        secret_treasures > 2 || hidden_corridors > 2) {
+        return 1; // Invalid parameters
+    }
+
+    // Build MapConfig from parameters
+    config.map_size = (PresetLevel)map_size;
+    config.room_count = (PresetLevel)room_count;
+    config.room_size = (PresetLevel)room_size;
+    config.secret_rooms = (PresetLevel)secret_rooms;
+    config.false_corridors = (PresetLevel)false_corridors;
+    config.secret_treasures = (PresetLevel)secret_treasures;
+    config.hidden_corridors = (PresetLevel)hidden_corridors;
+
+    // Compute concrete parameters
+    validate_and_adjust_config(&config, &params);
+
+    // Set generation parameters
+    mapgen_set_parameters(&params);
+
+    // Reset state and generate
+    reset_viewport_state();
+    reset_display_state();
+    reset_all_generation_data();
+
+    // Generate level (returns 1=success, 0=failure)
+    unsigned char result = generate_level();
+
+    return result ? 0 : 2; // 0=success, 2=generation failed
+}
+
 void print_text(const char* text) {
     while (*text) {
         unsigned char c = (*text == '\n') ? 13 : *text;
@@ -431,7 +477,7 @@ static const unsigned char progress_x = 9;  // X position (centered: (40-22)/2 =
 static const unsigned char progress_y = 12; // Y position (screen center)
 
 // Dynamic phase boundaries - calculated from current_params at generation start
-static unsigned char phase_boundaries[9];   // Phase start positions (0-80 scale) - 9 phases including hidden corridors
+static unsigned char phase_boundaries[8];   // Phase start positions (0-80 scale) - 8 phases total
 static unsigned char phase_total_weight = 0; // Total weight cache for fast calculation
 
 // External reference to current generation parameters
@@ -440,26 +486,25 @@ extern MapParameters current_params;
 // Initialize dynamic progress weights based on current_params
 void init_progress_weights(void) {
     // Calculate weights from current generation parameters
-    unsigned char weights[9];
+    unsigned char weights[8];
     weights[0] = current_params.max_rooms;                    // Rooms
     weights[1] = current_params.max_rooms - 1;                // Connections (MST: n-1 edges)
     weights[2] = current_params.secret_room_count;            // Secrets
     weights[3] = current_params.treasure_count;               // Treasures
     weights[4] = current_params.false_corridor_count;         // False corridors
-    weights[5] = current_params.hidden_corridor_count;        // Hidden corridors (FIXED: was missing!)
+    weights[5] = current_params.hidden_corridor_count;        // Hidden corridors
     weights[6] = 2;                                           // Stairs (fixed: 2 stairs)
-    weights[7] = 1;                                           // Finalize (fixed: camera init)
-    weights[8] = 1;                                           // Complete (fixed: display)
+    weights[7] = 1;                                           // Complete (fixed: display)
 
     // Calculate total weight
     phase_total_weight = 0;
-    for (unsigned char i = 0; i < 9; i++) {
+    for (unsigned char i = 0; i < 8; i++) {
         phase_total_weight += weights[i];
     }
 
     // Pre-calculate phase boundaries on 0-80 scale
     unsigned char accumulated = 0;
-    for (unsigned char i = 0; i < 9; i++) {
+    for (unsigned char i = 0; i < 8; i++) {
         // Boundary = (accumulated * 80) / total_weight
         phase_boundaries[i] = ((unsigned short)accumulated * 80) / phase_total_weight;
         accumulated += weights[i];
@@ -560,15 +605,14 @@ static const char phase_strings[] =
     "False Corridors\0"
     "Hidden Corridors\0"
     "Placing Stairs\0"
-    "Finalizing\0"
     "Generation Complete!";
 
-// Offsets into packed string (much smaller than 9 pointers)
-static const unsigned char phase_offsets[9] = {0, 15, 32, 45, 62, 78, 95, 110, 121};
+// Offsets into packed string (much smaller than 8 pointers)
+static const unsigned char phase_offsets[8] = {0, 15, 32, 45, 62, 78, 95, 110};
 
 // Show phase by index - optimized for size
 void show_phase(unsigned char phase_id) {
-    if (phase_id >= 9) return;
+    if (phase_id >= 8) return;
 
     const char* text = phase_strings + phase_offsets[phase_id];
     unsigned char text_len = 0;

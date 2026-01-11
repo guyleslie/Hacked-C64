@@ -1,6 +1,15 @@
 #ifndef MAPGEN_CONFIG_H
 #define MAPGEN_CONFIG_H
 
+// =============================================================================
+// Map Generator Configuration Module (SHARED - Both DEBUG and Production)
+// =============================================================================
+// This module contains shared configuration data structures and conversion
+// logic used by both DEBUG and Production modes.
+//
+// DEBUG-only functions (menu, defaults, helpers) are in mapgen_debug.c/.h
+// =============================================================================
+
 // Preset levels for different configuration parameters
 typedef enum {
     LEVEL_SMALL = 0,
@@ -49,19 +58,24 @@ typedef struct {
     unsigned char preset;  // Feature preset level (for percentage ratio lookups)
 } MapParameters;
 
-// Initialize default configuration
-void init_default_config(MapConfig *config);
+// =============================================================================
+// SHARED API - Used by both DEBUG and Production modes
+// =============================================================================
 
-// Validate and compute concrete parameters from configuration
+/**
+ * @brief Validate and compute concrete parameters from configuration
+ *
+ * Converts user-facing MapConfig (preset levels) to concrete MapParameters
+ * (actual values). Performs validation and adjustments to ensure valid
+ * combinations (e.g., map size vs room count).
+ *
+ * @param config Input configuration (preset levels)
+ * @param params Output parameters (concrete values)
+ *
+ * @note Used by both:
+ *       - DEBUG mode: After interactive menu configuration
+ *       - Production mode: From mapgen_generate_with_params() parameters
+ */
 void validate_and_adjust_config(MapConfig *config, MapParameters *params);
-
-// Calculate difficulty level from configuration (0-10 scale)
-unsigned char calculate_difficulty(const MapConfig *config);
-
-// Show configuration menu and allow user to adjust settings
-void show_config_menu(MapConfig *config);
-
-// Helper function to print preset level name
-void print_level_name(PresetLevel level);
 
 #endif // MAPGEN_CONFIG_H

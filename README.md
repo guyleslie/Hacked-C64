@@ -47,14 +47,14 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
    ├── main/src/                  (source code directory)
    │   ├── main.c
    │   └── mapgen/                (map generation modules)
-   ├── build-release.bat
-   ├── build-dev.bat
+   ├── build-mapgen-test.bat     (DEBUG mode with menu/preview)
+   ├── build-mapgen-release.bat  (Production API mode)
    └── run_vice.bat
    ```
 
 4. **Build the project**:
-   - `build-release.bat` - Optimized production build for smaller executable size
-   - `build-dev.bat` - Development build with debug information and analysis files
+   - `build-mapgen-test.bat` - DEBUG build with interactive menu, map preview, and navigation (~12KB)
+   - `build-mapgen-release.bat` - Production API build, minimal size (~8.2KB)
 5. **Launch emulator**: Execute `run_vice.bat`
 
 ## Controls

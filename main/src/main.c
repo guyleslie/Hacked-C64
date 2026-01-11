@@ -9,10 +9,14 @@
 #include <time.h>
 #include <c64/cia.h>
 #include <c64/vic.h>
+
 // Project headers
-#include "mapgen/mapgen_api.h"        // For mapgen_generate_dungeon
-#include "mapgen/mapgen_display.h"    // For move_camera_direction
+#include "mapgen/mapgen_api.h"        // For mapgen_generate_with_params
 #include "mapgen/mapgen_config.h"     // For configuration management
+
+#ifdef DEBUG_MAPGEN
+#include "mapgen/mapgen_debug.h"      // For mapgen_run_debug_mode (DEBUG mode wrapper)
+#endif
 
 // Include C files for OSCAR64 linking
 #include "mapgen/tmea_core.c"         // TMEA system (must be first)
@@ -21,8 +25,12 @@
 #include "mapgen/map_generation.c"
 #include "mapgen/room_management.c"
 #include "mapgen/connection_system.c"
+
+#ifdef DEBUG_MAPGEN
 #include "mapgen/mapgen_display.c"
 #include "mapgen/map_export.c"
+#include "mapgen/mapgen_debug.c"      // DEBUG mode implementation
+#endif
 
 // VIC-II base address and memory control register definitions
 #define VIC_BASE 0xD000
@@ -36,12 +44,8 @@ void set_mixed_charset(void) {
 }
 
 
-// Main function with complete dungeon generation and interactive navigation
+// Main function - Entry point for both DEBUG and PRODUCTION modes
 int main(void) {
-    unsigned char key;
-    MapConfig config;
-    MapParameters params;
-
     clrscr();
 
     // Switch to mixed (lowercase/uppercase) character set for C64
@@ -50,71 +54,27 @@ int main(void) {
     // Initialize TMEA system (must be called once at startup)
     init_tmea_system();
 
-    // Initialize default configuration
-    init_default_config(&config);
+#ifdef DEBUG_MAPGEN
+    // DEBUG MODE: Interactive menu + generation + preview/navigation
+    // All DEBUG functionality is encapsulated in mapgen_debug.c
+    mapgen_run_debug_mode();
 
-    // Show configuration menu
-    show_config_menu(&config);
+#else
+    // PRODUCTION MODE: Direct parameter generation
+    unsigned char result = mapgen_generate_with_params(
+        1, // MEDIUM map size (64x64)
+        1, // MEDIUM room count (12-16)
+        1, // MEDIUM room size (4-7)
+        1, // MEDIUM secret rooms (25%)
+        1, // MEDIUM false corridors (25%)
+        1, // MEDIUM secret treasures (25%)
+        1  // MEDIUM hidden corridors (25%)
+    );
 
-    // Validate and compute parameters
-    validate_and_adjust_config(&config, &params);
+    // Map data is now in compact_map[], room_list[], TMEA pools
+    // Game engine can immediately use the generated map
+    // Result: 0=success, 1=invalid params, 2=generation failed
+#endif
 
-    // Set generation parameters
-    mapgen_set_parameters(&params);
-
-    // Clear screen before generation
-    clrscr();
-
-    // Generate complete level (includes all necessary resets)
-    mapgen_generate_dungeon();
-
-    // Interactive loop using joystick 2
-    while (1) {
-        // Check for keyboard commands
-        key = getchx();
-        if (key == 'Q' || key == 'q') {
-            clrscr();
-            break;
-        } else if (key == 'M' || key == 'm') {
-            save_compact_map("mapbin");
-        }
-
-        // Read joystick 2 from CIA1 Port A ($DC00)
-        unsigned char joy2 = cia1.pra;
-
-        // Joystick 2 bit mapping (active low):
-        // Bit 0 = UP
-        // Bit 1 = DOWN
-        // Bit 2 = LEFT
-        // Bit 3 = RIGHT
-        // Bit 4 = FIRE
-
-        // Check FIRE button for configuration menu
-        if (!(joy2 & 0x10)) {
-            clrscr();
-            show_config_menu(&config);
-            validate_and_adjust_config(&config, &params);
-            mapgen_set_parameters(&params);
-            clrscr();
-            mapgen_generate_dungeon();
-            // Wait for fire release
-            while (!(cia1.pra & 0x10)) {}
-        }
-
-        // Check joystick directions (supports diagonal)
-        if (!(joy2 & 0x01)) {  // UP
-            move_camera_direction(MOVE_UP);
-        }
-        if (!(joy2 & 0x02)) {  // DOWN
-            move_camera_direction(MOVE_DOWN);
-        }
-        if (!(joy2 & 0x04)) {  // LEFT
-            move_camera_direction(MOVE_LEFT);
-        }
-        if (!(joy2 & 0x08)) {  // RIGHT
-            move_camera_direction(MOVE_RIGHT);
-        }
-    }
-    
     return 0;
 }

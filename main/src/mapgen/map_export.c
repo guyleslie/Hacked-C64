@@ -1,6 +1,8 @@
 // Map export utility for C64/Oscar64 compatible binary format
 // Exports the compact_map to a .bin file for easy loading on C64
 
+#ifdef DEBUG_MAPGEN
+
 // System headers
 #include <c64/kernalio.h>
 #include <string.h>
@@ -44,3 +46,5 @@ void save_compact_map(const char* filename) {
     // Final file: [load_addr (2)] + [map_size (1)] + [map_data (actual_map_bytes)]
     krnio_save(8, export_buffer, export_buffer + 1 + actual_map_bytes);
 }
+
+#endif // DEBUG_MAPGEN
