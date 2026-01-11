@@ -22,9 +22,7 @@ build-mapgen-release.bat  # Mapgen RELEASE build (Production API, ~8.2KB)
 ```
 
 **Run:**
-```bash
-run_vice.bat       # Launch in VICE C64 emulator
-```
+Load the generated `.prg` file from `build/` directory in VICE emulator or on real C64 hardware.
 
 **Export Map (DEBUG mode only):**
 - Press **'M'** key during navigation to save map as "MAPBIN" file
@@ -288,7 +286,7 @@ See `docs/project development plan.txt` for complete details.
 - Check `build/` directory for output files
 
 **VICE Emulator Testing:**
-- Run `run_vice.bat` to launch
+- Launch VICE and load the generated `.prg` file from `build/` directory
 - Test generation, navigation, export
 - Verify performance and stability
 

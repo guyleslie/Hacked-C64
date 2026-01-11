@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
 - Download: [VICE Emulator](https://vice-emu.sourceforge.io/)
 - Installation: Extract to `vice/` directory in the project root
 - Required path: `vice/bin/x64sc.exe`
-- Note: Launch script `run_vice.bat` depends on this location
+- Note: Program can be run on VICE emulator or real C64 hardware
 
 ### Build and Run
 
@@ -48,14 +48,14 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
    │   ├── main.c
    │   └── mapgen/                (map generation modules)
    ├── build-mapgen-test.bat     (DEBUG mode with menu/preview)
-   ├── build-mapgen-release.bat  (Production API mode)
-   └── run_vice.bat
+   └── build-mapgen-release.bat  (Production API mode)
    ```
 
 4. **Build the project**:
    - `build-mapgen-test.bat` - DEBUG build with interactive menu, map preview, and navigation (~12KB)
    - `build-mapgen-release.bat` - Production API build, minimal size (~8.2KB)
-5. **Launch emulator**: Execute `run_vice.bat`
+
+5. **Launch emulator**: Start VICE emulator and load the generated `.prg` file from the `build/` directory
 
 ## Controls
 

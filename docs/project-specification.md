@@ -31,9 +31,8 @@ main/src/
 │   ├── tmea_types.h         # TMEA type definitions and flag enums
 │   ├── tmea_core.h          # TMEA API declarations
 │   └── tmea_core.c          # TMEA implementation (metadata and entity pools)
-build-dev.bat                # Development build with debug information
-build-release.bat            # Optimized production build
-run_vice.bat                 # VICE emulator launcher
+build-mapgen-test.bat        # Mapgen TEST build (DEBUG_MAPGEN enabled, ~12KB)
+build-mapgen-release.bat     # Mapgen RELEASE build (Production API, ~8.2KB)
 docs/                        # Comprehensive technical documentation
 ```
 

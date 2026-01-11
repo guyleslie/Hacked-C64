@@ -1,5 +1,54 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-01-11
+
+### Build System
+
+- **Removed CMake Build System**: Eliminated CMake dependency for cleaner OSCAR64-native build process
+  - Deleted `CMakeLists.txt` configuration file
+  - Removed `.github/workflows/cmake-single-platform.yml` GitHub workflow
+  - Project now uses direct OSCAR64 compiler invocation via batch scripts
+  - Simplified build process with platform-native tooling
+
+- **DEBUG/Production Mode Split**: Introduced separate build configurations for development and release
+  - `build-mapgen-test.bat`: DEBUG mode with interactive menu, map preview, navigation, and export (~12KB)
+  - `build-mapgen-release.bat`: Production API mode, minimal size, mapgen API only (~8.2KB)
+  - DEBUG builds include full UI and debugging features
+  - Production builds optimized for game integration with clean API
+  - Old `build-dev.bat` and `run_vice.bat` scripts removed
+
+### Architecture
+
+- **Mapgen DEBUG Module**: New DEBUG-only module for interactive development
+  - `mapgen_debug.c/.h`: Interactive menu, map preview, navigation loop, UI helpers
+  - Conditional compilation via `DEBUG_MAPGEN` flag
+  - Cleanly separated from production API code
+  - Enables rapid prototyping without affecting release builds
+
+### Documentation
+
+- **New Documentation Files**:
+  - `docs/mapgen-debug-production-split.md`: DEBUG vs Production architecture guide
+  - `docs/game-architecture-plan.md`: Full game implementation roadmap
+  - Updated `CLAUDE.md` with build system changes and module structure
+  - Updated `README.md` with new build instructions
+
+### Changed
+
+- Build script naming convention improved for clarity
+- Main entry point (`main.c`) now handles DEBUG/production mode split
+- Module inclusion pattern updated for conditional compilation
+- All mapgen UI components moved to DEBUG-only module
+
+### Technical Details
+
+- DEBUG mode: `-dDEBUG_MAPGEN` flag enables interactive features
+- Production mode: Clean API with `mapgen_generate_with_params()` function
+- Memory savings: ~4KB smaller release builds without DEBUG UI
+- Build outputs: Separate `.prg` files for test and release configurations
+
+---
+
 ## [Unreleased] - 2025-11-17
 
 ### Performance Regression Fix

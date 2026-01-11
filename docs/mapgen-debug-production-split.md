@@ -450,7 +450,7 @@ unsigned char get_room_at(unsigned char x, unsigned char y) {
 
 ```bash
 build-mapgen-test.bat
-run_vice.bat
+VICE emulator (manual launch)
 ```
 
 **Expected behavior:**
@@ -464,7 +464,7 @@ run_vice.bat
 
 ```bash
 build-mapgen-release.bat
-run_vice.bat
+VICE emulator (manual launch)
 ```
 
 **Expected behavior:**
