@@ -127,7 +127,7 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
 ### Map Specifications
 
 - **Map Size**: 48×48, 64×64, or 80×80
-- **Room Count**: Up to 20 rooms (4×4 to 8×8 tiles each)
+- **Room Count**: Up to 20 rooms (room size varies by preset: 3×3 to 8×8 tiles)
 
 ### Performance
 
@@ -158,7 +158,7 @@ The dungeon is generated in real-time with a progress bar showing each phase:
 5. **Placing False Corridors**: Creates dead-end passages to add exploration challenge
 6. **Hiding Corridors**: Randomly converts non-branching corridor doors to secret doors to obscure navigation routes
 7. **Placing Stairs**: Positions up and down stairs for level navigation
-8. **Finalizing**: Prepares the map for exploration
+8. **Generation Complete**: Map is ready for exploration
 
 The number of rooms, secret areas, treasures, false corridors, and hidden corridors varies based on your configuration settings.
 

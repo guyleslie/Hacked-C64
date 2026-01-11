@@ -16,18 +16,19 @@ This project implements a highly optimized procedural dungeon generation algorit
 
 ```
 main/src/
-├── main.c                   # Entry point, VIC-II setup, joystick 2 input
+├── main.c                   # Entry point, VIC-II setup, DEBUG/production mode split
 ├── mapgen/
 │   ├── mapgen_api.h         # Public interface definitions
 │   ├── mapgen_types.h       # Core data structures and constants
 │   ├── mapgen_internal.h    # Internal module definitions
-│   ├── mapgen_config.c/.h   # Pre-generation configuration with joystick menu
+│   ├── mapgen_config.c/.h   # Configuration system (shared by both modes)
+│   ├── mapgen_debug.c/.h    # DEBUG mode: menu, navigation loop, UI helpers
 │   ├── map_generation.c     # Generation pipeline with dynamic parameters
 │   ├── room_management.c    # Room placement algorithms
-│   ├── connection_system.c  # MST and corridor generation (optimized)
-│   ├── mapgen_display.c/.h  # Viewport and rendering
-│   ├── mapgen_utils.c/.h    # Utility functions and math (with inline optimizations)
-│   ├── map_export.c/.h      # File I/O operations
+│   ├── connection_system.c  # MST and corridor generation
+│   ├── mapgen_display.c/.h  # Viewport and rendering (DEBUG mode only)
+│   ├── mapgen_utils.c/.h    # Utility functions and math operations
+│   ├── map_export.c/.h      # File I/O operations (DEBUG mode only)
 │   ├── tmea_types.h         # TMEA type definitions and flag enums
 │   ├── tmea_core.h          # TMEA API declarations
 │   └── tmea_core.c          # TMEA implementation (metadata and entity pools)
