@@ -498,7 +498,7 @@ Map data is stored using a 3-bit per tile encoding:
 - Each tile type is represented by 3 bits (8 possible types)
 - Dynamic map sizes (48×48, 64×64, 80×80) with runtime bit offset calculation
 - Bits can span byte boundaries for maximum compression
-- Direct bit manipulation provides O(1) tile access with `calculate_y_bit_offset()`
+- Direct bit manipulation provides O(1) tile access with `calculate_y_bit_stride()` cached stride
 
 **Tile Type Encoding:**
 - `TILE_EMPTY` (0): Empty space
@@ -635,13 +635,13 @@ typedef struct {
 - `treasure_wall_side`: Wall side index (0-3) or 255 for no treasure
 - Wall availability checked via `wall_door_count[wall_side]` array
 - `get_wall_side_from_exit()` (mapgen_utils.c): Determines wall side from door position
-- `place_secret_treasures()` (connection_system.c): Places configurable number of treasures (2/4/6) across available rooms
+- `place_secret_treasures()` (connection_system.c): Places percentage-based treasures (10%/25%/50% of non-secret rooms)
 
 **False Corridor System:**
-- `false_corridor_door_x, false_corridor_door_y`: Coordinates of corridor entrance door
+- `false_corridor_wall_side`: Wall side index (0-3) or 255 for no false corridor
 - `false_corridor_end_x, false_corridor_end_y`: Coordinates of corridor dead-end
-- Invalid coordinates (255, 255) indicate no false corridor
-- `place_false_corridors()`: Places configurable number of false corridors (3/5/8) with retry logic and two-pass walker validation
+- Invalid wall_side (255) indicates no false corridor
+- `place_false_corridors()`: Places percentage-based false corridors (10%/25%/50% of available walls)
 
 ## Algorithm Performance
 
@@ -652,8 +652,8 @@ typedef struct {
 - **Screen Rendering**: O(viewport_size) with delta optimization
 
 ### Hardware Integration
-- **VIC-II**: Direct register access ($D000-$D02E)
-- **CIA**: Timer-based random seed generation
+- **VIC-II**: Direct register access ($D000-$D02E), raster position for seed entropy
+- **CIA**: Timer A/B for 16-bit seed generation via `get_random_seed()`
 - **KERNAL**: Optimized I/O operations
 - **Direct Memory**: Screen buffer manipulation at $0400
 
@@ -707,7 +707,7 @@ unsigned char mapgen_generate_dungeon(void);
 // Production mode API - direct parameter generation
 unsigned char mapgen_generate_with_params(
     unsigned char map_size,        // 0=SMALL(48x48), 1=MEDIUM(64x64), 2=LARGE(80x80)
-    unsigned char room_count,      // 0=SMALL(8-12), 1=MEDIUM(12-16), 2=LARGE(16-20)
+    unsigned char room_count,      // 0=SMALL(8), 1=MEDIUM(12), 2=LARGE(16)
     unsigned char room_size,       // Currently unused (fixed 4-8), reserved for future
     unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
     unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
@@ -810,7 +810,7 @@ void save_compact_map(const char* filename);
 
 ### Performance Metrics
 - **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
-- **Executable Size**: 11,402 bytes (release build with full optimization)
+- **Executable Size**: ~9.9KB release build, ~11.8KB test build (with full optimization)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
 - **Room Data**: 48 bytes per room with packed structures, cached center coordinates, and wall door counters

@@ -24,7 +24,7 @@ Successful separation of the mapgen module into DEBUG and production modes using
 ```c
 unsigned char mapgen_generate_with_params(
     unsigned char map_size,        // 0=SMALL(48x48), 1=MEDIUM(64x64), 2=LARGE(80x80)
-    unsigned char room_count,      // 0=SMALL(8-12), 1=MEDIUM(12-16), 2=LARGE(16-20)
+    unsigned char room_count,      // 0=SMALL(8), 1=MEDIUM(12), 2=LARGE(16)
     unsigned char room_size,       // Currently unused (fixed 4-8), reserved for future
     unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
     unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
@@ -342,14 +342,14 @@ After `mapgen_generate_with_params()` returns, the following global data **PERSI
 
 5. **TMEA Metadata Pools** (tmea_core.c)
    - room_metas[20][4] - Room metadata (240 bytes)
-   - global_metas[64] - Global metadata (64 bytes)
+   - global_metas[16] - Global metadata (64 bytes)
    - obj_pool[48] - Objects (288 bytes)
    - mon_pool[24] - Monsters (144 bytes)
    - Total: ~765 bytes
    - Access: Through TMEA API functions
-     - `get_tile_metadata(x, y, flags, data)`
-     - `is_door_secret(room_id, door_idx)`
-     - `get_objects_at(x, y, buffer, max_count)`
+     - `get_tile_metadata(x, y, &flags, &data)`
+     - `is_door_secret(x, y)`
+     - `get_objects_at(x, y)` returns linked list pointer
 
 ### Memory Safety
 
