@@ -1,7 +1,7 @@
 # Mapgen Module: DEBUG/Production Mode Split - Implementation Documentation
 
-**Date:** 2026-01-09
-**Version:** 1.3
+**Date:** 2026-01-15
+**Version:** 1.4
 **Purpose:** Split mapgen module into DEBUG (testing) and production (game engine) modes
 
 ---
@@ -302,15 +302,16 @@ int main(void) {
 
 | Build | Size | DEBUG_MAPGEN | Content |
 |-------|------|--------------|---------|
-| **mapgen-test** | 12KB | ✅ Enabled | Menu, preview, navigation, export |
-| **mapgen-release** | 8.2KB | ❌ Disabled | API only, no UI |
-| **Difference** | **-3.8KB** | | UI component size |
+| **mapgen-test** | 11.8KB | ✅ Enabled | Menu, preview, navigation, progress bar, export |
+| **mapgen-release** | 7.9KB | ❌ Disabled | Pure API, no UI, no progress bar |
+| **Difference** | **~3.9KB** | | UI + progress bar components |
 
 ### Size Reduction
 
-- **31.7%** size reduction in production mode (12KB → 8.2KB)
-- Printf removed from production mode (~1.5KB savings)
-- Display system completely removed (~2.3KB savings)
+- **~33%** size reduction in production mode (11.8KB → 7.9KB)
+- Progress bar system removed from production mode (~1KB savings)
+- Display system completely removed (~2KB savings)
+- Console functions removed (print_text, get_map_tile, etc.)
 
 ---
 
@@ -569,18 +570,18 @@ unsigned char mapgen_generate_phase(unsigned char phase);
 ### ✅ Successful Implementation
 
 1. **Clean API separation** - Production mode uses direct parameter function
-2. **Minimal changes** - Only 5 critical files modified + 2 new batch files
+2. **Complete code separation** - Progress bar, display, export all DEBUG-only
 3. **Data persistence** - All map data remains in global static memory
-4. **Progress bar in both modes** - User feedback during generation
+4. **Progress bar DEBUG-only** - User feedback only in test mode
 5. **OSCAR64 compatible** - Follows single compilation unit model
-6. **Low risk** - Phased implementation approach
-7. **Future-proof** - Easily extensible for game engine integration
+6. **Pure RELEASE build** - No UI code, minimal size
+7. **Future-proof** - Ready for game engine integration
 
 ### 📊 Final Results
 
-- **TEST build:** 12KB (full DEBUG functionality)
-- **RELEASE build:** 8.2KB (API only, 31.7% smaller)
-- **Difference:** 3.8KB UI components
+- **TEST build:** 11.8KB (full DEBUG functionality with progress bar)
+- **RELEASE build:** 7.9KB (pure API, no UI, ~33% smaller)
+- **Difference:** ~3.9KB UI + progress bar components
 
 ### 🎯 Persistent Data
 
@@ -590,149 +591,4 @@ unsigned char mapgen_generate_phase(unsigned char phase);
 - current_params - generation parameters
 - TMEA pools (~765 bytes) - secret doors, treasures, entities
 
-**The mapgen module is ready for game engine integration!** 🎮
-
----
-
-## Change Log
-
-### v1.3 (2026-01-09 - Config module cleanup)
-
-**mapgen_config.c/.h Refactoring - Clean DEBUG/Shared separation:**
-- ✅ **mapgen_config.c/h NOW ONLY contains shared code** - DEBUG functions moved
-- ✅ **DEBUG-only functions moved to mapgen_debug.c:**
-  - `init_default_config()` - DEBUG default settings
-  - `calculate_difficulty()` - Difficulty level calculation
-  - `print_level_name()` - Preset name printing
-  - `show_config_menu()` + all helpers (print_at, clear_screen, update_cursor, update_value)
-  - `level_names[]`, `menu_rows[]` tables
-- ✅ **mapgen_config.c/h KEEPS (shared):**
-  - `PresetLevel` enum, `MapConfig`, `MapParameters` structures
-  - `validate_and_adjust_config()` - Production API uses this too!
-  - All preset tables (map_size_table, room_count_table, etc.)
-
-**New File Sizes:**
-- `mapgen_config.h`: 81 lines (was: 70 lines, +11 lines documentation)
-- `mapgen_config.c`: 127 lines (was: 372 lines, -245 lines DEBUG code removed)
-- `mapgen_debug.c`: 395 lines (was: 104 lines, +291 lines moved DEBUG code)
-
-**Reason for change:**
-`mapgen_config.c/.h` contained mixed DEBUG-only (menu, defaults) and shared (conversion) code. The new separation:
-- **mapgen_config.c/.h:** Only shared conversion logic (both modes use this)
-- **mapgen_debug.c/.h:** All DEBUG-only functionality (menu, defaults, helpers)
-
-**Impact:**
-- ✅ Completely clean separation: DEBUG vs Shared
-- ✅ mapgen_config.c is now "pure" - no DEBUG code
-- ✅ Easier to see what goes into the release build
-- ✅ More professional module architecture
-- ✅ No change in build sizes (TEST: 11.1KB, RELEASE: 8.2KB)
-- ✅ Functionality 100% identical
-
-**Complete DEBUG Module Contents (mapgen_debug.c):**
-```c
-// DEBUG-only data
-- SCREEN_RAM define
-- level_names[] table
-- menu_rows[] table
-
-// DEBUG-only configuration functions
-- init_default_config() - Defaults
-- calculate_difficulty() - Difficulty calculation
-- print_level_name() - Preset name printing
-
-// DEBUG-only menu helper functions
-- print_at() - Print text at position
-- clear_screen() - Screen clear
-- update_cursor() - Cursor movement
-- update_value() - Value update
-
-// DEBUG-only main menu
-- show_config_menu() - Full interactive menu (152 lines)
-
-// DEBUG-only main loop
-- mapgen_run_debug_mode() - Complete DEBUG experience (71 lines)
-```
-
-### v1.2 (2026-01-09 - DEBUG module refactoring)
-
-**DEBUG Logic Encapsulation:**
-- ✅ **New mapgen_debug.h/.c module created** - DEBUG function separation
-- ✅ **mapgen_run_debug_mode() wrapper function** - Entire DEBUG loop in one place
-- ✅ **main.c simplification** - 50-line DEBUG loop → 1 function call
-- ✅ **Modified files:**
-  - `main/src/mapgen/mapgen_debug.h` - NEW: DEBUG mode API declaration
-  - `main/src/mapgen/mapgen_debug.c` - NEW: DEBUG mode implementation (104 lines)
-  - `main/src/main.c` - Simplified main() function (81 lines → 80 lines)
-
-**New Module Contents:**
-```c
-// mapgen_debug.h
-void mapgen_run_debug_mode(void);  // DEBUG mode entry point
-
-// mapgen_debug.c contains:
-- Configuration menu handling
-- Map generation
-- Joystick input loop (UP/DOWN/LEFT/RIGHT navigation)
-- FIRE button regeneration
-- 'M' key export
-- 'Q' key quit
-```
-
-**Reason for change:**
-The DEBUG loop was scattered in main.c, reducing readability and complicating maintenance. The new module:
-- Clear separation: DEBUG vs Production
-- Easier review: what's in the release build
-- Better maintainability: DEBUG functions in one place
-- Cleaner main.c: focus on initialization and mode switching
-
-**Impact:**
-- ✅ Better code organization and readability
-- ✅ More professional module structure
-- ✅ No change in build sizes (TEST: 11.1KB, RELEASE: 8.2KB)
-- ✅ Functionality 100% identical to previous version
-- ✅ Easier game engine integration preparation
-
-**New File Structure:**
-```
-main/src/mapgen/
-  mapgen_debug.h       ← NEW: DEBUG mode wrapper API
-  mapgen_debug.c       ← NEW: DEBUG mode implementation
-  mapgen_display.c/.h  (remains, full #ifdef)
-  map_export.c/.h      (remains, full #ifdef)
-  mapgen_config.c/.h   (remains)
-  ... (all others unchanged)
-```
-
-### v1.1 (2026-01-09 - late update)
-
-**Progress Bar Optimization:**
-- ✅ **Phase 7 "Finalizing" removed** - Only existed for camera init, unnecessary separate phase
-- ✅ **Phase count:** 9 → 8 (Phase 8 "Complete" → Phase 7)
-- ✅ **Camera initialization:** Moved out of progress bar logic, called directly after finish_progress_bar() in DEBUG mode
-- ✅ **Modified files:**
-  - `mapgen_utils.c` - phase_strings, phase_offsets, phase_boundaries, init_progress_weights()
-  - `map_generation.c` - Phase 7 block removed, camera init relocated
-
-**Reason for change:**
-The "Finalizing" phase was exclusively responsible for camera initialization, which is only needed in DEBUG mode for map preview display. In production mode this was unnecessary overhead. Camera init now occurs as the last step, directly after the progress bar finishes in DEBUG mode.
-
-**Impact:**
-- Cleaner progress bar logic (every phase is a real generation step)
-- Simpler code (fewer conditional branches in progress system)
-- No change in end-user experience (progress bar still shows 8 phases)
-
-### v1.0 (2026-01-09)
-
-**Original implementation:**
-- DEBUG/Production mode separation
-- New mapgen_generate_with_params() API
-- Conditional compilation (#ifdef DEBUG_MAPGEN)
-- Build system (build-mapgen-test.bat, build-mapgen-release.bat)
-- 31.7% size reduction in production mode
-
----
-
-**Last updated:** 2026-01-09 (v1.3)
-**Created by:** Claude Sonnet 4.5
-**Project:** Commodore 64 Dungeon Crawler - Hacked Full
+**The mapgen module is ready for game engine integration!**

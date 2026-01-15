@@ -2,6 +2,43 @@
 
 ## [Unreleased] - 2026-01-15
 
+### Architecture
+- **Complete DEBUG/RELEASE Code Separation**: Clean separation using `#ifdef DEBUG_MAPGEN` preprocessor directive
+  - Progress bar system moved to DEBUG-only (no longer included in RELEASE build)
+  - All progress bar calls wrapped in `#ifdef DEBUG_MAPGEN`:
+    - `map_generation.c` - Pipeline progress calls
+    - `connection_system.c` - Feature placement progress (6 calls)
+    - `room_management.c` - Room placement progress (1 call)
+  - Display-related functions moved to DEBUG-only:
+    - `reset_viewport_state()`, `reset_display_state()`, `get_map_tile()`, `print_text()`
+    - Display extern variables (`camera_center_x`, `view`, `screen_buffer`, etc.)
+  - `mapgen_utils.h` declarations wrapped for DEBUG-only functions
+
+### Changed
+- **main.c refactored for clean mode separation**:
+  - Removed unnecessary headers (`<stdio.h>`, `<time.h>`, `<string.h>`, `<c64/kernalio.h>`)
+  - Conditional headers only in DEBUG (`<conio.h>`, `<c64/cia.h>`)
+  - VIC_MEM and charset functions DEBUG-only
+  - Clear section comments separating DEBUG and RELEASE code paths
+- **mapgen_utils.c reorganized**:
+  - `<conio.h>`, `<stdio.h>` includes DEBUG-only
+  - Progress bar code block clearly marked as DEBUG-only
+- **RELEASE build includes minimal API test call** to prevent dead code elimination by compiler
+
+### Fixed
+- **Dead code elimination bug**: RELEASE build was only 341 bytes because compiler optimized away all mapgen code
+  - Fixed by adding minimal API call in RELEASE main() to exercise the code
+
+### Technical Details
+- TEST build: DEBUG_MAPGEN enabled, full UI and progress bar
+- RELEASE build: Pure API, no UI, no progress bar, ~33% smaller
+- Clean inline conditional approach - each DEBUG block is explicit and visible
+- Proper architectural separation (not a quick hack)
+
+---
+
+## [Unreleased] - 2026-01-15
+
 ### Added
 - **16-bit Seed-Based Map Generation**: Deterministic, reproducible dungeon generation
   - `mapgen_init(unsigned int seed)` - Initialize RNG with explicit 16-bit seed

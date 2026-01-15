@@ -17,27 +17,32 @@ unsigned char rnd(unsigned char max);     // 16-bit LCG random number generator
 unsigned int mapgen_get_seed(void);       // Get current seed value
 void mapgen_reset_seed_flag(void);        // Reset to random seed on next generation
 
-// Console functions for Oscar64
+#ifdef DEBUG_MAPGEN
+// Console functions for Oscar64 - DEBUG mode only
 void print_text(const char* text);
-// PETSCII Progress bar system - direct functions, no wrappers
+
+// PETSCII Progress bar system - DEBUG mode only
 void init_progress_weights(void);  // Initialize dynamic phase boundaries from current_params
 void init_progress_bar_simple(const char* title);
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total);
 void finish_progress_bar(void);
 void show_phase(unsigned char phase_id);  // Optimized indexed phase display
 void init_generation_progress(void);
+#endif
 
 // Tile access and manipulation (optimized for C64 performance)
 unsigned char get_compact_tile(unsigned char x, unsigned char y);
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile);
 // Inline wrappers removed - use direct calls:
 // get_tile_raw() -> get_compact_tile()
-// set_tile_raw() -> set_compact_tile() 
+// set_tile_raw() -> set_compact_tile()
 // tile_is_*() -> get_compact_tile() == TILE_*
 void clear_map(void);
 
-// Centralized PETSCII conversion for all display modules
+#ifdef DEBUG_MAPGEN
+// PETSCII tile conversion for display - DEBUG mode only
 unsigned char get_map_tile(unsigned char map_x, unsigned char map_y);
+#endif
 
 // Coordinate and bounds checking
 unsigned char coords_in_bounds(unsigned char x, unsigned char y);
@@ -64,8 +69,10 @@ unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsigned ch
 unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y, unsigned char type_flags, unsigned char include_diagonals);
 
 // Reset and state management
+#ifdef DEBUG_MAPGEN
 void reset_viewport_state(void);
 void reset_display_state(void);
+#endif
 void reset_all_generation_data(void);
 
 // Wall and door validation utilities

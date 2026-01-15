@@ -60,8 +60,10 @@ unsigned char available_walls_count = 0;     // Walls without doors (non-secret 
 void add_stairs(void) {
     if (room_count < 2) return; // Need at least 2 rooms for stairs
 
+#ifdef DEBUG_MAPGEN
     // Phase 6: Stair placement progress - starting
     update_progress_step(6, 0, 2);
+#endif
 
     // Find room pair with maximum distance (brute-force optimal)
     unsigned char start_room = 0;
@@ -88,15 +90,19 @@ void add_stairs(void) {
     unsigned char up_y = room_list[start_room].center_y;
     set_compact_tile(up_x, up_y, TILE_UP);
 
+#ifdef DEBUG_MAPGEN
     update_progress_step(6, 1, 2);
+#endif
 
     // Place down stairs in ending room center
     unsigned char down_x = room_list[end_room].center_x;
     unsigned char down_y = room_list[end_room].center_y;
     set_compact_tile(down_x, down_y, TILE_DOWN);
 
+#ifdef DEBUG_MAPGEN
     // Phase 6: Stair placement complete
     update_progress_step(6, 2, 2);
+#endif
 }
 
 // =============================================================================
@@ -139,17 +145,21 @@ void calculate_post_mst_feature_counts(void) {
 // Level generation pipeline with incremental wall building
 unsigned char generate_level(void) {
 
+#ifdef DEBUG_MAPGEN
     // Initialize progress bar system
     init_generation_progress();
-
     init_progress_weights();  // Pre-calculate phase boundaries with initial estimates
 
     // Phase 1: Create rooms with walls using grid-based placement
     show_phase(0); // "Building Rooms"
+#endif
+
     create_rooms();
     // Early exit if no rooms were created
     if (room_count == 0) {
+#ifdef DEBUG_MAPGEN
         finish_progress_bar();
+#endif
         return 0; // Generation failed
     }
 
@@ -157,42 +167,53 @@ unsigned char generate_level(void) {
     // Each room starts with 4 walls, decremented as doors/connections are added
     available_walls_count = room_count * 4;
 
+#ifdef DEBUG_MAPGEN
     // Phase 2: Room Connection System with corridor walls
     show_phase(1); // "Connecting Rooms"
+#endif
     build_room_network();
 
+#ifdef DEBUG_MAPGEN
     // Phase 2.5: Convert single-connection rooms to secret rooms
     show_phase(2); // "Secret Areas"
+#endif
     place_secret_rooms(current_params.secret_room_count);
 
     // POST-MST CALCULATION: Calculate feature counts from percentages using runtime data
     calculate_post_mst_feature_counts();
 
+#ifdef DEBUG_MAPGEN
     // Phase 2.6: Place secret treasures
     show_phase(3); // "Secret Treasures"
+#endif
     place_secret_treasures(current_params.treasure_count);
 
+#ifdef DEBUG_MAPGEN
     // Phase 2.7: Place false corridors
     show_phase(4); // "False Corridors"
+#endif
     place_false_corridors(current_params.false_corridor_count);
 
+#ifdef DEBUG_MAPGEN
     // Phase 2.8: Place hidden corridors
     show_phase(5); // "Hidden Corridors"
+#endif
     place_hidden_corridors(current_params.hidden_corridor_count);
 
+#ifdef DEBUG_MAPGEN
     // Phase 3: Place stairs for level navigation
     show_phase(6); // "Placing Stairs"
+#endif
     add_stairs();
 
+#ifdef DEBUG_MAPGEN
     // Finish progress bar and show completion message
     finish_progress_bar();
     show_phase(7); // "Complete"
 
-#ifdef DEBUG_MAPGEN
     // Initialize camera for debug preview mode
     initialize_camera();
-#endif
-    
+
     // VIC-II raster-based delay (more reliable on C64)
     // Wait for multiple frame cycles for visible delay
     for (unsigned char frames = 0; frames < 150; frames++) {  // ~3 seconds at 50Hz PAL
@@ -206,7 +227,6 @@ unsigned char generate_level(void) {
         }
     }
 
-#ifdef DEBUG_MAPGEN
     // Now render the map after progress bar is complete
     render_map_viewport(1);
 #endif

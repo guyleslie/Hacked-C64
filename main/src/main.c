@@ -1,84 +1,78 @@
+// =============================================================================
 // Main Module for C64 Map Generator
-// Contains: VIC-II mixed character setup, main program loop, and user input handling
+// =============================================================================
+// DEBUG mode: Interactive menu, generation preview, map navigation
+// RELEASE mode: Pure API - generates map data for other modules to use
 
-// System headers
+// Project headers (API and configuration)
+#include "mapgen/mapgen_api.h"
+#include "mapgen/mapgen_config.h"
+
+#ifdef DEBUG_MAPGEN
+// DEBUG mode additional headers
 #include <conio.h>
-#include <c64/kernalio.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
 #include <c64/cia.h>
-#include <c64/vic.h>
-
-// Project headers
-#include "mapgen/mapgen_api.h"        // For mapgen_generate_with_params
-#include "mapgen/mapgen_config.h"     // For configuration management
-
-#ifdef DEBUG_MAPGEN
-#include "mapgen/mapgen_debug.h"      // For mapgen_run_debug_mode (DEBUG mode wrapper)
+#include "mapgen/mapgen_debug.h"
 #endif
 
-// Include C files for OSCAR64 linking
-#include "mapgen/tmea_core.c"         // TMEA system (must be first)
-#include "mapgen/mapgen_config.c"
-#include "mapgen/mapgen_utils.c"
-#include "mapgen/map_generation.c"
-#include "mapgen/room_management.c"
-#include "mapgen/connection_system.c"
+// =============================================================================
+// OSCAR64 Module Includes (single-file compilation model)
+// =============================================================================
+
+// Core modules - included in both DEBUG and RELEASE
+#include "mapgen/tmea_core.c"         // TMEA metadata system (must be first)
+#include "mapgen/mapgen_config.c"     // Configuration and parameter management
+#include "mapgen/mapgen_utils.c"      // Utility functions and tile operations
+#include "mapgen/map_generation.c"    // Generation pipeline controller
+#include "mapgen/room_management.c"   // Room placement algorithms
+#include "mapgen/connection_system.c" // Corridor and feature generation
 
 #ifdef DEBUG_MAPGEN
-#include "mapgen/mapgen_display.c"
-#include "mapgen/map_export.c"
-#include "mapgen/mapgen_debug.c"      // DEBUG mode implementation
+// DEBUG mode modules - display, export, interactive menu
+#include "mapgen/mapgen_display.c"    // Viewport rendering
+#include "mapgen/map_export.c"        // File I/O
+#include "mapgen/mapgen_debug.c"      // Interactive debug mode
 #endif
 
-// VIC-II base address and memory control register definitions
-#define VIC_BASE 0xD000
-#define VIC_MEM  (*(unsigned char *)(VIC_BASE + 0x18))
+// =============================================================================
+// DEBUG Mode Support Functions
+// =============================================================================
 
-// Function: set_mixed_charset
-// Purpose: Enables the C64's mixed character set (lowercase/uppercase mode)
-void set_mixed_charset(void) {
-    // Set bit 1 of $D018 to 1 to select mixed charset (character ROM bank 1)
-    VIC_MEM |= 0x02;
+#ifdef DEBUG_MAPGEN
+#define VIC_MEM  (*(unsigned char *)(0xD018))
+
+static void set_mixed_charset(void) {
+    VIC_MEM |= 0x02;  // Enable lowercase/uppercase charset
 }
-
+#endif
 
 // Main function - Entry point for both DEBUG and PRODUCTION modes
 int main(void) {
-    clrscr();
-
-    // Switch to mixed (lowercase/uppercase) character set for C64
-    set_mixed_charset();
-
     // Initialize TMEA system (must be called once at startup)
     init_tmea_system();
 
 #ifdef DEBUG_MAPGEN
     // DEBUG MODE: Interactive menu + generation + preview/navigation
-    // All DEBUG functionality is encapsulated in mapgen_debug.c
+    clrscr();
+    set_mixed_charset();
     mapgen_run_debug_mode();
-
 #else
-    // PRODUCTION MODE: Direct parameter generation with seed test
-    unsigned int test_seed = 12345;
-
-    mapgen_init(test_seed);
-    unsigned char result = mapgen_generate_with_params(
-        1, // MEDIUM map size (64x64)
-        1, // MEDIUM room count (12-16)
-        1, // MEDIUM room size (4-7)
-        1, // MEDIUM secret rooms (25%)
-        1, // MEDIUM false corridors (25%)
-        1, // MEDIUM secret treasures (25%)
-        1  // MEDIUM hidden corridors (25%)
+    // RELEASE MODE: Generate a default map to verify API works
+    // This also ensures the mapgen code is not optimized away
+    mapgen_init(12345);
+    mapgen_generate_with_params(
+        1,  // MEDIUM map (64x64)
+        1,  // MEDIUM rooms (12-16)
+        1,  // MEDIUM room size
+        1,  // 25% secret rooms
+        1,  // 25% false corridors
+        1,  // 25% treasures
+        1   // 25% hidden corridors
     );
-
-    // Display seeds after generation
-    gotoxy(12, 18);
-    printf("Test seed: %u", test_seed);
-    gotoxy(12, 19);
-    printf("Used seed: %u", mapgen_get_seed());
+    // After generation, data is available in memory:
+    // - compact_map[] : 3-bit packed tile data
+    // - room_list[]   : Room structures with metadata
+    // - room_count    : Number of rooms generated
 #endif
 
     return 0;

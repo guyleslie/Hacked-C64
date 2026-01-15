@@ -447,8 +447,10 @@ void create_rooms(void) {
         if (try_place_room_at_grid(grid_positions[i], w, h, &x, &y)) {
             place_room(x, y, w, h);
             placed_rooms++;
+#ifdef DEBUG_MAPGEN
             // Phase 0: Room placement progress
             update_progress_step(0, placed_rooms, current_params.max_rooms);
+#endif
         }
     }
     

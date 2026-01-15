@@ -52,10 +52,19 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
    ```
 
 4. **Build the project**:
-   - `build-mapgen-test.bat` - DEBUG build with interactive menu, map preview, and navigation (~12KB)
-   - `build-mapgen-release.bat` - Production API build, minimal size (~8.2KB)
+   - `build-mapgen-test.bat` - **TEST build**: Interactive menu, map preview, navigation, progress bar, export
+   - `build-mapgen-release.bat` - **RELEASE build**: Pure API, no UI - generates map data for other modules
 
 5. **Launch emulator**: Start VICE emulator and load the generated `.prg` file from the `build/` directory
+
+### Build Modes
+
+| Build | Features |
+|-------|----------|
+| **TEST** | Menu, progress bar, map preview, joystick navigation, export |
+| **RELEASE** | Pure API only - generates map, no UI, for game engine integration |
+
+> **Note:** All user-facing features (controls, menu, progress bar) are only available in TEST build.
 
 ## Controls
 

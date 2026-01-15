@@ -1,9 +1,13 @@
 #include <c64/types.h>
 #include <c64/cia.h>
 #include <c64/vic.h>
-#include <conio.h>
 #include <string.h>
 #include "mapgen_types.h"
+
+#ifdef DEBUG_MAPGEN
+#include <conio.h>
+#include <stdio.h>  // For putchar
+#endif
 #include "mapgen_utils.h"
 #include "mapgen_internal.h"
 #include "mapgen_config.h"
@@ -23,11 +27,13 @@ __zeropage unsigned int rnd_state_16 = 1;
 static unsigned char rng_seeded = 0;
 static unsigned int rng_seed_16 = 1;
 
+#ifdef DEBUG_MAPGEN
 extern unsigned char camera_center_x, camera_center_y;
 extern Viewport view;
 extern unsigned char screen_buffer[VIEW_H][VIEW_W];
 extern unsigned char screen_dirty;
 extern unsigned char last_scroll_direction;
+#endif
 
 unsigned short y_bit_stride = 0;
 
@@ -94,6 +100,8 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     }
 }
 
+#ifdef DEBUG_MAPGEN
+// PETSCII tile conversion for display - DEBUG mode only
 unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
     unsigned char raw_tile = get_compact_tile(map_x, map_y);
 
@@ -112,6 +120,7 @@ unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
         default:               return EMPTY;
     }
 }
+#endif
 
 void clear_map(void) {
     unsigned short tile_bits = (unsigned short)current_params.map_width *
@@ -262,6 +271,7 @@ unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y,
     return 0;
 }
 
+#ifdef DEBUG_MAPGEN
 void reset_viewport_state(void) {
     camera_center_x = current_params.map_width / 2;
     camera_center_y = current_params.map_height / 2;
@@ -274,6 +284,7 @@ void reset_display_state(void) {
     screen_dirty = 1;
     last_scroll_direction = 0;
 }
+#endif
 
 void reset_all_generation_data(void) {
     if (!rng_seeded) {
@@ -324,8 +335,10 @@ void mapgen_init(unsigned int seed) {
 }
 
 unsigned char mapgen_generate_dungeon(void) {
+#ifdef DEBUG_MAPGEN
     reset_viewport_state();
     reset_display_state();
+#endif
     reset_all_generation_data();
     return generate_level();
 }
@@ -359,13 +372,20 @@ unsigned char mapgen_generate_with_params(
     validate_and_adjust_config(&config, &params);
     mapgen_set_parameters(&params);
 
+#ifdef DEBUG_MAPGEN
     reset_viewport_state();
     reset_display_state();
+#endif
     reset_all_generation_data();
 
     unsigned char result = generate_level();
     return result ? 0 : 2;
 }
+
+#ifdef DEBUG_MAPGEN
+// =============================================================================
+// DEBUG MODE ONLY - Console and Progress Bar Functions
+// =============================================================================
 
 void print_text(const char* text) {
     while (*text) {
@@ -378,7 +398,6 @@ void print_text(const char* text) {
     }
 }
 
-// Progress bar
 static const unsigned char PROGRESS_QUARTER = 0x65;
 static const unsigned char PROGRESS_HALF = 0x61;
 static const unsigned char PROGRESS_THREE_Q = 0xE7;
@@ -504,6 +523,7 @@ void show_phase(unsigned char phase_id) {
 void init_generation_progress(void) {
     init_progress_bar_simple("MAP GENERATION");
 }
+#endif // DEBUG_MAPGEN
 
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     for (unsigned char ix = x - 1; ix <= x + w; ix++) {

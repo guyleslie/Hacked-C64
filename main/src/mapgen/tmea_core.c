@@ -3,6 +3,7 @@
 // Core Implementation - Oscar64 Optimized
 // =============================================================================
 
+#include <stddef.h>  // For NULL
 #include "tmea_core.h"
 #include "tmea_types.h"
 #include "mapgen_types.h"

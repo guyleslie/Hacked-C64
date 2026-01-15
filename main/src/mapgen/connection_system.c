@@ -501,10 +501,12 @@ void build_room_network(void) {
                 connected[best_room2] = 1;
                 connections_made++;
                 total_connections++; // Runtime tracking for percentage calculation
+#ifdef DEBUG_MAPGEN
                 // Batch progress updates - only update every 2 connections for performance
                 if ((connections_made & 1) == 0 || connections_made == room_count - 1) {
                     update_progress_step(1, connections_made, room_count - 1);
                 }
+#endif
             } else {
                 break;
             }
@@ -617,8 +619,10 @@ void place_secret_rooms(unsigned char room_count_target) {
                 }
             }
 
+#ifdef DEBUG_MAPGEN
             // Phase 2: Secret room progress
             update_progress_step(2, secrets_made, room_count_target);
+#endif
         }
     }
 }
@@ -683,7 +687,9 @@ void place_hidden_corridors(unsigned char corridor_count) {
 
     // Early exit if no candidates
     if (candidate_count == 0) {
+#ifdef DEBUG_MAPGEN
         update_progress_step(5, 0, corridor_count);
+#endif
         return;
     }
 
@@ -698,7 +704,9 @@ void place_hidden_corridors(unsigned char corridor_count) {
         if (create_hidden_corridor(candidates_room1[idx], candidates_room2[idx])) {
             hidden++;
             total_hidden_corridors++; // Runtime tracking for percentage calculation
+#ifdef DEBUG_MAPGEN
             update_progress_step(5, hidden, corridor_count);
+#endif
         }
         attempts++;
     }
@@ -864,8 +872,10 @@ void place_false_corridors(unsigned char corridor_count) {
             corridors_placed++;
             total_false_corridors++; // Runtime tracking for percentage calculation
             // NOTE: available_walls_count-- already handled in create_false_corridor() line ~811
+#ifdef DEBUG_MAPGEN
             // Phase 4: False corridor placement progress
             update_progress_step(4, corridors_placed, corridor_count);
+#endif
         }
         attempts++;
     }
@@ -972,8 +982,10 @@ void place_secret_treasures(unsigned char treasure_count) {
             treasures_placed++;
             total_treasures++; // Runtime tracking for percentage calculation
             available_walls_count--; // Treasure uses 1 wall
+#ifdef DEBUG_MAPGEN
             // Phase 3: Treasure placement progress
             update_progress_step(3, treasures_placed, treasure_count);
+#endif
         }
         attempts++;
     }
