@@ -60,7 +60,10 @@ int main(void) {
     mapgen_run_debug_mode();
 
 #else
-    // PRODUCTION MODE: Direct parameter generation
+    // PRODUCTION MODE: Direct parameter generation with seed test
+    unsigned int test_seed = 12345;
+
+    mapgen_init(test_seed);
     unsigned char result = mapgen_generate_with_params(
         1, // MEDIUM map size (64x64)
         1, // MEDIUM room count (12-16)
@@ -71,9 +74,11 @@ int main(void) {
         1  // MEDIUM hidden corridors (25%)
     );
 
-    // Map data is now in compact_map[], room_list[], TMEA pools
-    // Game engine can immediately use the generated map
-    // Result: 0=success, 1=invalid params, 2=generation failed
+    // Display seeds after generation
+    gotoxy(12, 18);
+    printf("Test seed: %u", test_seed);
+    gotoxy(12, 19);
+    printf("Used seed: %u", mapgen_get_seed());
 #endif
 
     return 0;

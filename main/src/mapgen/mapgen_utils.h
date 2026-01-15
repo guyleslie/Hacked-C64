@@ -9,9 +9,13 @@ void calculate_y_bit_stride(void);
 // External reference to cached Y bit stride
 extern unsigned short y_bit_stride;
 
-// RNG functions
-void init_rnd(void);
-unsigned char rnd(unsigned char max);
+// RNG functions - 16-bit seed-based generation
+unsigned int get_random_seed(void);       // Generate random seed from hardware
+unsigned char rnd(unsigned char max);     // 16-bit LCG random number generator
+
+// Seed-based generation API
+unsigned int mapgen_get_seed(void);       // Get current seed value
+void mapgen_reset_seed_flag(void);        // Reset to random seed on next generation
 
 // Console functions for Oscar64
 void print_text(const char* text);
