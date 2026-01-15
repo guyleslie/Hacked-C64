@@ -4,8 +4,10 @@
 #include "mapgen_types.h"
 #include "mapgen_config.h"
 
-// Initialization and configuration
-void mapgen_init(unsigned int seed);
+// Initialization and seed management
+void mapgen_init(unsigned int seed);           // Set explicit 16-bit seed
+unsigned int mapgen_get_seed(void);            // Query current seed value
+void mapgen_reset_seed_flag(void);             // Reset to random seed on next generation
 void mapgen_set_parameters(const MapParameters *params);
 
 // Public API for map generation

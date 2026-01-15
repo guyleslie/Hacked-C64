@@ -695,8 +695,10 @@ The mapgen module provides a clean public API for map generation. All functions 
 
 ### Public API Functions
 ```c
-// Initialization and configuration
-void mapgen_init(unsigned int seed);
+// Initialization and seed management
+void mapgen_init(unsigned int seed);           // Set explicit 16-bit seed
+unsigned int mapgen_get_seed(void);            // Query current seed value
+void mapgen_reset_seed_flag(void);             // Reset to random seed on next generation
 void mapgen_set_parameters(const MapParameters *params);
 
 // DEBUG mode API - generates dungeon using current parameters

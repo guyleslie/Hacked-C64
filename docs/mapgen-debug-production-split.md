@@ -490,19 +490,36 @@ printf("First room: x=%d y=%d w=%d h=%d\n",
 
 ---
 
-## Future Extensions
+## Implemented Features
 
-### 1. Seed-Based Generation
+### 1. Seed-Based Generation (Implemented)
+
+The mapgen module now supports deterministic, reproducible dungeon generation via 16-bit seeds.
 
 ```c
-unsigned char mapgen_generate_with_seed(
-    unsigned int seed,
-    unsigned char map_size,
-    // ... other parameters
-);
+// Initialize with explicit seed before generation
+mapgen_init(12345);  // Set 16-bit seed
+
+// Generate map - will use the set seed
+mapgen_generate_with_params(1, 1, 1, 1, 1, 1, 1);
+
+// Query the seed used (for display/export)
+unsigned int used_seed = mapgen_get_seed();
+
+// Reset to random seed for next generation
+mapgen_reset_seed_flag();
 ```
 
-### 2. Incremental Generation
+**Behavior:**
+- First generation captures hardware-random seed if none set
+- Subsequent regenerations with same settings produce identical maps
+- `mapgen_reset_seed_flag()` forces new random seed on next generation
+
+---
+
+## Future Extensions
+
+### 1. Incremental Generation
 
 ```c
 // Split generation into phases for loading screens

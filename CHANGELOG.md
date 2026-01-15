@@ -1,5 +1,39 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-01-15
+
+### Added
+- **16-bit Seed-Based Map Generation**: Deterministic, reproducible dungeon generation
+  - `mapgen_init(unsigned int seed)` - Initialize RNG with explicit 16-bit seed
+  - `mapgen_get_seed()` - Query current seed value for display/export
+  - `mapgen_reset_seed_flag()` - Reset to hardware-random seed on next generation
+  - `get_random_seed()` - Hardware entropy from CIA timers + VIC raster
+
+### Changed
+- **RNG System Upgraded**: 8-bit LCG replaced with 16-bit LCG
+  - Better distribution using high byte: `(rnd_state_16 >> 8) % max`
+  - Longer period (65,536 vs 256 states)
+  - Constants: a=75, c=74 (optimal for 16-bit LCG)
+- **Seed Preservation**: Explicit seeds survive regeneration cycles
+  - `rng_seeded` flag prevents `reset_all_generation_data()` from overwriting
+  - RNG state reset to stored seed on each regeneration (reproducible maps)
+- **Production Mode**: main.c now demonstrates seed verification
+  - Test seed (12345) displayed alongside used seed after generation
+
+### Fixed
+- **DEBUG Mode Regeneration Bug**: Maps with identical settings now produce identical results
+  - Previous: Each regeneration used new hardware-random seed
+  - Fixed: First generation captures seed, subsequent regenerations reuse it
+  - RNG state properly reset to `rng_seed_16` on each `reset_all_generation_data()` call
+
+### Technical Details
+- RNG state: `__zeropage unsigned int rnd_state_16` (2 bytes, zero page for speed)
+- Seed storage: `static unsigned int rng_seed_16` (2 bytes)
+- Seeded flag: `static unsigned char rng_seeded` (1 byte)
+- Total memory: 5 bytes for complete seed management
+
+---
+
 ## [Unreleased] - 2026-01-11
 
 ### Build System
