@@ -22,6 +22,60 @@ extern MapParameters current_params;
 #ifdef DEBUG_MAPGEN
 
 // =============================================================================
+// PETSCII TILE CONVERSION - Display-specific tile rendering
+// =============================================================================
+
+/**
+ * @brief Convert raw tile type to PETSCII display character
+ * @param map_x Map X coordinate
+ * @param map_y Map Y coordinate
+ * @return PETSCII character code for display
+ */
+unsigned char get_map_tile(unsigned char map_x, unsigned char map_y) {
+    unsigned char raw_tile = get_compact_tile(map_x, map_y);
+
+    switch(raw_tile) {
+        case TILE_EMPTY:       return EMPTY;
+        case TILE_WALL:        return WALL;
+        case TILE_FLOOR:       return FLOOR;
+        case TILE_DOOR:
+            if (is_door_secret(map_x, map_y)) return SECRET_DOOR;
+            return DOOR;
+        case TILE_MARKER:
+            if (is_door_secret(map_x, map_y)) return SECRET_DOOR;
+            return DOOR;
+        case TILE_UP:          return UP;
+        case TILE_DOWN:        return DOWN;
+        default:               return EMPTY;
+    }
+}
+
+// =============================================================================
+// VIEWPORT STATE MANAGEMENT
+// =============================================================================
+
+/**
+ * @brief Reset viewport position to map center
+ * Called before new map generation to ensure clean state
+ */
+void reset_viewport_state(void) {
+    camera_center_x = current_params.map_width / 2;
+    camera_center_y = current_params.map_height / 2;
+    view.x = 0;
+    view.y = 0;
+}
+
+/**
+ * @brief Reset display buffer and dirty flags
+ * Clears screen buffer and marks for full redraw
+ */
+void reset_display_state(void) {
+    memset(screen_buffer, 32, VIEW_H * VIEW_W);
+    screen_dirty = 1;
+    last_scroll_direction = 0;
+}
+
+// =============================================================================
 // DIRECT SCREEN ACCESS
 // =============================================================================
 
