@@ -1,5 +1,47 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-01-16
+
+### Architecture
+- **New mapgen_progress Module**: Dedicated DEBUG-only module for progress bar system
+  - Extracted from `mapgen_utils.c` for cleaner code separation
+  - Contains: `print_text()`, `init_progress_weights()`, `init_progress_bar_simple()`
+  - Contains: `update_progress_step()`, `finish_progress_bar()`, `show_phase()`, `init_generation_progress()`
+  - New files: `mapgen_progress.c`, `mapgen_progress.h`
+
+- **Viewport Functions Relocated**: DEBUG functions moved to appropriate modules
+  - `reset_viewport_state()` moved from `mapgen_utils.c` to `mapgen_display.c`
+  - `reset_display_state()` moved from `mapgen_utils.c` to `mapgen_display.c`
+  - `get_map_tile()` PETSCII conversion moved to `mapgen_display.c`
+  - `mapgen_utils.c` now contains only core utilities (no DEBUG UI code)
+
+### Changed
+- **Seed-Based Map Export**: Replaced raw map data export with seed-based saving
+  - New `save_map_seed()` function saves seed + config presets
+  - File format: 2 bytes seed + 7 bytes config = 9 bytes data (+ 2 byte PRG header)
+  - Total file size: **11 bytes** (vs 800-2400+ bytes for raw map data)
+  - **~99.5% size reduction** for large maps
+  - Maps are fully reproducible from saved seed
+
+### Removed
+- `save_compact_map()` function removed (replaced by `save_map_seed()`)
+- Progress bar code removed from `mapgen_utils.c` (moved to `mapgen_progress.c`)
+- Viewport reset functions removed from `mapgen_utils.c` (moved to `mapgen_display.c`)
+- DEBUG extern declarations removed from `mapgen_utils.c`
+
+### Documentation
+- Updated `CLAUDE.md` with new module structure
+- Updated `project-specification.md` with seed-based export format
+- Updated `mapgen-debug-production-split.md` (version 1.4 → 1.5)
+- Updated `README.md` with seed-based export description
+
+### Technical Details
+- Module include order in `main.c`: `mapgen_progress.c` → `mapgen_display.c` → `map_export.c` → `mapgen_debug.c`
+- All modules using progress bar now include `mapgen_progress.h`
+- Seed export format: `[PRG header 2B][seed 2B][presets 7B]` = 11 bytes total
+
+---
+
 ## [Unreleased] - 2026-01-15
 
 ### Architecture
