@@ -102,35 +102,22 @@ static void compute_corridor_breakpoints(unsigned char start_x, unsigned char st
         }
 
         case 2: {
-            unsigned char seg1_end_x = start_x;
-            unsigned char seg1_end_y = start_y;
-            unsigned char seg2_end_x = start_x;
-            unsigned char seg2_end_y = start_y;
-
-            unsigned char dx = abs_diff_inline(end_x, start_x);
-            unsigned char dy = abs_diff_inline(end_y, start_y);
-
             if ((wall_side & 0x02) == 0) {
-                unsigned char leg_length = dx / 3;
-                if (end_x > start_x) seg1_end_x = start_x + leg_length;
-                else seg1_end_x = start_x - leg_length;
-                seg1_end_y = start_y;
-                seg2_end_x = seg1_end_x;
-                seg2_end_y = end_y;
+                // Horizontal start: middle vertical segment
+                unsigned char mid_x = (start_x + end_x) / 2;
+                out->x[0] = mid_x;
+                out->y[0] = start_y;
+                out->x[1] = mid_x;
+                out->y[1] = end_y;
             } else {
-                unsigned char leg_length = dy / 3;
-                seg1_end_x = start_x;
-                if (end_y > start_y) seg1_end_y = start_y + leg_length;
-                else seg1_end_y = start_y - leg_length;
-                seg2_end_x = end_x;
-                seg2_end_y = seg1_end_y;
+                // Vertical start: middle horizontal segment
+                unsigned char mid_y = (start_y + end_y) / 2;
+                out->x[0] = start_x;
+                out->y[0] = mid_y;
+                out->x[1] = end_x;
+                out->y[1] = mid_y;
             }
-
             out->count = 2;
-            out->x[0] = seg1_end_x;
-            out->y[0] = seg1_end_y;
-            out->x[1] = seg2_end_x;
-            out->y[1] = seg2_end_y;
             break;
         }
     }
@@ -721,134 +708,158 @@ void place_hidden_corridors(unsigned char corridor_count) {
 static unsigned char create_false_corridor(unsigned char room_idx, unsigned char wall_side) {
     Room *room = &room_list[room_idx];
 
+    // Quick checks
     if (room->state & ROOM_SECRET) return 0;
-
-    // OPTIMIZED: Instant O(1) wall check using wall_door_count
     if (room->wall_door_count[wall_side] > 0) return 0;
-
-    // OPTIMIZED: Direct wall_side comparison (no coordinate recalculation!)
     if (room->treasure_wall_side == wall_side) return 0;
 
-    // Step 1: Calculate door position based on wall_side (we already KNOW which wall!)
-    unsigned char door_x;
-    unsigned char door_y;
-    unsigned char room_center_x = room->center_x;
-    unsigned char room_center_y = room->center_y;
-
-    switch (wall_side) {
-        case 0:  // Left wall
-            if (room->h <= 2) return 0;
-            door_x = room->x - 1;
-            door_y = room_center_y;
-            break;
-        case 1:  // Right wall
-            if (room->h <= 2) return 0;
-            door_x = room->x + room->w;
-            door_y = room_center_y;
-            break;
-        case 2:  // Top wall
-            if (room->w <= 2) return 0;
-            door_x = room_center_x;
-            door_y = room->y - 1;
-            break;
-        case 3:  // Bottom wall
-            if (room->w <= 2) return 0;
-            door_x = room_center_x;
-            door_y = room->y + room->h;
-            break;
-        default:
-            return 0;
+    // Calculate door position
+    unsigned char door_x, door_y;
+    if (wall_side == 0) {
+        if (room->h <= 2) return 0;
+        door_x = room->x - 1; door_y = room->center_y;
+    } else if (wall_side == 1) {
+        if (room->h <= 2) return 0;
+        door_x = room->x + room->w; door_y = room->center_y;
+    } else if (wall_side == 2) {
+        if (room->w <= 2) return 0;
+        door_x = room->center_x; door_y = room->y - 1;
+    } else {
+        if (room->w <= 2) return 0;
+        door_x = room->center_x; door_y = room->y + room->h;
     }
 
-    // Step 2: Generate endpoint INTELLIGENTLY - AWAY from door based on wall_side!
-    unsigned char base_length = 4 + rnd(6);  // 4-9 tiles away
-    signed char final_x;
-    signed char final_y;
+    // Step 1: Calculate space to map edge
+    unsigned char space_to_edge;
+    if (wall_side == 0) space_to_edge = door_x - 2;
+    else if (wall_side == 1) space_to_edge = current_params.map_width - door_x - 3;
+    else if (wall_side == 2) space_to_edge = door_y - 2;
+    else space_to_edge = current_params.map_height - door_y - 3;
 
-    switch (wall_side) {
-        case 0:  // Left wall → go LEFT (negative X direction)
-            final_x = (signed char)door_x - (signed char)base_length;
-            // Random Y offset perpendicular to wall
-            final_y = (signed char)door_y + (rnd(2) ? (signed char)(1 + rnd(4)) : (signed char)-(1 + rnd(4)));
-            break;
-        case 1:  // Right wall → go RIGHT (positive X direction)
-            final_x = (signed char)door_x + (signed char)base_length;
-            // Random Y offset perpendicular to wall
-            final_y = (signed char)door_y + (rnd(2) ? (signed char)(1 + rnd(4)) : (signed char)-(1 + rnd(4)));
-            break;
-        case 2:  // Top wall → go UP (negative Y direction)
-            final_y = (signed char)door_y - (signed char)base_length;
-            // Random X offset perpendicular to wall
-            final_x = (signed char)door_x + (rnd(2) ? (signed char)(1 + rnd(4)) : (signed char)-(1 + rnd(4)));
-            break;
-        case 3:  // Bottom wall → go DOWN (positive Y direction)
-            final_y = (signed char)door_y + (signed char)base_length;
-            // Random X offset perpendicular to wall
-            final_x = (signed char)door_x + (rnd(2) ? (signed char)(1 + rnd(4)) : (signed char)-(1 + rnd(4)));
-            break;
-        default:
-            return 0;
-    }
+    unsigned char min_length = 8;
+    if (space_to_edge < min_length) return 0;  // Not enough space to edge
 
-    // Validate endpoint is within map bounds
-    if (final_x < 2 || final_x >= (signed char)(current_params.map_width - 2) ||
-        final_y < 2 || final_y >= (signed char)(current_params.map_height - 2)) {
-        return 0;
-    }
+    // Step 2: Find nearest room in corridor direction
+    unsigned char space_to_room = space_to_edge;  // Default: no room blocking
+    for (unsigned char i = 0; i < room_count; i++) {
+        if (i == room_idx) continue;
+        Room *other = &room_list[i];
 
-    unsigned char endpoint_x = (unsigned char)final_x;
-    unsigned char endpoint_y = (unsigned char)final_y;
-
-    // Check endpoint doesn't collide with rooms
-    unsigned char collision_room;
-    if (point_in_any_room(endpoint_x, endpoint_y, &collision_room)) {
-        return 0;
-    }
-
-    // Check endpoint is at least 2 tiles away from existing walkable tiles (floor/door)
-    // This ensures false corridors don't accidentally connect to other corridors
-    for (signed char dx = -2; dx <= 2; dx++) {
-        for (signed char dy = -2; dy <= 2; dy++) {
-            // Skip center point (endpoint itself)
-            if (dx == 0 && dy == 0) continue;
-
-            signed char check_x = (signed char)endpoint_x + dx;
-            signed char check_y = (signed char)endpoint_y + dy;
-
-            // Bounds check
-            if (check_x < 0 || check_x >= (signed char)current_params.map_width ||
-                check_y < 0 || check_y >= (signed char)current_params.map_height) {
-                continue;
+        if (wall_side == 0) {  // Going LEFT
+            // Check if other room is to our left and overlaps vertically
+            if (other->x + other->w < door_x &&
+                door_y >= other->y - 1 && door_y <= other->y + other->h) {
+                unsigned char dist = door_x - (other->x + other->w) - 2;
+                if (dist < space_to_room) space_to_room = dist;
             }
-
-            // Check if tile is walkable (floor/door)
-            unsigned char tile = get_compact_tile((unsigned char)check_x, (unsigned char)check_y);
-            if (tile == TILE_FLOOR || tile == TILE_DOOR) {
-                return 0; // Too close to walkable tiles
+        } else if (wall_side == 1) {  // Going RIGHT
+            if (other->x > door_x &&
+                door_y >= other->y - 1 && door_y <= other->y + other->h) {
+                unsigned char dist = other->x - door_x - 2;
+                if (dist < space_to_room) space_to_room = dist;
+            }
+        } else if (wall_side == 2) {  // Going UP
+            if (other->y + other->h < door_y &&
+                door_x >= other->x - 1 && door_x <= other->x + other->w) {
+                unsigned char dist = door_y - (other->y + other->h) - 2;
+                if (dist < space_to_room) space_to_room = dist;
+            }
+        } else {  // Going DOWN
+            if (other->y > door_y &&
+                door_x >= other->x - 1 && door_x <= other->x + other->w) {
+                unsigned char dist = other->y - door_y - 2;
+                if (dist < space_to_room) space_to_room = dist;
             }
         }
     }
 
-    // Step 3: Use the SAME corridor drawing logic as normal corridors
-    unsigned char corridor_type = determine_corridor_type(door_x, door_y, endpoint_x, endpoint_y);
+    unsigned char available = (space_to_room < space_to_edge) ? space_to_room : space_to_edge;
+    if (available < min_length) return 0;  // Not enough space
 
-    if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
-                               CORRIDOR_MODE_CHECK, TILE_FLOOR)) {
-        return 0;
+    // Step 3: Scan tiles for corridors/obstacles within available space
+    unsigned char scan_x = door_x, scan_y = door_y;
+    unsigned char actual_free = 0;
+    signed char dx = (wall_side == 0) ? -1 : (wall_side == 1) ? 1 : 0;
+    signed char dy = (wall_side == 2) ? -1 : (wall_side == 3) ? 1 : 0;
+
+    while (actual_free < available) {
+        scan_x += dx;
+        scan_y += dy;
+        unsigned char tile = get_compact_tile(scan_x, scan_y);
+        if (tile != TILE_EMPTY && tile != TILE_WALL) break;  // Hit corridor or room
+        actual_free++;
     }
 
+    if (actual_free < min_length) return 0;  // Not enough free tiles
+
+    // Step 4: Choose length and shape based on actual space
+    unsigned char max_len = (actual_free > 24) ? 24 : actual_free;
+    unsigned char corridor_len = min_length + rnd(max_len - min_length + 1);
+
+    // Calculate endpoint (straight corridor - most reliable)
+    unsigned char endpoint_x, endpoint_y;
+    if (wall_side == 0) { endpoint_x = door_x - corridor_len; endpoint_y = door_y; }
+    else if (wall_side == 1) { endpoint_x = door_x + corridor_len; endpoint_y = door_y; }
+    else if (wall_side == 2) { endpoint_x = door_x; endpoint_y = door_y - corridor_len; }
+    else { endpoint_x = door_x; endpoint_y = door_y + corridor_len; }
+
+    // Try to add perpendicular component for L/Z shape (if space allows)
+    unsigned char shape = rnd(3);  // 0=straight, 1=L, 2=Z
+    signed char side_dir = rnd(2) ? 1 : -1;
+
+    if (shape > 0) {
+        signed char perp = (shape == 1) ? (signed char)(corridor_len >> 1) : (signed char)(corridor_len >> 2);
+        perp *= side_dir;
+
+        // Apply perpendicular offset based on wall direction
+        unsigned char new_endpoint_x = endpoint_x;
+        unsigned char new_endpoint_y = endpoint_y;
+        if (wall_side == 0 || wall_side == 1) {
+            new_endpoint_y = (unsigned char)((signed char)endpoint_y + perp);
+            if (shape == 1) new_endpoint_x = (wall_side == 0) ? door_x - (corridor_len >> 1) : door_x + (corridor_len >> 1);
+        } else {
+            new_endpoint_x = (unsigned char)((signed char)endpoint_x + perp);
+            if (shape == 1) new_endpoint_y = (wall_side == 2) ? door_y - (corridor_len >> 1) : door_y + (corridor_len >> 1);
+        }
+
+        // Validate new endpoint is in bounds and not in a room
+        unsigned char dummy;
+        if (new_endpoint_x >= 2 && new_endpoint_x < current_params.map_width - 2 &&
+            new_endpoint_y >= 2 && new_endpoint_y < current_params.map_height - 2 &&
+            !point_in_any_room(new_endpoint_x, new_endpoint_y, &dummy)) {
+            endpoint_x = new_endpoint_x;
+            endpoint_y = new_endpoint_y;
+        }
+        // If validation fails, keep straight endpoint
+    }
+
+    // Step 5: Validate path and draw
+    unsigned char corridor_type = determine_corridor_type(door_x, door_y, endpoint_x, endpoint_y);
+    if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
+                               CORRIDOR_MODE_CHECK, TILE_FLOOR)) {
+        // Fallback to straight if shaped corridor fails
+        if (wall_side == 0) { endpoint_x = door_x - corridor_len; endpoint_y = door_y; }
+        else if (wall_side == 1) { endpoint_x = door_x + corridor_len; endpoint_y = door_y; }
+        else if (wall_side == 2) { endpoint_x = door_x; endpoint_y = door_y - corridor_len; }
+        else { endpoint_x = door_x; endpoint_y = door_y + corridor_len; }
+        corridor_type = 0;
+
+        if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
+                                   CORRIDOR_MODE_CHECK, TILE_FLOOR)) {
+            return 0;  // Even straight doesn't work
+        }
+    }
+
+    // Draw the corridor
     process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
                           CORRIDOR_MODE_DRAW, TILE_FLOOR);
 
     place_door(door_x, door_y);
 
-    // OPTIMIZED: Store wall_side instead of door coordinates (can be recalculated!)
     room->state |= ROOM_HAS_FALSE_CORRIDOR;
-    room->false_corridor_wall_side = wall_side;  // Only 1 byte!
+    room->false_corridor_wall_side = wall_side;
     room->false_corridor_end_x = endpoint_x;
     room->false_corridor_end_y = endpoint_y;
-
-    // Update wall door counter for instant O(1) queries
     room->wall_door_count[wall_side]++;
 
     return 1;
@@ -862,7 +873,7 @@ void place_false_corridors(unsigned char corridor_count) {
 
     unsigned char corridors_placed = 0;
     unsigned char attempts = 0;
-    unsigned char max_attempts = room_count * 20; // More attempts to reach target
+    unsigned char max_attempts = room_count << 5;  // room_count * 32 - early exits are fast
 
     // Keep trying random room/wall combinations until we reach target or max attempts
     while (corridors_placed < corridor_count && attempts < max_attempts) {

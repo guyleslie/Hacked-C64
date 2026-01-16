@@ -2,6 +2,39 @@
 
 ## [Unreleased] - 2026-01-16
 
+### False Corridor System Rewrite
+- **Smart Map-Aware Placement**: Complete rewrite using actual map knowledge instead of guessing
+  - Step 1: Calculate space to map edge (simple math from door position)
+  - Step 2: Find nearest room in corridor direction (O(n) room scan)
+  - Step 3: Scan tiles for existing corridors within available space
+  - Step 4: Choose length and shape based on ACTUAL available space
+  - Step 5: Validate path and draw with fallback to straight if L/Z fails
+- **Benefits**:
+  - No more random guessing - we KNOW how much space is available
+  - Higher success rate for false corridor placement
+  - Better shape variety (straight/L/Z based on real space constraints)
+  - Faster generation (fewer failed attempts)
+
+### Z-Shaped Corridor Improvement
+- **Centered Symmetric Breakpoints**: Z-shaped corridors now place breakpoints at the midpoint
+  - Before: Breakpoints at 1/3 of the way from start (asymmetric)
+  - After: Breakpoints at center using `mid_x` or `mid_y` (symmetric)
+  - Cleaner visual appearance with middle segment in true center
+  - Simpler code: fewer variables, no `leg_length` calculation needed
+
+### Corridor Wall Building
+- **Restored Wall Building Around Corridors**: `place_walls_around_corridor_tile()` call restored
+  - Walls now properly surround corridor floor tiles
+  - Consistent visual appearance with rooms
+
+### Build Sizes
+- Mapgen TEST build: 12,136 bytes
+- Mapgen RELEASE build: 8,332 bytes
+
+---
+
+## [Unreleased] - 2026-01-16 (earlier)
+
 ### Architecture
 - **New mapgen_progress Module**: Dedicated DEBUG-only module for progress bar system
   - Extracted from `mapgen_utils.c` for cleaner code separation
