@@ -6,8 +6,9 @@
 #include "mapgen_types.h"      // For Room, MAX_ROOMS
 #include "mapgen_internal.h"   // For add_stairs, add_walls, etc. and global variable declarations
 #include "mapgen_utils.h"      // For get_room_center, coords_in_bounds, calculate_room_distance
-#include "mapgen_display.h"    // For initialize_camera
+#include "mapgen_display.h"    // For initialize_camera, reset_viewport_state, reset_display_state
 #include "mapgen_config.h"     // For MapParameters
+#include "mapgen_progress.h"   // For progress bar functions (DEBUG only)
 
 // =============================================================================
 // DYNAMIC GENERATION PARAMETERS

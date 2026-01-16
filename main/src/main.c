@@ -28,7 +28,8 @@
 #include "mapgen/connection_system.c" // Corridor and feature generation
 
 #ifdef DEBUG_MAPGEN
-// DEBUG mode modules - display, export, interactive menu
+// DEBUG mode modules - display, export, progress bar, interactive menu
+#include "mapgen/mapgen_progress.c"   // Progress bar system
 #include "mapgen/mapgen_display.c"    // Viewport rendering
 #include "mapgen/map_export.c"        // File I/O
 #include "mapgen/mapgen_debug.c"      // Interactive debug mode

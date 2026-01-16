@@ -9,6 +9,7 @@
 #include "mapgen_types.h"      // For Room, MAX_ROOMS, Viewport
 #include "mapgen_internal.h"   // For room placement/validation and global variable declarations
 #include "mapgen_utils.h"      // For utility functions
+#include "mapgen_progress.h"   // For progress bar functions (DEBUG only)
 
 // External reference to current generation parameters
 extern MapParameters current_params;

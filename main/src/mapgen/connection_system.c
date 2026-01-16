@@ -6,7 +6,8 @@
 #include "mapgen_types.h"
 #include "mapgen_internal.h"
 #include "mapgen_utils.h"
-#include "tmea_core.h"      // For add_secret_door_metadata() and TMEA functions
+#include "mapgen_progress.h" // For progress bar functions (DEBUG only)
+#include "tmea_core.h"       // For add_secret_door_metadata() and TMEA functions
 
 // External reference to current generation parameters
 extern MapParameters current_params;
