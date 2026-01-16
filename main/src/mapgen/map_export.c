@@ -1,50 +1,83 @@
-// Map export utility for C64/Oscar64 compatible binary format
-// Exports the compact_map to a .bin file for easy loading on C64
+// =============================================================================
+// Map Export Module - Seed-Based Save System
+// =============================================================================
+// Exports map generation seed and configuration for reproducible regeneration.
+// File size: ~11 bytes (vs 800-2400+ bytes for packed map data)
+//
+// Only compiled when DEBUG_MAPGEN is defined.
+// =============================================================================
 
 #ifdef DEBUG_MAPGEN
 
 // System headers
 #include <c64/kernalio.h>
-#include <string.h>
 // Project headers
 #include "mapgen_types.h"
 #include "mapgen_internal.h"
 #include "mapgen_api.h"
+#include "mapgen_config.h"
 #include "map_export.h"
 
+// =============================================================================
+// SEED-BASED SAVE FORMAT
+// =============================================================================
+// File format (seed-based, reproducible):
+//   Byte 0-1:  PRG load address (added automatically by KERNAL SAVE)
+//   Byte 2-3:  Seed (16-bit, little-endian)
+//   Byte 4:    Map size preset (0=SMALL, 1=MEDIUM, 2=LARGE)
+//   Byte 5:    Room count preset
+//   Byte 6:    Room size preset (reserved)
+//   Byte 7:    Secret rooms preset
+//   Byte 8:    False corridors preset
+//   Byte 9:    Secret treasures preset
+//   Byte 10:   Hidden corridors preset
+//
+// Total: 9 bytes of data (+ 2 byte PRG header = 11 bytes)
+// =============================================================================
 
-// Save the compact map to disk using C64 KERNAL routines (device 8)
-// The filename must be a PETSCII string, max 16 chars
-// File format:
-//   Byte 0-1: PRG load address (added automatically by KERNAL SAVE)
-//   Byte 2:   Map size (width == height, 48/72/96)
-//   Byte 3+:  Packed tile data (3 bits per tile)
-void save_compact_map(const char* filename) {
-    // Get current map size from generation parameters
-    unsigned char current_map_size = mapgen_get_map_size();
+// Export buffer for seed-based save (9 bytes)
+static unsigned char seed_export_buffer[9];
 
-    // Calculate actual bytes needed for this map size
-    // Formula: (size * size * 3 + 7) / 8
-    unsigned short tile_bits = (unsigned short)current_map_size * current_map_size * 3;
-    unsigned short actual_map_bytes = (tile_bits + 7) >> 3;  // Divide by 8 with rounding up
+// External reference to current generation parameters
+extern MapParameters current_params;
 
-    // Create export buffer: [map_size (1 byte)] + [compact_map data]
-    // Static buffer with maximum possible size (96x96 = 6912 bytes + 1 size byte)
-    static unsigned char export_buffer[1 + ((96 * 96 * 3 + 7) / 8)];
+/**
+ * @brief Save map seed and configuration to disk
+ *
+ * Saves only the seed and configuration parameters needed to regenerate
+ * the exact same map. Much smaller than saving raw map data (~11 bytes
+ * vs 800-2400+ bytes).
+ *
+ * @param filename PETSCII filename (max 16 chars)
+ */
+void save_map_seed(const char* filename) {
+    // Get seed from mapgen system
+    unsigned int seed = mapgen_get_seed();
 
-    // First byte: map size
-    export_buffer[0] = current_map_size;
+    // Store seed as little-endian
+    seed_export_buffer[0] = (unsigned char)(seed & 0xFF);        // Low byte
+    seed_export_buffer[1] = (unsigned char)((seed >> 8) & 0xFF); // High byte
 
-    // Copy actual map data (only needed bytes, not full buffer)
-    memcpy(export_buffer + 1, compact_map, actual_map_bytes);
+    // Use the stored preset value directly - it already contains the correct settings
+    // This avoids derivation errors and ensures exact reproducibility
+    unsigned char preset = current_params.preset;
+
+    // Store config presets (all use the same preset for consistency)
+    seed_export_buffer[2] = preset;  // map_size
+    seed_export_buffer[3] = preset;  // room_count
+    seed_export_buffer[4] = preset;  // room_size (reserved)
+    seed_export_buffer[5] = preset;  // secret_rooms
+    seed_export_buffer[6] = preset;  // false_corridors
+    seed_export_buffer[7] = preset;  // secret_treasures
+    seed_export_buffer[8] = preset;  // hidden_corridors
 
     // Set the filename for KERNAL SAVE
     krnio_setnam(filename);
 
     // Save to device 8 (disk drive)
     // KERNAL SAVE automatically adds 2-byte PRG header (load address)
-    // Final file: [load_addr (2)] + [map_size (1)] + [map_data (actual_map_bytes)]
-    krnio_save(8, export_buffer, export_buffer + 1 + actual_map_bytes);
+    // Final file: [load_addr (2)] + [seed (2)] + [config (7)] = 11 bytes
+    krnio_save(8, seed_export_buffer, seed_export_buffer + 9);
 }
 
 #endif // DEBUG_MAPGEN

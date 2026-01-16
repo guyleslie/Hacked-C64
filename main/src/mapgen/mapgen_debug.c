@@ -351,7 +351,7 @@ void mapgen_run_debug_mode(void) {
             clrscr();
             break;
         } else if (key == 'M' || key == 'm') {
-            save_compact_map("mapbin");
+            save_map_seed("mapbin");
         }
 
         // Read joystick 2 from CIA1 Port A ($DC00)
