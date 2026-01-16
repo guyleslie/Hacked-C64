@@ -121,7 +121,7 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
 - **False Corridors**: Misleading dead-end passages on available walls (walls without doors in non-secret rooms)
 - **Hidden Corridors**: Non-branching corridor doors between rooms randomly converted to secret doors (percentage of eligible corridors)
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
-- **Map Export**: Save generated maps to disk in binary format
+- **Map Export**: Save map seed and configuration to disk (11 bytes - maps are reproducible from seed)
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
 - **Progress Display**: Real-time generation progress with phase indicators
 

@@ -22,18 +22,20 @@ main/src/
 │   ├── mapgen_types.h       # Core data structures and constants
 │   ├── mapgen_internal.h    # Internal module definitions
 │   ├── mapgen_config.c/.h   # Configuration system (shared by both modes)
-│   ├── mapgen_debug.c/.h    # DEBUG mode: menu, navigation loop, UI helpers
 │   ├── map_generation.c     # Generation pipeline with dynamic parameters
 │   ├── room_management.c    # Room placement algorithms
 │   ├── connection_system.c  # MST and corridor generation
-│   ├── mapgen_display.c/.h  # Viewport and rendering (DEBUG mode only)
 │   ├── mapgen_utils.c/.h    # Utility functions and math operations
-│   ├── map_export.c/.h      # File I/O operations (DEBUG mode only)
 │   ├── tmea_types.h         # TMEA type definitions and flag enums
-│   ├── tmea_core.h          # TMEA API declarations
-│   └── tmea_core.c          # TMEA implementation (metadata and entity pools)
-build-mapgen-test.bat        # Mapgen TEST build (DEBUG_MAPGEN enabled, ~12KB)
-build-mapgen-release.bat     # Mapgen RELEASE build (Production API, ~8.2KB)
+│   ├── tmea_core.h/.c       # TMEA implementation (metadata and entity pools)
+│   │
+│   │   # DEBUG-only modules (excluded from RELEASE build):
+│   ├── mapgen_progress.c/.h # Progress bar system, phase display (DEBUG only)
+│   ├── mapgen_display.c/.h  # Viewport, camera, PETSCII conversion (DEBUG only)
+│   ├── mapgen_debug.c/.h    # Menu, navigation loop, UI helpers (DEBUG only)
+│   └── map_export.c/.h      # Seed-based map save - 11 bytes (DEBUG only)
+build-mapgen-test.bat        # Mapgen TEST build (DEBUG_MAPGEN enabled, ~11.8KB)
+build-mapgen-release.bat     # Mapgen RELEASE build (Production API, ~7.9KB)
 docs/                        # Comprehensive technical documentation
 ```
 
@@ -677,15 +679,16 @@ typedef struct {
 | **Core Generator** (`map_generation.c`) | Pipeline orchestration and master control |
 | **Room System** (`room_management.c`) | Placement algorithms with grid distribution |
 | **MST Connectivity** (`connection_system.c`) | Prim's algorithm, corridor generation, feature systems (secret rooms, treasures, false/hidden corridors) |
-| **Display Engine** (`mapgen_display.c`) | Viewport management, delta rendering, input |
-| **Utility Layer** (`mapgen_utils.c`) | Bit manipulation, math operations, validation |
-| **Export System** (`map_export.c`) | KERNAL-based file I/O operations |
+| **Utility Layer** (`mapgen_utils.c`) | Bit manipulation, math operations, validation, RNG |
+| **Progress System** (`mapgen_progress.c`) | Progress bar, phase display, console output (DEBUG only) |
+| **Display Engine** (`mapgen_display.c`) | Viewport management, camera, PETSCII conversion, delta rendering (DEBUG only) |
+| **Export System** (`map_export.c`) | Seed-based save system - 11 bytes (DEBUG only) |
 
 ### Build System
 
 The project uses batch scripts for building:
-- `build-mapgen-test.bat` - DEBUG build with interactive features (~12KB)
-- `build-mapgen-release.bat` - Production API build (~8.2KB)
+- `build-mapgen-test.bat` - DEBUG build with interactive features (~11.8KB)
+- `build-mapgen-release.bat` - Production API build (~7.9KB)
 
 See the batch files for current compiler flags and optimization settings.
 
@@ -724,7 +727,7 @@ unsigned char mapgen_get_map_size(void);  // Returns current map width
 
 ```c
 // Map export (DEBUG mode only, defined in map_export.h)
-void save_compact_map(const char* filename);  // Export map to PRG format
+void save_map_seed(const char* filename);  // Export seed + config (11 bytes)
 ```
 
 ### Data Access
@@ -738,30 +741,44 @@ After successful generation, the following global data structures are available:
 
 ## Map Export System
 
-### File Format (MAPBIN.PRG)
+### Seed-Based Save Format (MAPBIN.PRG)
 
-The map export system saves generated dungeons to disk in a compact PRG format compatible with C64 KERNAL routines.
+The map export system uses **seed-based saving** instead of raw map data. Since maps are deterministically generated from a 16-bit seed, only the seed and configuration parameters need to be saved. This reduces file size from 800-2400+ bytes to just **11 bytes**.
 
 **File Structure:**
 ```
 Byte 0-1:   PRG load address (little-endian, added automatically by C64 KERNAL SAVE)
-Byte 2:     Map size (single byte: 48, 64, or 80)
-Byte 3+:    Packed tile data (3 bits per tile, bit stream crosses byte boundaries)
+Byte 2-3:   Seed (16-bit, little-endian)
+Byte 4:     Map size preset (0=SMALL, 1=MEDIUM, 2=LARGE)
+Byte 5:     Room count preset (0=SMALL, 1=MEDIUM, 2=LARGE)
+Byte 6:     Room size preset (reserved for future use)
+Byte 7:     Secret rooms preset (0=10%, 1=25%, 2=50%)
+Byte 8:     False corridors preset
+Byte 9:     Secret treasures preset
+Byte 10:    Hidden corridors preset
 ```
 
-**File Size Calculation:**
+**File Size:**
+- **11 bytes total** (2 byte PRG header + 9 bytes data)
+- Compare to old format: 867-2403 bytes depending on map size
+- **~99.5% size reduction** for large maps
+
+### Reproducible Generation
+
+The seed-based system enables exact map reproduction:
+
 ```c
-tile_bits = map_size × map_size × 3
-data_bytes = (tile_bits + 7) / 8
-total_size = 2 (PRG header) + 1 (size byte) + data_bytes
+// Save: capture seed and config
+unsigned int seed = mapgen_get_seed();
+// ... save seed + presets to file ...
+
+// Load: regenerate identical map
+mapgen_init(seed);
+mapgen_generate_with_params(presets...);
+// Produces identical map every time
 ```
 
-**Example File Sizes:**
-- 48×48 map: 2 + 1 + 864 = **867 bytes**
-- 64×64 map: 2 + 1 + 1536 = **1539 bytes**
-- 80×80 map: 2 + 1 + 2400 = **2403 bytes**
-
-### Tile Encoding (3 bits per tile)
+### Tile Encoding (3 bits per tile - in memory)
 
 | Value | Tile Type    | PETSCII Display | Notes |
 |-------|--------------|-----------------|-------|
@@ -779,26 +796,25 @@ total_size = 2 (PRG header) + 1 (size byte) + data_bytes
 
 **Export Function:**
 ```c
-void save_compact_map(const char* filename);
+void save_map_seed(const char* filename);  // Seed-based save (11 bytes)
 ```
 
 **Trigger:**
 - User presses 'M' key during map navigation
-- File saved as "mapbin" (lowercase for proper PETSCII display)
-- Appears as "MAPBIN" in C64 directory listing
+- File saved as "MAPBIN" to device 8 (disk drive)
 
 **Technical Implementation:**
-1. Query current map size using `mapgen_get_map_size()`
-2. Calculate actual data bytes needed: `(size² × 3 + 7) / 8`
-3. Create export buffer: `[size (1 byte)] + [compact_map data]`
+1. Query current seed using `mapgen_get_seed()`
+2. Store seed as little-endian (2 bytes)
+3. Store preset value from `current_params.preset` for all config fields (7 bytes)
 4. Use KERNAL SAVE routine via `krnio_save()` which automatically adds PRG header
-5. Only save necessary bytes (not full 2400-byte buffer)
+5. Total: 9 bytes of data + 2 byte PRG header = 11 bytes
 
-**Memory Optimization:**
-- Static buffer allocation (max size 2400 bytes for 80×80)
-- Dynamic size calculation prevents unnecessary disk I/O
-- Runtime bit offset calculation: `y * map_width * 3` ensures correct tile access
-- Efficient 3-bit packing maintains compact file sizes
+**Advantages:**
+- Minimal disk space usage (11 bytes vs 800-2400+ bytes)
+- Fast save/load operations
+- Perfect reproducibility via deterministic RNG
+- Future-proof: adding new generation features doesn't increase save size
 
 ## Development Standards
 
@@ -810,7 +826,7 @@ void save_compact_map(const char* filename);
 
 ### Performance Metrics
 - **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
-- **Executable Size**: ~9.9KB release build, ~11.8KB test build (with full optimization)
+- **Executable Size**: ~7.9KB release build, ~11.8KB test build (with full optimization)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
 - **Room Data**: 48 bytes per room with packed structures, cached center coordinates, and wall door counters

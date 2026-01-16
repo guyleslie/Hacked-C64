@@ -1,7 +1,7 @@
 # Mapgen Module: DEBUG/Production Mode Split - Implementation Documentation
 
-**Date:** 2026-01-15
-**Version:** 1.4
+**Date:** 2026-01-16
+**Version:** 1.5
 **Purpose:** Split mapgen module into DEBUG (testing) and production (game engine) modes
 
 ---
@@ -107,13 +107,17 @@ void update_full_screen(void) { ... }
 #endif // DEBUG_MAPGEN
 ```
 
-#### `map_export.c` (lines 4-50)
+#### `map_export.c` - Seed-Based Save System
 ```c
 #ifdef DEBUG_MAPGEN
 
-// Entire file content
+// Seed-based save format (11 bytes total vs 800-2400+ bytes for raw map data)
+// File format:
+//   Byte 0-1:  PRG load address (KERNAL)
+//   Byte 2-3:  Seed (16-bit, little-endian)
+//   Byte 4-10: Config presets (7 bytes)
 
-void save_compact_map(const char* filename) { ... }
+void save_map_seed(const char* filename) { ... }
 
 #endif // DEBUG_MAPGEN
 ```
@@ -141,73 +145,65 @@ show_phase(7); // "Complete"
 
 **Change:** Previous "Phase 7: Finalizing" was completely removed as it only existed for camera initialization. Camera init now occurs directly after the progress bar in DEBUG mode.
 
-#### `mapgen_utils.c` - Progress Bar System Update
+#### `mapgen_progress.c` - Dedicated Progress Bar Module (NEW)
 
-**Phase Strings Update (lines 601-612):**
+The progress bar system has been extracted into a dedicated DEBUG-only module for cleaner separation:
+
+**File:** `main/src/mapgen/mapgen_progress.c`
+
 ```c
-static const char phase_strings[] =
-    "Building Rooms\0"
-    "Connecting Rooms\0"
-    "Secret Areas\0"
-    "Secret Treasures\0"
-    "False Corridors\0"
-    "Hidden Corridors\0"
-    "Placing Stairs\0"
-    "Generation Complete!";
+#ifdef DEBUG_MAPGEN
 
-// Offsets into packed string (8 phases)
-static const unsigned char phase_offsets[8] = {0, 15, 32, 45, 62, 78, 95, 110};
+// Console output
+void print_text(const char* text);
 
-void show_phase(unsigned char phase_id) {
-    if (phase_id >= 8) return;  // 9 → 8
-    // ...
-}
+// Progress bar system
+void init_progress_weights(void);
+void init_progress_bar_simple(const char* title);
+void update_progress_step(unsigned char phase, unsigned char current, unsigned char total);
+void finish_progress_bar(void);
+void show_phase(unsigned char phase_id);
+void init_generation_progress(void);
+
+#endif // DEBUG_MAPGEN
 ```
 
-**Phase Boundaries Update (line 480):**
+**8 Generation Phases (0-7):**
+- Phase 0: "Building Rooms"
+- Phase 1: "Connecting Rooms"
+- Phase 2: "Secret Areas"
+- Phase 3: "Secret Treasures"
+- Phase 4: "False Corridors"
+- Phase 5: "Hidden Corridors"
+- Phase 6: "Placing Stairs"
+- Phase 7: "Generation Complete!"
+
+#### `mapgen_display.c` - Viewport Reset Functions (MOVED)
+
+Functions moved from `mapgen_utils.c` to `mapgen_display.c`:
+
 ```c
-static unsigned char phase_boundaries[8];   // 9 → 8 phases
+#ifdef DEBUG_MAPGEN
+// PETSCII tile conversion
+unsigned char get_map_tile(unsigned char map_x, unsigned char map_y);
+
+// Viewport state management
+void reset_viewport_state(void);
+void reset_display_state(void);
+#endif
 ```
-
-**Progress Weights Update (lines 487-511):**
-```c
-void init_progress_weights(void) {
-    unsigned char weights[8];  // 9 → 8
-    weights[0] = current_params.max_rooms;
-    weights[1] = current_params.max_rooms - 1;
-    weights[2] = current_params.secret_room_count;
-    weights[3] = current_params.treasure_count;
-    weights[4] = current_params.false_corridor_count;
-    weights[5] = current_params.hidden_corridor_count;
-    weights[6] = 2;                                           // Stairs
-    weights[7] = 1;                                           // Complete
-    // weights[7] "Finalize" removed
-    // weights[8] "Complete" → weights[7]
-
-    for (unsigned char i = 0; i < 8; i++) {  // 9 → 8
-        // ...
-    }
-}
-```
-
-**Change summary:**
-- **Phase count:** 9 → 8 (Phase 7 "Finalizing" removed)
-- **Phase 0-6:** Unchanged (Building Rooms → Placing Stairs)
-- **Phase 7:** "Generation Complete!" (previously Phase 8)
-- **Camera initialization:** Moved out of progress bar system, called after finish_progress_bar() in DEBUG mode
 
 ---
 
 ### 4. main.c Refactoring
 
-#### Includes (lines 16-32)
+#### Includes (lines 16-36)
 ```c
 #ifdef DEBUG_MAPGEN
-#include "mapgen/mapgen_display.h"
-#include "mapgen/map_export.h"
+#include "mapgen/mapgen_debug.h"
 #endif
 
-// Include .c files
+// Include .c files - Core modules (both DEBUG and RELEASE)
 #include "mapgen/tmea_core.c"
 #include "mapgen/mapgen_config.c"
 #include "mapgen/mapgen_utils.c"
@@ -216,8 +212,11 @@ void init_progress_weights(void) {
 #include "mapgen/connection_system.c"
 
 #ifdef DEBUG_MAPGEN
-#include "mapgen/mapgen_display.c"
-#include "mapgen/map_export.c"
+// DEBUG mode modules - progress bar, display, export, interactive menu
+#include "mapgen/mapgen_progress.c"   // Progress bar system
+#include "mapgen/mapgen_display.c"    // Viewport rendering
+#include "mapgen/map_export.c"        // Seed-based save
+#include "mapgen/mapgen_debug.c"      // Interactive debug mode
 #endif
 ```
 
