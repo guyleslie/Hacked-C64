@@ -393,46 +393,46 @@ The secret treasure system creates hidden treasure chambers accessible through w
 
 ### Phase 4: False Corridors
 
-The false corridor system creates Nethack-style misleading dead-end passages using **smart map-aware placement**:
+The false corridor system creates Nethack-style misleading dead-end passages:
 
 **Target Count:**
 - **Calculated post-MST** as percentage of available walls (10%/25%/50%)
 - Based on `available_walls_count` which excludes walls with doors and secret room walls
 
-**Algorithm (Smart Map-Aware Approach):**
+**Algorithm:**
 1. **Quick Checks**: Skip secret rooms, walls with doors, walls with treasure
 2. **Calculate Door Position**: Door placed at center of selected wall
-3. **Calculate Space to Map Edge**: Simple math from door position (e.g., `door_x - 2` for left wall)
-4. **Find Nearest Room in Direction**: O(n) scan through room_list to find blocking rooms
-5. **Scan Tiles for Corridors**: Only within calculated available space, stop at FLOOR/DOOR tiles
-6. **Choose Length and Shape**: Based on ACTUAL available space (not guessing):
-   - Length: Random between min_length (8) and actual_free (max 24)
-   - Shape: Random (straight/L/Z) with perpendicular offset based on corridor length
-7. **Validate and Draw**: Use `process_corridor_path()` with fallback to straight if L/Z fails
-
-**Space Calculation:**
-- `space_to_edge`: Distance from door to map boundary (simple subtraction)
-- `space_to_room`: Distance to nearest room in corridor direction (room_list scan)
-- `available`: Minimum of space_to_edge and space_to_room
-- `actual_free`: Tile-by-tile scan within available distance (stops at obstacles)
+3. **Calculate Available Space**: Distance to map edge (prevents unsigned wrap)
+   - Left wall: `available = door_x - 2`
+   - Right wall: `available = map_width - door_x - 3`
+   - Top wall: `available = door_y - 2`
+   - Bottom wall: `available = map_height - door_y - 3`
+4. **Early Exit**: If `available < 4`, skip this wall
+5. **Choose Length**: Random from `[4, min(available, 15)]` (bias toward longer)
+6. **Calculate Endpoint**: Safe calculation, guaranteed no unsigned wrap
+7. **Add Shape Variety**: If `corridor_len >= 6`, randomly add L/Z shape offset
+8. **Validate Path**: `process_corridor_path(CHECK)` catches room/corridor collisions
+9. **Validate Endpoint**: `check_adjacent_tile_types()` ensures endpoint isolation
+10. **Fallback**: If shaped fails, try minimum straight (4 tiles) with same validation
+11. **Draw**: `process_corridor_path(DRAW)` + place door + update metadata
 
 **Shape Generation:**
-- **Straight (shape=0)**: Full length in primary direction, no perpendicular offset
-- **L-shaped (shape=1)**: Half length primary + half length perpendicular (clear L form)
-- **Z-shaped (shape=2)**: Full length primary + quarter length perpendicular (visible Z)
+- **Straight (shape=0)**: Full length in primary direction only
+- **L-shaped (shape=1)**: Primary direction + perpendicular offset (1/3 of length)
+- **Z-shaped (shape=2)**: Primary direction + smaller perpendicular offset (1/4 of length)
 
 **False Corridor Criteria:**
-- Minimum 8 tiles of free space required
-- Only places on walls with no doors, treasure entrances, or recorded false corridor metadata
+- Minimum 4 tiles of available space required
+- Only places on walls with no doors, treasure entrances, or false corridor metadata
 - Excludes secret rooms (rooms with `ROOM_SECRET` flag)
-- Falls back to straight corridor if L/Z shape validation fails
+- Endpoint must not be adjacent to any walkable tile (FLOOR/DOOR)
+- Falls back to minimum straight if shaped corridor validation fails
 
 **Key Guarantees:**
-- No random guessing - uses actual map knowledge
-- Higher placement success rate (we KNOW space is available before trying)
-- Better shape variety based on real space constraints
-- Faster generation (fewer failed attempts)
-- Consistent behavior with normal room connections (same drawing logic)
+- No unsigned wrap - available space calculated before length selection
+- Isolated endpoints - `check_adjacent_tile_types()` prevents adjacency to walkables
+- Shape variety - L/Z shapes when length permits
+- Consistent with room connections - uses same `process_corridor_path()` logic
 
 **Runtime Tracking:**
 - Increments `total_false_corridors` counter when false corridor created

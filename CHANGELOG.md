@@ -1,35 +1,37 @@
 # CHANGELOG
 
-## [Unreleased] - 2026-01-16
+## [Unreleased] - 2026-01-17
 
-### False Corridor System Rewrite
-- **Smart Map-Aware Placement**: Complete rewrite using actual map knowledge instead of guessing
-  - Step 1: Calculate space to map edge (simple math from door position)
-  - Step 2: Find nearest room in corridor direction (O(n) room scan)
-  - Step 3: Scan tiles for existing corridors within available space
-  - Step 4: Choose length and shape based on ACTUAL available space
-  - Step 5: Validate path and draw with fallback to straight if L/Z fails
-- **Benefits**:
-  - No more random guessing - we KNOW how much space is available
-  - Higher success rate for false corridor placement
-  - Better shape variety (straight/L/Z based on real space constraints)
-  - Faster generation (fewer failed attempts)
+### False Corridor System - Unsigned Wrap Fix
+- **Root Cause Fixed**: Identified and fixed unsigned integer wrap issue
+  - Problem: `endpoint = door - length` could wrap (e.g., 5 - 10 = 251)
+  - `step_towards_target()` then moved WRONG direction (toward 251 instead of away)
+  - This caused immediate collision with originating room → all false corridors failed
+- **Solution**: Calculate available space FIRST, choose length within that space
+  - Available space to map edge calculated before length selection
+  - Length chosen from `[4, min(available, 15)]` - guaranteed no wrap
+  - Shape variety (L/Z) added only if `corridor_len >= 6`
+- **Endpoint Isolation Check**: New validation using `check_adjacent_tile_types()`
+  - Endpoint must not be adjacent to any walkable tile (FLOOR/DOOR)
+  - Includes diagonal adjacency check
+  - Ensures false corridors end in true isolated dead-ends
+- **Fallback Logic**: If shaped/long corridor fails, try minimum straight (4 tiles)
 
 ### Z-Shaped Corridor Improvement
 - **Centered Symmetric Breakpoints**: Z-shaped corridors now place breakpoints at the midpoint
-  - Before: Breakpoints at 1/3 of the way from start (asymmetric)
-  - After: Breakpoints at center using `mid_x` or `mid_y` (symmetric)
+  - Breakpoints at center using `mid_x` or `mid_y` (symmetric)
   - Cleaner visual appearance with middle segment in true center
-  - Simpler code: fewer variables, no `leg_length` calculation needed
 
 ### Corridor Wall Building
 - **Restored Wall Building Around Corridors**: `place_walls_around_corridor_tile()` call restored
-  - Walls now properly surround corridor floor tiles
-  - Consistent visual appearance with rooms
+
+### Code Optimization
+- Combined door position + available space calculation into single switch statement
+- Used bit operations for wall_side checks: `wall_side & 2` (vertical), `wall_side & 1` (direction)
 
 ### Build Sizes
-- Mapgen TEST build: 12,136 bytes
-- Mapgen RELEASE build: 8,332 bytes
+- Mapgen TEST build: 12,032 bytes
+- Mapgen RELEASE build: 8,201 bytes
 
 ---
 

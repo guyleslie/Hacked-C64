@@ -704,149 +704,100 @@ void place_hidden_corridors(unsigned char corridor_count) {
 // FALSE CORRIDOR SYSTEM
 // =============================================================================
 
-// Create a false corridor - CORRECT order: wall_side FIRST, then intelligent endpoint generation
+// Create a false corridor - Calculate available space first to prevent unsigned wrap
 static unsigned char create_false_corridor(unsigned char room_idx, unsigned char wall_side) {
     Room *room = &room_list[room_idx];
 
-    // Quick checks
+    // Quick eligibility checks
     if (room->state & ROOM_SECRET) return 0;
     if (room->wall_door_count[wall_side] > 0) return 0;
     if (room->treasure_wall_side == wall_side) return 0;
 
-    // Calculate door position
-    unsigned char door_x, door_y;
-    if (wall_side == 0) {
-        if (room->h <= 2) return 0;
-        door_x = room->x - 1; door_y = room->center_y;
-    } else if (wall_side == 1) {
-        if (room->h <= 2) return 0;
-        door_x = room->x + room->w; door_y = room->center_y;
-    } else if (wall_side == 2) {
-        if (room->w <= 2) return 0;
-        door_x = room->center_x; door_y = room->y - 1;
-    } else {
-        if (room->w <= 2) return 0;
-        door_x = room->center_x; door_y = room->y + room->h;
+    // Calculate door position and available space in single switch
+    unsigned char door_x, door_y, available;
+    switch (wall_side) {
+        case 0: // LEFT
+            if (room->h <= 2) return 0;
+            door_x = room->x - 1; door_y = room->center_y;
+            available = (door_x > 2) ? door_x - 2 : 0;
+            break;
+        case 1: // RIGHT
+            if (room->h <= 2) return 0;
+            door_x = room->x + room->w; door_y = room->center_y;
+            available = (current_params.map_width > door_x + 3) ? current_params.map_width - door_x - 3 : 0;
+            break;
+        case 2: // TOP
+            if (room->w <= 2) return 0;
+            door_x = room->center_x; door_y = room->y - 1;
+            available = (door_y > 2) ? door_y - 2 : 0;
+            break;
+        default: // BOTTOM
+            if (room->w <= 2) return 0;
+            door_x = room->center_x; door_y = room->y + room->h;
+            available = (current_params.map_height > door_y + 3) ? current_params.map_height - door_y - 3 : 0;
     }
 
-    // Step 1: Calculate space to map edge
-    unsigned char space_to_edge;
-    if (wall_side == 0) space_to_edge = door_x - 2;
-    else if (wall_side == 1) space_to_edge = current_params.map_width - door_x - 3;
-    else if (wall_side == 2) space_to_edge = door_y - 2;
-    else space_to_edge = current_params.map_height - door_y - 3;
+    // Need minimum 4 tiles for a meaningful corridor
+    if (available < 4) return 0;
 
-    unsigned char min_length = 8;
-    if (space_to_edge < min_length) return 0;  // Not enough space to edge
+    // Choose length within available space (bias toward longer)
+    unsigned char max_len = (available > 15) ? 15 : available;
+    unsigned char corridor_len = 4 + rnd(max_len - 3);
 
-    // Step 2: Find nearest room in corridor direction
-    unsigned char space_to_room = space_to_edge;  // Default: no room blocking
-    for (unsigned char i = 0; i < room_count; i++) {
-        if (i == room_idx) continue;
-        Room *other = &room_list[i];
+    // Calculate straight endpoint (guaranteed no wrap now)
+    unsigned char endpoint_x = door_x;
+    unsigned char endpoint_y = door_y;
+    if (wall_side & 2) // vertical (TOP/BOTTOM)
+        endpoint_y = (wall_side & 1) ? door_y + corridor_len : door_y - corridor_len;
+    else // horizontal (LEFT/RIGHT)
+        endpoint_x = (wall_side & 1) ? door_x + corridor_len : door_x - corridor_len;
 
-        if (wall_side == 0) {  // Going LEFT
-            // Check if other room is to our left and overlaps vertically
-            if (other->x + other->w < door_x &&
-                door_y >= other->y - 1 && door_y <= other->y + other->h) {
-                unsigned char dist = door_x - (other->x + other->w) - 2;
-                if (dist < space_to_room) space_to_room = dist;
-            }
-        } else if (wall_side == 1) {  // Going RIGHT
-            if (other->x > door_x &&
-                door_y >= other->y - 1 && door_y <= other->y + other->h) {
-                unsigned char dist = other->x - door_x - 2;
-                if (dist < space_to_room) space_to_room = dist;
-            }
-        } else if (wall_side == 2) {  // Going UP
-            if (other->y + other->h < door_y &&
-                door_x >= other->x - 1 && door_x <= other->x + other->w) {
-                unsigned char dist = door_y - (other->y + other->h) - 2;
-                if (dist < space_to_room) space_to_room = dist;
-            }
-        } else {  // Going DOWN
-            if (other->y > door_y &&
-                door_x >= other->x - 1 && door_x <= other->x + other->w) {
-                unsigned char dist = other->y - door_y - 2;
-                if (dist < space_to_room) space_to_room = dist;
-            }
-        }
-    }
-
-    unsigned char available = (space_to_room < space_to_edge) ? space_to_room : space_to_edge;
-    if (available < min_length) return 0;  // Not enough space
-
-    // Step 3: Scan tiles for corridors/obstacles within available space
-    unsigned char scan_x = door_x, scan_y = door_y;
-    unsigned char actual_free = 0;
-    signed char dx = (wall_side == 0) ? -1 : (wall_side == 1) ? 1 : 0;
-    signed char dy = (wall_side == 2) ? -1 : (wall_side == 3) ? 1 : 0;
-
-    while (actual_free < available) {
-        scan_x += dx;
-        scan_y += dy;
-        unsigned char tile = get_compact_tile(scan_x, scan_y);
-        if (tile != TILE_EMPTY && tile != TILE_WALL) break;  // Hit corridor or room
-        actual_free++;
-    }
-
-    if (actual_free < min_length) return 0;  // Not enough free tiles
-
-    // Step 4: Choose length and shape based on actual space
-    unsigned char max_len = (actual_free > 24) ? 24 : actual_free;
-    unsigned char corridor_len = min_length + rnd(max_len - min_length + 1);
-
-    // Calculate endpoint (straight corridor - most reliable)
-    unsigned char endpoint_x, endpoint_y;
-    if (wall_side == 0) { endpoint_x = door_x - corridor_len; endpoint_y = door_y; }
-    else if (wall_side == 1) { endpoint_x = door_x + corridor_len; endpoint_y = door_y; }
-    else if (wall_side == 2) { endpoint_x = door_x; endpoint_y = door_y - corridor_len; }
-    else { endpoint_x = door_x; endpoint_y = door_y + corridor_len; }
-
-    // Try to add perpendicular component for L/Z shape (if space allows)
-    unsigned char shape = rnd(3);  // 0=straight, 1=L, 2=Z
-    signed char side_dir = rnd(2) ? 1 : -1;
-
+    // Add shape variety (L/Z) if length permits
+    unsigned char shape = (corridor_len >= 6) ? rnd(3) : 0;
     if (shape > 0) {
-        signed char perp = (shape == 1) ? (signed char)(corridor_len >> 1) : (signed char)(corridor_len >> 2);
-        perp *= side_dir;
+        signed char offset = (shape == 1) ? (signed char)(corridor_len / 3) : (signed char)(corridor_len / 4);
+        if (offset < 2) offset = 2;
+        if (rnd(2)) offset = -offset;
 
-        // Apply perpendicular offset based on wall direction
-        unsigned char new_endpoint_x = endpoint_x;
-        unsigned char new_endpoint_y = endpoint_y;
-        if (wall_side == 0 || wall_side == 1) {
-            new_endpoint_y = (unsigned char)((signed char)endpoint_y + perp);
-            if (shape == 1) new_endpoint_x = (wall_side == 0) ? door_x - (corridor_len >> 1) : door_x + (corridor_len >> 1);
+        if (!(wall_side & 2)) {
+            // Horizontal corridor (LEFT/RIGHT) - add vertical offset
+            signed char new_y = (signed char)endpoint_y + offset;
+            if (new_y >= 3 && new_y < (signed char)(current_params.map_height - 3)) {
+                endpoint_y = (unsigned char)new_y;
+            } else {
+                shape = 0;  // Can't fit, use straight
+            }
         } else {
-            new_endpoint_x = (unsigned char)((signed char)endpoint_x + perp);
-            if (shape == 1) new_endpoint_y = (wall_side == 2) ? door_y - (corridor_len >> 1) : door_y + (corridor_len >> 1);
+            // Vertical corridor - add horizontal offset
+            signed char new_x = (signed char)endpoint_x + offset;
+            if (new_x >= 3 && new_x < (signed char)(current_params.map_width - 3)) {
+                endpoint_x = (unsigned char)new_x;
+            } else {
+                shape = 0;
+            }
         }
-
-        // Validate new endpoint is in bounds and not in a room
-        unsigned char dummy;
-        if (new_endpoint_x >= 2 && new_endpoint_x < current_params.map_width - 2 &&
-            new_endpoint_y >= 2 && new_endpoint_y < current_params.map_height - 2 &&
-            !point_in_any_room(new_endpoint_x, new_endpoint_y, &dummy)) {
-            endpoint_x = new_endpoint_x;
-            endpoint_y = new_endpoint_y;
-        }
-        // If validation fails, keep straight endpoint
     }
 
-    // Step 5: Validate path and draw
+    // Validate path (catches room collisions and MST corridor crossings)
+    // Also check endpoint is not adjacent to existing walkable tiles (0x0C = FLOOR|DOOR)
     unsigned char corridor_type = determine_corridor_type(door_x, door_y, endpoint_x, endpoint_y);
     if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
-                               CORRIDOR_MODE_CHECK, TILE_FLOOR)) {
-        // Fallback to straight if shaped corridor fails
-        if (wall_side == 0) { endpoint_x = door_x - corridor_len; endpoint_y = door_y; }
-        else if (wall_side == 1) { endpoint_x = door_x + corridor_len; endpoint_y = door_y; }
-        else if (wall_side == 2) { endpoint_x = door_x; endpoint_y = door_y - corridor_len; }
-        else { endpoint_x = door_x; endpoint_y = door_y + corridor_len; }
+                               CORRIDOR_MODE_CHECK, TILE_FLOOR) ||
+        check_adjacent_tile_types(endpoint_x, endpoint_y, 0x0C, 1)) {
+        // Shaped/long failed or endpoint too close to walkable - try minimum straight
+        corridor_len = 4;
+        endpoint_x = door_x;
+        endpoint_y = door_y;
+        if (wall_side & 2)
+            endpoint_y = (wall_side & 1) ? door_y + corridor_len : door_y - corridor_len;
+        else
+            endpoint_x = (wall_side & 1) ? door_x + corridor_len : door_x - corridor_len;
         corridor_type = 0;
 
         if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
-                                   CORRIDOR_MODE_CHECK, TILE_FLOOR)) {
-            return 0;  // Even straight doesn't work
+                                   CORRIDOR_MODE_CHECK, TILE_FLOOR) ||
+            check_adjacent_tile_types(endpoint_x, endpoint_y, 0x0C, 1)) {
+            return 0;  // Even minimum straight doesn't work or endpoint invalid
         }
     }
 
