@@ -15,23 +15,34 @@
  * @brief Save map seed and configuration to disk
  *
  * Saves only the seed and configuration parameters needed to regenerate
- * the exact same map. File format:
+ * the exact same map. File format (sequential file):
  *
- *   Byte 0-1:  PRG load address (added by KERNAL)
- *   Byte 2-3:  Seed (16-bit, little-endian)
- *   Byte 4:    Map size preset (0=SMALL, 1=MEDIUM, 2=LARGE)
- *   Byte 5:    Room count preset
- *   Byte 6:    Room size preset (reserved)
- *   Byte 7:    Secret rooms preset
- *   Byte 8:    False corridors preset
- *   Byte 9:    Secret treasures preset
- *   Byte 10:   Hidden corridors preset
+ *   Byte 0-1:  Seed (16-bit, little-endian)
+ *   Byte 2:    Map size preset (0=SMALL, 1=MEDIUM, 2=LARGE)
+ *   Byte 3:    Room count preset
+ *   Byte 4:    Room size preset (reserved)
+ *   Byte 5:    Secret rooms preset
+ *   Byte 6:    False corridors preset
+ *   Byte 7:    Secret treasures preset
+ *   Byte 8:    Hidden corridors preset
  *
- * Total file size: 11 bytes
+ * Total file size: 9 bytes
  *
  * @param filename PETSCII filename (max 16 chars)
  */
 void save_map_seed(const char* filename);
+
+/**
+ * @brief Load map seed and configuration from disk
+ *
+ * Loads seed and configuration parameters from file, then sets up
+ * the mapgen system to regenerate the exact same map.
+ *
+ * @param filename PETSCII filename (max 16 chars)
+ * @param config Output configuration to populate
+ * @return 1 on success, 0 on failure
+ */
+unsigned char load_map_seed(const char* filename, MapConfig* config);
 
 #endif // DEBUG_MAPGEN
 

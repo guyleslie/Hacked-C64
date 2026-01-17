@@ -80,15 +80,22 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
 | Key | Action |
 |-----|---------|
 | **Q** | Quit program |
-| **M** | Export map to disk |
+| **M** | Save map seed to disk |
+| **L** | Load map seed from disk |
 
 ### Configuration Menu (Joystick 2)
 
 | Control | Action |
 |---------|---------|
-| **Up/Down** | Navigate menu options |
-| **Left/Right** | Adjust values (Small/Medium/Large) |
-| **Fire Button** | Start generation with current settings |
+| **Up/Down** | Navigate menu options (7 items including seed) |
+| **Left/Right** | Adjust values |
+| **Fire Button** | Start generation / Enter seed input mode |
+
+**Menu Display Values:**
+- Map Size: small, medium, large
+- Room Count: 8, 12, 16
+- Percentage settings: 10%, 25%, 50%
+- Seed: 0-65535 (0 = random, press FIRE to enter number)
 
 ## Map Elements
 
@@ -121,7 +128,7 @@ https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
 - **False Corridors**: Misleading dead-end passages on available walls (walls without doors in non-secret rooms)
 - **Hidden Corridors**: Non-branching corridor doors between rooms randomly converted to secret doors (percentage of eligible corridors)
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
-- **Map Export**: Save map seed and configuration to disk (11 bytes - maps are reproducible from seed)
+- **Map Save/Load**: Save and load map seed and configuration to/from disk (9 bytes - maps are reproducible from seed)
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
 - **Progress Display**: Real-time generation progress with phase indicators
 

@@ -33,7 +33,7 @@ main/src/
 │   ├── mapgen_progress.c/.h # Progress bar system, phase display (DEBUG only)
 │   ├── mapgen_display.c/.h  # Viewport, camera, PETSCII conversion (DEBUG only)
 │   ├── mapgen_debug.c/.h    # Menu, navigation loop, UI helpers (DEBUG only)
-│   └── map_export.c/.h      # Seed-based map save - 11 bytes (DEBUG only)
+│   └── map_export.c/.h      # Seed-based map save/load - 9 bytes (DEBUG only)
 build-mapgen-test.bat        # Mapgen TEST build (DEBUG_MAPGEN enabled, ~11.8KB)
 build-mapgen-release.bat     # Mapgen RELEASE build (Production API, ~7.9KB)
 docs/                        # Comprehensive technical documentation
@@ -688,7 +688,7 @@ typedef struct {
 | **Utility Layer** (`mapgen_utils.c`) | Bit manipulation, math operations, validation, RNG |
 | **Progress System** (`mapgen_progress.c`) | Progress bar, phase display, console output (DEBUG only) |
 | **Display Engine** (`mapgen_display.c`) | Viewport management, camera, PETSCII conversion, delta rendering (DEBUG only) |
-| **Export System** (`map_export.c`) | Seed-based save system - 11 bytes (DEBUG only) |
+| **Export System** (`map_export.c`) | Seed-based save/load system - 9 bytes (DEBUG only) |
 
 ### Build System
 
@@ -732,8 +732,9 @@ unsigned char mapgen_get_map_size(void);  // Returns current map width
 ### DEBUG-Only Functions
 
 ```c
-// Map export (DEBUG mode only, defined in map_export.h)
-void save_map_seed(const char* filename);  // Export seed + config (11 bytes)
+// Map save/load (DEBUG mode only, defined in map_export.h)
+void save_map_seed(const char* filename);                    // Save seed + config (9 bytes)
+unsigned char load_map_seed(const char* filename, MapConfig* config);  // Load seed + config
 ```
 
 ### Data Access
@@ -747,27 +748,26 @@ After successful generation, the following global data structures are available:
 
 ## Map Export System
 
-### Seed-Based Save Format (MAPBIN.PRG)
+### Seed-Based Save Format (MAPBIN)
 
-The map export system uses **seed-based saving** instead of raw map data. Since maps are deterministically generated from a 16-bit seed, only the seed and configuration parameters need to be saved. This reduces file size from 800-2400+ bytes to just **11 bytes**.
+The map export system uses **seed-based saving** instead of raw map data. Since maps are deterministically generated from a 16-bit seed, only the seed and configuration parameters need to be saved. This reduces file size from 800-2400+ bytes to just **9 bytes**.
 
-**File Structure:**
+**File Structure (Sequential File):**
 ```
-Byte 0-1:   PRG load address (little-endian, added automatically by C64 KERNAL SAVE)
-Byte 2-3:   Seed (16-bit, little-endian)
-Byte 4:     Map size preset (0=SMALL, 1=MEDIUM, 2=LARGE)
-Byte 5:     Room count preset (0=SMALL, 1=MEDIUM, 2=LARGE)
-Byte 6:     Room size preset (reserved for future use)
-Byte 7:     Secret rooms preset (0=10%, 1=25%, 2=50%)
-Byte 8:     False corridors preset
-Byte 9:     Secret treasures preset
-Byte 10:    Hidden corridors preset
+Byte 0-1:   Seed (16-bit, little-endian)
+Byte 2:     Map size preset (0=SMALL, 1=MEDIUM, 2=LARGE)
+Byte 3:     Room count preset (0=SMALL, 1=MEDIUM, 2=LARGE)
+Byte 4:     Room size preset (reserved for future use)
+Byte 5:     Secret rooms preset (0=10%, 1=25%, 2=50%)
+Byte 6:     False corridors preset
+Byte 7:     Secret treasures preset
+Byte 8:     Hidden corridors preset
 ```
 
 **File Size:**
-- **11 bytes total** (2 byte PRG header + 9 bytes data)
+- **9 bytes total** (sequential file format, no PRG header)
 - Compare to old format: 867-2403 bytes depending on map size
-- **~99.5% size reduction** for large maps
+- **~99.6% size reduction** for large maps
 
 ### Reproducible Generation
 
@@ -800,26 +800,36 @@ mapgen_generate_with_params(presets...);
 
 ### Implementation Details
 
-**Export Function:**
+**Save/Load Functions:**
 ```c
-void save_map_seed(const char* filename);  // Seed-based save (11 bytes)
+void save_map_seed(const char* filename);                    // Save seed + config (9 bytes)
+unsigned char load_map_seed(const char* filename, MapConfig* config);  // Load and return success
 ```
 
-**Trigger:**
-- User presses 'M' key during map navigation
-- File saved as "MAPBIN" to device 8 (disk drive)
+**Controls:**
+- **'M' key**: Save map seed to "MAPBIN" file on device 8 (disk drive)
+- **'L' key**: Load map seed from "MAPBIN" file and regenerate map
 
-**Technical Implementation:**
+**Technical Implementation (Save):**
 1. Query current seed using `mapgen_get_seed()`
 2. Store seed as little-endian (2 bytes)
 3. Store preset value from `current_params.preset` for all config fields (7 bytes)
-4. Use KERNAL SAVE routine via `krnio_save()` which automatically adds PRG header
-5. Total: 9 bytes of data + 2 byte PRG header = 11 bytes
+4. Use sequential file I/O: `krnio_open()` + `krnio_write()` + `krnio_close()`
+5. Total: 9 bytes of raw data (no PRG header)
+
+**Technical Implementation (Load):**
+1. Open file with `krnio_open()` on device 8
+2. Read 9 bytes with `krnio_read()` into buffer
+3. Extract seed and initialize RNG with `mapgen_init(seed)`
+4. Extract config presets and populate MapConfig structure
+5. Validate preset values (clamp to 0-2 range)
+6. Close file and regenerate map with loaded settings
 
 **Advantages:**
-- Minimal disk space usage (11 bytes vs 800-2400+ bytes)
+- Minimal disk space usage (9 bytes vs 800-2400+ bytes)
 - Fast save/load operations
 - Perfect reproducibility via deterministic RNG
+- Sequential file format prevents program memory overwrites
 - Future-proof: adding new generation features doesn't increase save size
 
 ## Development Standards
@@ -832,7 +842,7 @@ void save_map_seed(const char* filename);  // Seed-based save (11 bytes)
 
 ### Performance Metrics
 - **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
-- **Executable Size**: ~7.9KB release build, ~11.8KB test build (with full optimization)
+- **Executable Size**: ~8.2KB release build, ~13KB test build (with full optimization)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
 - **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
 - **Room Data**: 48 bytes per room with packed structures, cached center coordinates, and wall door counters

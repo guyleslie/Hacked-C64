@@ -25,15 +25,37 @@
 // Screen memory address
 #define SCREEN_RAM ((unsigned char*)0x0400)
 
-// Level name strings (compact storage, lowercase for mixed charset)
-static const char *level_names[3] = {
+// Display strings for different setting types
+// Map size: "small ", "medium", "large "
+static const char *size_names[3] = {
     "small ",
     "medium",
     "large "
 };
 
-// Menu line to screen row mapping
-static const unsigned char menu_rows[6] = {5, 7, 9, 11, 13, 15};
+// Room count: "8     ", "12    ", "16    "
+static const char *room_count_names[3] = {
+    "8     ",
+    "12    ",
+    "16    "
+};
+
+// Percentage values: "10%   ", "25%   ", "50%   "
+static const char *percent_names[3] = {
+    "10%   ",
+    "25%   ",
+    "50%   "
+};
+
+// Menu line to screen row mapping (7 items: 6 settings + seed)
+// Hidden corridors at row 15, seed at row 17 (one empty row between)
+static const unsigned char menu_rows[7] = {5, 7, 9, 11, 13, 15, 17};
+
+// Setting type for each menu item (0=size, 1=room_count, 2=percent)
+static const unsigned char setting_types[6] = {0, 1, 2, 2, 2, 2};
+
+// Current seed value (0 = random)
+static unsigned int menu_seed = 0;
 
 // =============================================================================
 // DEBUG-ONLY CONFIGURATION FUNCTIONS
@@ -82,15 +104,99 @@ static unsigned char calculate_difficulty(const MapConfig *config) {
 }
 
 /**
- * @brief Print level name at current cursor position
+ * @brief Print seed value at specified position (5 digits, right-aligned)
  */
-static void print_level_name(PresetLevel level) {
+static void print_seed_value(unsigned char row, unsigned int seed) {
+    unsigned int offset = row * 40 + 28;
+    unsigned int temp = seed;
+    unsigned char digits[5];
     unsigned char i;
-    const char *name = level_names[level];
 
-    for (i = 0; i < 6; i++) {
-        SCREEN_RAM[i] = name[i];
+    // Convert to digits (right to left)
+    for (i = 0; i < 5; i++) {
+        digits[4 - i] = '0' + (temp % 10);
+        temp /= 10;
     }
+
+    // Print digits
+    for (i = 0; i < 5; i++) {
+        SCREEN_RAM[offset + i] = digits[i];
+    }
+
+    // Add space padding
+    SCREEN_RAM[offset + 5] = ' ';
+}
+
+/**
+ * @brief Input seed value from keyboard (numeric only, max 5 digits)
+ * @return Entered seed value (0-65535)
+ */
+static unsigned int input_seed_value(void) {
+    unsigned int offset = 17 * 40 + 28;
+    unsigned char input_buf[6];  // 5 digits + null
+    unsigned char pos = 0;
+    unsigned char key;
+    unsigned long value;
+    unsigned char i;
+    unsigned char joy2;
+
+    // Wait for FIRE release first
+    while (!(cia1.pra & 0x10)) {}
+
+    // Clear input area and show cursor
+    for (i = 0; i < 6; i++) {
+        SCREEN_RAM[offset + i] = ' ';
+    }
+    SCREEN_RAM[offset] = '_';  // Cursor
+
+    while (1) {
+        // Check FIRE button to finish input
+        joy2 = cia1.pra;
+        if (!(joy2 & 0x10)) {
+            // Wait for release to prevent immediate re-trigger
+            while (!(cia1.pra & 0x10)) {}
+            break;
+        }
+
+        key = getchx();
+
+        // Check for RETURN (13) - finish input
+        if (key == 13) {
+            break;
+        }
+
+        // Check for backspace/delete (20 on C64)
+        if (key == 20 && pos > 0) {
+            pos--;
+            SCREEN_RAM[offset + pos] = '_';
+            SCREEN_RAM[offset + pos + 1] = ' ';
+            continue;
+        }
+
+        // Check for numeric input (0-9)
+        if (key >= '0' && key <= '9' && pos < 5) {
+            input_buf[pos] = key;
+            SCREEN_RAM[offset + pos] = key;
+            pos++;
+            if (pos < 5) {
+                SCREEN_RAM[offset + pos] = '_';  // Move cursor
+            }
+        }
+    }
+
+    // Convert string to number
+    input_buf[pos] = 0;
+    value = 0;
+    for (i = 0; i < pos; i++) {
+        value = value * 10 + (input_buf[i] - '0');
+    }
+
+    // Clamp to 16-bit max
+    if (value > 65535) {
+        value = 65535;
+    }
+
+    return (unsigned int)value;
 }
 
 // =============================================================================
@@ -136,13 +242,30 @@ static void update_cursor(unsigned char old_cursor, unsigned char new_cursor) {
 }
 
 /**
- * @brief Update value at specific menu position
+ * @brief Update value at specific menu position using correct display type
+ * @param menu_item Menu item index (0-5, determines display type)
+ * @param value Preset level value (0-2)
  */
-static void update_value(unsigned char row, PresetLevel value) {
+static void update_value(unsigned char menu_item, PresetLevel value) {
+    unsigned char row = menu_rows[menu_item];
     unsigned int offset = row * 40 + 28;
-    const char *name = level_names[value];
+    const char *name;
+    unsigned char i;
 
-    for (unsigned char i = 0; i < 6; i++) {
+    // Select display string based on setting type
+    switch (setting_types[menu_item]) {
+        case 0:  // Map size
+            name = size_names[value];
+            break;
+        case 1:  // Room count
+            name = room_count_names[value];
+            break;
+        default: // Percentage
+            name = percent_names[value];
+            break;
+    }
+
+    for (i = 0; i < 6; i++) {
         SCREEN_RAM[offset + i] = name[i];
     }
 }
@@ -168,26 +291,28 @@ static void show_config_menu(MapConfig *config) {
     print_at(10, 3, "--------------------");
 
     // Menu items - centered layout
-    // Cursor(1) + Space(1) + Label(~17) + Space(2) + Value(6) = ~27 chars
-    // Start at column (40-27)/2 = 6-7
     print_at(7, 5, "map size");
     print_at(7, 7, "room count");
     print_at(7, 9, "secret rooms");
     print_at(7, 11, "false corridors");
     print_at(7, 13, "secret treasures");
     print_at(7, 15, "hidden corridors");
+    print_at(7, 17, "seed");
 
-    // Initial values - positioned after labels (column 26)
-    update_value(5, config->map_size);
-    update_value(7, config->room_count);
-    update_value(9, config->secret_rooms);
-    update_value(11, config->false_corridors);
-    update_value(13, config->secret_treasures);
-    update_value(15, config->hidden_corridors);
+    // Initial values - use menu item index (0-5) for correct display type
+    update_value(0, config->map_size);
+    update_value(1, config->room_count);
+    update_value(2, config->secret_rooms);
+    update_value(3, config->false_corridors);
+    update_value(4, config->secret_treasures);
+    update_value(5, config->hidden_corridors);
+
+    // Seed value (0 = random)
+    print_seed_value(17, menu_seed);
 
     // Instructions - centered
-    print_at(12, 21, "joy2: navigation");
-    print_at(15, 23, "fire: start");
+    print_at(10, 21, "joy2: navigation");
+    print_at(8, 23, "fire: start  seed 0=rnd");
 
     // Initial cursor (first menu item at row 5, column 6)
     SCREEN_RAM[5 * 40 + 6] = '>';
@@ -205,14 +330,21 @@ static void show_config_menu(MapConfig *config) {
                 cursor--;
                 update_cursor(old_cursor, cursor);
             }
-            // Navigation - DOWN
-            else if (!(joy2 & 0x02) && cursor < 5) {
+            // Navigation - DOWN (7 menu items: 0-6)
+            else if (!(joy2 & 0x02) && cursor < 6) {
                 cursor++;
                 update_cursor(old_cursor, cursor);
             }
-            // FIRE button - start generation
+            // FIRE button - start generation or seed input
             else if (!(joy2 & 0x10)) {
-                done = 1;
+                if (cursor == 6) {
+                    // Seed selected - enter numeric input mode
+                    menu_seed = input_seed_value();
+                    print_seed_value(17, menu_seed);
+                } else {
+                    // Start generation
+                    done = 1;
+                }
             }
 
             // Value adjustment - RIGHT (increase)
@@ -221,37 +353,37 @@ static void show_config_menu(MapConfig *config) {
                     case 0:
                         if (config->map_size < LEVEL_LARGE) {
                             config->map_size++;
-                            update_value(5, config->map_size);
+                            update_value(0, config->map_size);
                         }
                         break;
                     case 1:
                         if (config->room_count < LEVEL_LARGE) {
                             config->room_count++;
-                            update_value(7, config->room_count);
+                            update_value(1, config->room_count);
                         }
                         break;
                     case 2:
                         if (config->secret_rooms < LEVEL_LARGE) {
                             config->secret_rooms++;
-                            update_value(9, config->secret_rooms);
+                            update_value(2, config->secret_rooms);
                         }
                         break;
                     case 3:
                         if (config->false_corridors < LEVEL_LARGE) {
                             config->false_corridors++;
-                            update_value(11, config->false_corridors);
+                            update_value(3, config->false_corridors);
                         }
                         break;
                     case 4:
                         if (config->secret_treasures < LEVEL_LARGE) {
                             config->secret_treasures++;
-                            update_value(13, config->secret_treasures);
+                            update_value(4, config->secret_treasures);
                         }
                         break;
                     case 5:
                         if (config->hidden_corridors < LEVEL_LARGE) {
                             config->hidden_corridors++;
-                            update_value(15, config->hidden_corridors);
+                            update_value(5, config->hidden_corridors);
                         }
                         break;
                 }
@@ -262,37 +394,37 @@ static void show_config_menu(MapConfig *config) {
                     case 0:
                         if (config->map_size > LEVEL_SMALL) {
                             config->map_size--;
-                            update_value(5, config->map_size);
+                            update_value(0, config->map_size);
                         }
                         break;
                     case 1:
                         if (config->room_count > LEVEL_SMALL) {
                             config->room_count--;
-                            update_value(7, config->room_count);
+                            update_value(1, config->room_count);
                         }
                         break;
                     case 2:
                         if (config->secret_rooms > LEVEL_SMALL) {
                             config->secret_rooms--;
-                            update_value(9, config->secret_rooms);
+                            update_value(2, config->secret_rooms);
                         }
                         break;
                     case 3:
                         if (config->false_corridors > LEVEL_SMALL) {
                             config->false_corridors--;
-                            update_value(11, config->false_corridors);
+                            update_value(3, config->false_corridors);
                         }
                         break;
                     case 4:
                         if (config->secret_treasures > LEVEL_SMALL) {
                             config->secret_treasures--;
-                            update_value(13, config->secret_treasures);
+                            update_value(4, config->secret_treasures);
                         }
                         break;
                     case 5:
                         if (config->hidden_corridors > LEVEL_SMALL) {
                             config->hidden_corridors--;
-                            update_value(15, config->hidden_corridors);
+                            update_value(5, config->hidden_corridors);
                         }
                         break;
                 }
@@ -337,6 +469,13 @@ void mapgen_run_debug_mode(void) {
     // Set generation parameters
     mapgen_set_parameters(&params);
 
+    // Apply seed setting (0 = random, >0 = specific seed)
+    if (menu_seed > 0) {
+        mapgen_init(menu_seed);
+    } else {
+        mapgen_reset_seed_flag();
+    }
+
     // Clear screen before generation
     clrscr();
 
@@ -352,6 +491,14 @@ void mapgen_run_debug_mode(void) {
             break;
         } else if (key == 'M' || key == 'm') {
             save_map_seed("mapbin");
+        } else if (key == 'L' || key == 'l') {
+            if (load_map_seed("mapbin", &config)) {
+                // Load successful - regenerate with loaded settings
+                validate_and_adjust_config(&config, &params);
+                mapgen_set_parameters(&params);
+                clrscr();
+                mapgen_generate_dungeon();
+            }
         }
 
         // Read joystick 2 from CIA1 Port A ($DC00)
@@ -370,6 +517,12 @@ void mapgen_run_debug_mode(void) {
             show_config_menu(&config);
             validate_and_adjust_config(&config, &params);
             mapgen_set_parameters(&params);
+            // Apply seed setting
+            if (menu_seed > 0) {
+                mapgen_init(menu_seed);
+            } else {
+                mapgen_reset_seed_flag();
+            }
             clrscr();
             mapgen_generate_dungeon();
             // Wait for fire release

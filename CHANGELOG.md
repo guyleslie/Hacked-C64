@@ -2,6 +2,37 @@
 
 ## [Unreleased] - 2026-01-17
 
+### Configuration Menu Improvements
+- **Enhanced Display Values**: Menu now shows appropriate values for each setting type
+  - Map Size: "small", "medium", "large"
+  - Room Count: "8", "12", "16" (actual room counts)
+  - Percentage settings: "10%", "25%", "50%" (Secret Rooms, False Corridors, Secret Treasures, Hidden Corridors)
+- **Seed Configuration**: New menu item for setting generation seed
+  - Navigate to "seed" option and press FIRE to enter numeric input mode
+  - Enter up to 5 digits (0-65535), press FIRE or RETURN to confirm
+  - Seed 0 = random seed generation
+  - Enables reproducible map generation with specific seeds
+
+### Map Save/Load System
+- **Sequential File I/O**: Replaced PRG-based save with sequential file format
+  - File format: 9 bytes raw data (no PRG header)
+  - Prevents program memory overwrite issues during load
+  - Uses `krnio_open/write/read/close` for reliable disk I/O
+- **Map Loading**: New 'L' key to load saved maps
+  - Loads seed and configuration from "mapbin" file
+  - Regenerates identical map using loaded parameters
+- **Controls**:
+  - **M** key: Save current map seed and config to disk
+  - **L** key: Load map seed and config from disk
+
+### Build Sizes
+- Mapgen TEST build: 13,006 bytes
+- Mapgen RELEASE build: 8,201 bytes
+
+---
+
+## [Unreleased] - 2026-01-17 (earlier)
+
 ### False Corridor System - Unsigned Wrap Fix
 - **Root Cause Fixed**: Identified and fixed unsigned integer wrap issue
   - Problem: `endpoint = door - length` could wrap (e.g., 5 - 10 = 251)
