@@ -8,7 +8,7 @@ This program implements real-time procedural dungeon generation on Commodore 64 
 
 ## Preview
 
-https://github.com/user-attachments/assets/9cc05c28-09dd-4ab3-8eeb-b8fba50a8125
+https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 
 ## Setup and Installation
 
