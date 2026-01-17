@@ -2,6 +2,14 @@
 
 ## [Unreleased] - 2026-01-17
 
+### Build System
+- **Batch files refactored**: Cleaner, retro-style output with proper error handling
+  - Professional error handling with compiler errorlevel capture
+  - Retro command-line aesthetic with structured output
+  - Only deletes relevant build files (test* or release*)
+  - Shows generated files list after successful build
+  - Always pauses for result visibility
+
 ### Configuration Menu Improvements
 - **Enhanced Display Values**: Menu now shows appropriate values for each setting type
   - Map Size: "small", "medium", "large"
