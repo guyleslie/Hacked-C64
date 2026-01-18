@@ -1,5 +1,5 @@
 // =============================================================================
-// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v2
+// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v3
 // Core Implementation - Oscar64 Optimized
 // =============================================================================
 
@@ -27,11 +27,11 @@ TinyObj obj_pool[MAX_TINY_OBJECTS];                 // 288 bytes
 TinyObj *obj_free_list;                             // 2 bytes
 TinyObj *obj_active_list;                           // 2 bytes
 
-TinyMon mon_pool[MAX_TINY_MONSTERS];                // 144 bytes
+TinyMon mon_pool[MAX_TINY_MONSTERS];                // 48 bytes (6 × 8)
 TinyMon *mon_free_list;                             // 2 bytes
 TinyMon *mon_active_list;                           // 2 bytes
 
-// Total: 765 bytes
+// Total: ~620 bytes
 
 // =============================================================================
 // INITIALIZATION FUNCTIONS
@@ -66,7 +66,6 @@ void init_tmea_system(void) {
         obj_pool[i].x = 0;
         obj_pool[i].y = 0;
         obj_pool[i].type = 0;
-        obj_pool[i].flags = 0;
         obj_pool[i].data = 0;
     }
     obj_pool[MAX_TINY_OBJECTS - 1].next = NULL;
@@ -81,7 +80,7 @@ void init_tmea_system(void) {
         mon_pool[i].type = 0;
         mon_pool[i].hp = 0;
         mon_pool[i].flags = 0;
-        mon_pool[i].ai_state = 0;
+        mon_pool[i].state = MSTATE_IDLE;
     }
     mon_pool[MAX_TINY_MONSTERS - 1].next = NULL;
     mon_free_list = &mon_pool[0];
@@ -385,8 +384,7 @@ TinyObj* spawn_object(unsigned char x, unsigned char y,
     obj->x = x;
     obj->y = y;
     obj->type = obj_type;
-    obj->flags = OBJ_FLAG_VISIBLE | OBJ_FLAG_COLLECTIBLE;
-    obj->data = 0;
+    obj->data = 0;  // modifier/amount - set by caller if needed
 
     // Add to active list
     obj->next = obj_active_list;
@@ -422,7 +420,6 @@ void despawn_object(TinyObj *obj) {
     obj->x = 0;
     obj->y = 0;
     obj->type = 0;
-    obj->flags = 0;
     obj->data = 0;
 }
 
@@ -460,8 +457,8 @@ TinyMon* spawn_monster(unsigned char x, unsigned char y,
     mon->y = y;
     mon->type = mon_type;
     mon->hp = hp;
-    mon->flags = MON_FLAG_ALIVE | MON_FLAG_HOSTILE;
-    mon->ai_state = AI_STATE_IDLE;
+    mon->flags = MFLAG_ALIVE | MFLAG_HOSTILE;
+    mon->state = MSTATE_IDLE;
 
     // Add to active list
     mon->next = mon_active_list;
@@ -499,7 +496,7 @@ void despawn_monster(TinyMon *mon) {
     mon->type = 0;
     mon->hp = 0;
     mon->flags = 0;
-    mon->ai_state = 0;
+    mon->state = MSTATE_IDLE;
 }
 
 TinyMon* get_monster_at(unsigned char x, unsigned char y) {

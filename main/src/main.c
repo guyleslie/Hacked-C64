@@ -21,6 +21,7 @@
 
 // Core modules - included in both DEBUG and RELEASE
 #include "mapgen/tmea_core.c"         // TMEA metadata system (must be first)
+#include "mapgen/tmea_data.c"         // TMEA lookup tables (items, monsters)
 #include "mapgen/mapgen_config.c"     // Configuration and parameter management
 #include "mapgen/mapgen_utils.c"      // Utility functions and tile operations
 #include "mapgen/map_generation.c"    // Generation pipeline controller

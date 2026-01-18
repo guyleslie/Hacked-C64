@@ -26,8 +26,9 @@ main/src/
 │   ├── room_management.c    # Room placement algorithms
 │   ├── connection_system.c  # MST and corridor generation
 │   ├── mapgen_utils.c/.h    # Utility functions and math operations
-│   ├── tmea_types.h         # TMEA type definitions and flag enums
+│   ├── tmea_types.h         # TMEA v3 type definitions, item/monster enums
 │   ├── tmea_core.h/.c       # TMEA implementation (metadata and entity pools)
+│   ├── tmea_data.h/.c       # TMEA lookup tables (items, monsters)
 │   │
 │   │   # DEBUG-only modules (excluded from RELEASE build):
 │   ├── mapgen_progress.c/.h # Progress bar system, phase display (DEBUG only)
@@ -74,9 +75,9 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 
 ### Overview
 
-**TMEA (Tile Metadata Extension Architecture)** is a lightweight metadata system that extends the base tile system with additional properties and dynamic entities. It provides a way to attach extra information to tiles (doors, walls, floors) without increasing the base tile storage footprint.
+**TMEA (Tile Metadata Extension Architecture) v3** is a lightweight metadata and entity system that extends the base tile system with additional properties and dynamic entities. It uses **data-oriented design** with lookup tables for static properties (ROM) and minimal runtime structs for dynamic state (RAM).
 
-**Memory Overhead:** 765 bytes (~1.2% of C64 RAM)
+**Memory Overhead:** ~620 bytes RAM + ~200 bytes ROM (lookup tables)
 
 ### Architecture Philosophy
 
@@ -92,10 +93,16 @@ TMEA uses a **hybrid two-tier architecture** optimized for room-based dungeon ge
    - Global coordinates (8+8 bits)
    - O(16) linear search
 
-3. **Entity Pools** (Dynamic):
-   - 48 objects (items, keys, potions) - 6 bytes each
-   - 24 monsters (enemies with AI state) - 6 bytes each
+3. **Entity Pools** (Dynamic, RAM):
+   - 48 objects (items on ground) - 6 bytes each (TinyObj)
+   - 6 monsters (C64 sprite limit) - 8 bytes each (TinyMon)
    - Always use global coordinates for movement
+
+4. **Lookup Tables** (Static, ROM):
+   - `monster_table[11]` - HP, damage, XP, flags, sprite
+   - `weapon_table[8]`, `armor_table[8]`, `shield_table[5]`
+   - `potion_table[6]`, `scroll_table[14]`, `gem_table[5]`
+   - Item type encoding: CCCC_SSSS (category + subtype)
 
 ### Door State Management (TMEA-First)
 
@@ -552,7 +559,7 @@ Each room maintains metadata for:
 - Static allocation for all data structures
 - Compact map data: 2400 bytes max (3-bit tile encoding)
 - Room structures: 960 bytes (48 bytes × 20 rooms)
-- TMEA metadata pools: 765 bytes
+- TMEA pools: ~620 bytes RAM + ~200 bytes ROM lookup tables
 - Display viewport buffer: 1000 bytes (DEBUG mode only)
 
 ## Data Structures

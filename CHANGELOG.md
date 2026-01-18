@@ -1,5 +1,64 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-01-18
+
+### TMEA v3: Data-Oriented Entity System
+
+Major upgrade to the Tile Metadata Extension Architecture with data-oriented design and lookup tables.
+
+#### Architecture Changes
+- **Data-Oriented Design**: Static properties (damage, HP, XP) moved to ROM lookup tables
+- **Item Type Encoding**: New CCCC_SSSS format (category + subtype in single byte)
+- **Monster Pool Reduced**: 24 → 6 slots (C64 sprite limit)
+- **TinyMon Restructured**: 6 bytes (bitfields) → 8 bytes (clean struct with `state` field)
+- **TinyObj Simplified**: Removed `flags` field (not needed for ground items)
+
+#### New Files
+- `tmea_data.h` - Lookup table API declarations
+- `tmea_data.c` - All item and monster lookup tables
+
+#### Lookup Tables Added (~217 bytes ROM)
+- `monster_table[11]` - 8 regular + 3 boss enemies (HP, damage, XP, flags, sprite)
+- `weapon_table[8]` - Dagger to Staff (damage, price, tile)
+- `armor_table[8]` - Cloth to Plate (defense, price, tile)
+- `shield_table[5]` - Buckler to Tower Shield
+- `potion_table[6]` - Heal, Mana, Cure, Speed, Strength, Invisibility
+- `scroll_table[14]` - Light, Turn Undead, Fireball, etc.
+- `gem_table[5]` - Ruby, Sapphire, Emerald, Diamond, Amethyst
+- `key_table[4]` - Bronze, Silver, Gold, Master
+- `misc_table[4]` - Gold, Torch, Food, Lockpick
+
+#### Monster System
+- **Types**: RAT, GOBLIN, SKELETON, ORC, ZOMBIE, TROLL, GHOST, SPIDER + 3 bosses
+- **States**: IDLE, PATROL, CHASE, ATTACK, FLEE, SLEEP, GUARD, STUNNED
+- **Definition Flags**: UNDEAD, BOSS, FLYING, MAGIC_RES, POISON_ATK, REGEN, LIFE_DRAIN
+- **Runtime Flags**: ALIVE, HOSTILE, POISONED, BURNING, FROZEN, CONFUSED, INVISIBLE
+
+#### Item System
+- **Categories**: WEAPON, ARMOR, SHIELD, POTION, SCROLL, GEM, KEY, MISC
+- **Modifiers**: Normal, +1, +2, +3, Cursed (in data byte)
+- **Helper Macros**: ITEM_GET_CATEGORY(), ITEM_GET_SUBTYPE(), ITEM_GET_MODIFIER()
+
+#### API Functions
+- `get_item_def(item_type)` - Get ItemDef from lookup table
+- `get_monster_def(mon_type)` - Get MonsterDef from lookup table
+
+#### Memory Changes
+- RAM: 765 bytes → ~620 bytes (-145 bytes)
+- ROM: +~217 bytes (lookup tables)
+- Net: 72 bytes less runtime memory
+
+#### Documentation Updated
+- `docs/TMEA.md` - Complete rewrite for v3
+- `docs/project-specification.md` - TMEA section updated
+- `CLAUDE.md` - New patterns and file list
+
+#### Build Sizes
+- Mapgen TEST build: 12,976 bytes
+- Mapgen RELEASE build: 8,184 bytes
+
+---
+
 ## [Unreleased] - 2026-01-17
 
 ### Build System

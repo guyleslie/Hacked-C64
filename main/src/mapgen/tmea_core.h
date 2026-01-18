@@ -2,7 +2,7 @@
 #define TMEA_CORE_H
 
 // =============================================================================
-// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v2
+// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v3
 // Core API and Global State
 // =============================================================================
 //
@@ -47,11 +47,11 @@ extern TinyObj obj_pool[MAX_TINY_OBJECTS];                 // 288 bytes
 extern TinyObj *obj_free_list;                             // 2 bytes
 extern TinyObj *obj_active_list;                           // 2 bytes
 
-extern TinyMon mon_pool[MAX_TINY_MONSTERS];                // 144 bytes
+extern TinyMon mon_pool[MAX_TINY_MONSTERS];                // 48 bytes (6 monsters × 8 bytes)
 extern TinyMon *mon_free_list;                             // 2 bytes
 extern TinyMon *mon_active_list;                           // 2 bytes
 
-// Total TMEA overhead: 765 bytes
+// Total TMEA overhead: ~620 bytes (reduced monster pool)
 
 // =============================================================================
 // INITIALIZATION FUNCTIONS
