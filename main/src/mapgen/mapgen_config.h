@@ -19,14 +19,8 @@ typedef enum {
 
 // Main configuration structure (user-facing settings)
 typedef struct {
-    // Map size preset (determines MAP_W and MAP_H values)
+    // Map size preset (determines MAP_W, MAP_H, and grid size)
     PresetLevel map_size;
-
-    // Room count preset
-    PresetLevel room_count;
-
-    // Room size preset
-    PresetLevel room_size;
 
     // Secret rooms preset
     PresetLevel secret_rooms;
@@ -41,13 +35,14 @@ typedef struct {
     PresetLevel hidden_corridors;
 
     // Difficulty level (auto-calculated or manually set)
-    unsigned char difficulty_level; // 0-10 scale
+    unsigned char difficulty_level;
 } MapConfig;
 
 // Concrete parameter values (computed from config)
 typedef struct {
     unsigned char map_width;
     unsigned char map_height;
+    unsigned char grid_size;
     unsigned char max_rooms;
     unsigned char min_room_size;
     unsigned char max_room_size;

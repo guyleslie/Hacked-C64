@@ -20,18 +20,12 @@ const unsigned char map_size_table[3][2] = {
     {80, 80}   // LARGE
 };
 
-// Room count table (limited by 4x4 grid = 16 positions)
-const unsigned char room_count_table[3] = {
-    8,   // SMALL
-    12,  // MEDIUM
-    16   // LARGE (maximum with 4x4 grid)
-};
-
-// Room size table (min, max) - balanced for grid system
-const unsigned char room_size_table[3][2] = {
-    {3, 5},   // SMALL
-    {4, 7},   // MEDIUM (current default)
-    {5, 8}    // LARGE (reduced from 10 to fit better in grid)
+// Grid size table - determines max rooms per map size
+// SMALL: 3×3=9, MEDIUM: 4×4=16, LARGE: 5×5=25 (clamped to MAX_ROOMS=20)
+const unsigned char grid_size_table[3] = {
+    3,   // SMALL: 3×3 = 9 rooms
+    4,   // MEDIUM: 4×4 = 16 rooms
+    5    // LARGE: 5×5 = 20 rooms (clamped)
 };
 
 // Secret room ratio (percentage of max rooms)
@@ -78,35 +72,25 @@ const unsigned char hidden_corridor_ratio[3] = {
  * - Production mode: From mapgen_generate_with_params() parameters
  */
 void validate_and_adjust_config(MapConfig *config, MapParameters *params) {
-    unsigned char total_room_area, map_area;
-
     // Map size setup
     params->map_width = map_size_table[config->map_size][0];
     params->map_height = map_size_table[config->map_size][1];
 
-    // Room count setup
-    params->max_rooms = room_count_table[config->room_count];
+    // Grid size and max rooms - automatic from map size
+    params->grid_size = grid_size_table[config->map_size];
+    params->max_rooms = params->grid_size * params->grid_size;
 
-    // Room size setup - fixed 4-8 (not configurable)
+    // Clamp to MAX_ROOMS (20)
+    if (params->max_rooms > MAX_ROOMS) {
+        params->max_rooms = MAX_ROOMS;
+    }
+
+    // Room size - fixed 4-8
     params->min_room_size = 4;
     params->max_room_size = 8;
 
     // Secret room count (based on max rooms percentage)
     params->secret_room_count = (params->max_rooms * secret_room_ratio[config->secret_rooms]) / 100;
-
-    // Validation: map size vs room count
-    // Total maximum room area (worst case: all rooms at max size)
-    total_room_area = params->max_rooms * params->max_room_size * params->max_room_size;
-    map_area = params->map_width * params->map_height;
-
-    // If too many rooms for map size, reduce room count
-    if (total_room_area > map_area / 2) {
-        // Reduce room count to fit in 40% of map
-        params->max_rooms = (map_area / 2) / (params->max_room_size * params->max_room_size);
-
-        // Recalculate secret room count based on adjusted max rooms
-        params->secret_room_count = (params->max_rooms * secret_room_ratio[config->secret_rooms]) / 100;
-    }
 
     // Percentage-based feature configuration (actual counts calculated post-MST)
     // Store preset for post-MST percentage calculation

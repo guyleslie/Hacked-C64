@@ -19,7 +19,7 @@ enum MapConstants {
     MIN_SIZE = 4,
     MAX_SIZE = 8,
     MIN_ROOM_DISTANCE = 4,
-    GRID_SIZE = 4,
+    // GRID_SIZE removed - now dynamic based on map size (3×3, 4×4, or 5×5)
     // Max: (80*80*3+7)/8 = 2400 bytes
     COMPACT_MAP_SIZE = 2400,  // Max: (80*80*3+7)/8
     COMPACT_MAP_CHUNKS = 10   // 2400/256

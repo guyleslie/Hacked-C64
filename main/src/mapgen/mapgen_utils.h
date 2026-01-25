@@ -81,20 +81,20 @@ static inline unsigned char abs_diff_inline(unsigned char a, unsigned char b) {
 }
 
 // Grid calculation helpers - OSCAR64 inline optimization for room placement
-static inline unsigned char get_grid_x(unsigned char grid_index) {
-    return grid_index % GRID_SIZE;
+static inline unsigned char get_grid_x(unsigned char grid_index, unsigned char grid_size) {
+    return grid_index % grid_size;
 }
 
-static inline unsigned char get_grid_y(unsigned char grid_index) {
-    return grid_index / GRID_SIZE;
+static inline unsigned char get_grid_y(unsigned char grid_index, unsigned char grid_size) {
+    return grid_index / grid_size;
 }
 
-static inline unsigned char get_grid_cell_width(unsigned char map_width) {
-    return (map_width - 8) / GRID_SIZE;
+static inline unsigned char get_grid_cell_width(unsigned char map_width, unsigned char grid_size) {
+    return (map_width - 8) / grid_size;
 }
 
-static inline unsigned char get_grid_cell_height(unsigned char map_height) {
-    return (map_height - 8) / GRID_SIZE;
+static inline unsigned char get_grid_cell_height(unsigned char map_height, unsigned char grid_size) {
+    return (map_height - 8) / grid_size;
 }
 
 // Bounds clamping helper - generic utility for boundary management
