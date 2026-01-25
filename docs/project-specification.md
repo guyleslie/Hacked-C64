@@ -564,6 +564,10 @@ Each room maintains metadata for:
 - TMEA pools: ~620 bytes RAM + ~200 bytes ROM lookup tables
 - Display viewport buffer: 1000 bytes (DEBUG mode only)
 
+### `__assume()` Usage
+
+This project uses `__assume()` only in `get_compact_tile()` and `set_compact_tile()` (mapgen_utils.c) after bounds checks to optimize 3-bit tile packing arithmetic. Do not add `__assume()` elsewhere - see oscar64-c64-development-reference.md for rationale.
+
 ## Data Structures
 
 ### Core Room Structure
