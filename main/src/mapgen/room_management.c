@@ -27,61 +27,13 @@ static const unsigned char PLACEMENT_ATTEMPTS = 15;
 /**
  * @brief Validates if a room can be placed at the specified location
  * @param x Room top-left X coordinate
- * @param y Room top-left Y coordinate  
+ * @param y Room top-left Y coordinate
  * @param w Room width in tiles
  * @param h Room height in tiles
  * @return 1 if placement is valid, 0 if placement conflicts
- * 
- * NOTE: This is the original implementation, kept for reference.
- * Use can_place_room_optimized() for better performance in room generation.
- */
-unsigned char can_place_room_original(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
-    // Calculate safety margin boundaries with minimum room distance
-    unsigned char buffer_x1 = (x >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? x - MIN_ROOM_DISTANCE : BORDER_PADDING;
-    unsigned char buffer_y1 = (y >= MIN_ROOM_DISTANCE + BORDER_PADDING) ? y - MIN_ROOM_DISTANCE : BORDER_PADDING;
-    unsigned char buffer_x2 = x + w + MIN_ROOM_DISTANCE;
-    unsigned char buffer_y2 = y + h + MIN_ROOM_DISTANCE;
-    
-    // Check map boundaries - early return if placement exceeds map
-    if (buffer_x2 + BORDER_PADDING >= current_params.map_width || buffer_y2 + BORDER_PADDING >= current_params.map_height) {
-        return 0;
-    }
-
-    // No clamp needed - early return above guarantees buffer_x2/y2 in bounds
-
-    // Check if safety margin is clear
-    for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
-        for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
-            if (get_compact_tile(ix, iy) != TILE_EMPTY) {
-                return 0;
-            }
-        }
-    }
-    
-    return 1;
-}
-
-/**
- * @brief OPTIMIZED: Validates if a room can be placed at the specified location
- * @param x Room top-left X coordinate
- * @param y Room top-left Y coordinate  
- * @param w Room width in tiles
- * @param h Room height in tiles
- * @return 1 if placement is valid, 0 if placement conflicts
- * 
- * OPTIMIZATION STRATEGY:
- * 1. Calculate Y bit offset ONCE per row (outer loop) instead of per tile
- * 2. Inline the bit-packing logic to avoid function call overhead
- * 3. Eliminate redundant multiplication of (y * map_width * 3) in inner loop
- * 
- * PERFORMANCE GAIN:
- * - Original: N×M calls to get_compact_tile() = N×M Y offset calculations
- * - Optimized: N Y offset calculations + M inline bit reads per row
- * - For 10×10 room: 100 → 10 multiplications (90% reduction!)
- * 
- * COMPATIBILITY:
- * - Must call calculate_y_bit_stride() after map initialization
- * - Requires y_bit_stride to be properly set
+ *
+ * Uses inline bit-packing with Y offset calculated once per row for performance.
+ * Requires y_bit_stride to be set via calculate_y_bit_stride().
  */
 unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     // Calculate safety margin boundaries with minimum room distance
