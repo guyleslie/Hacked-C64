@@ -298,8 +298,6 @@ unsigned char mapgen_generate_dungeon(void) {
 
 unsigned char mapgen_generate_with_params(
     unsigned char map_size,
-    unsigned char room_count_param,
-    unsigned char room_size,
     unsigned char secret_rooms,
     unsigned char false_corridors,
     unsigned char secret_treasures,
@@ -308,15 +306,12 @@ unsigned char mapgen_generate_with_params(
     MapConfig config;
     MapParameters params;
 
-    if (map_size > 2 || room_count_param > 2 || room_size > 2 ||
-        secret_rooms > 2 || false_corridors > 2 ||
+    if (map_size > 2 || secret_rooms > 2 || false_corridors > 2 ||
         secret_treasures > 2 || hidden_corridors > 2) {
         return 1;
     }
 
     config.map_size = (PresetLevel)map_size;
-    config.room_count = (PresetLevel)room_count_param;
-    config.room_size = (PresetLevel)room_size;
     config.secret_rooms = (PresetLevel)secret_rooms;
     config.false_corridors = (PresetLevel)false_corridors;
     config.secret_treasures = (PresetLevel)secret_treasures;

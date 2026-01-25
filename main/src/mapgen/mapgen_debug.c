@@ -26,33 +26,23 @@
 #define SCREEN_RAM ((unsigned char*)0x0400)
 
 // Display strings for different setting types
-// Map size: "small ", "medium", "large "
 static const char *size_names[3] = {
     "small ",
     "medium",
     "large "
 };
 
-// Room count: "8     ", "12    ", "16    "
-static const char *room_count_names[3] = {
-    "8     ",
-    "12    ",
-    "16    "
-};
-
-// Percentage values: "10%   ", "25%   ", "50%   "
 static const char *percent_names[3] = {
     "10%   ",
     "25%   ",
     "50%   "
 };
 
-// Menu line to screen row mapping (7 items: 6 settings + seed)
-// Hidden corridors at row 15, seed at row 17 (one empty row between)
-static const unsigned char menu_rows[7] = {5, 7, 9, 11, 13, 15, 17};
+// Menu line to screen row mapping (6 items: 5 settings + seed)
+static const unsigned char menu_rows[6] = {5, 7, 9, 11, 13, 15};
 
-// Setting type for each menu item (0=size, 1=room_count, 2=percent)
-static const unsigned char setting_types[6] = {0, 1, 2, 2, 2, 2};
+// Setting type for each menu item (0=size, 1=percent)
+static const unsigned char setting_types[5] = {0, 1, 1, 1, 1};
 
 // Current seed value (0 = random)
 static unsigned int menu_seed = 0;
@@ -66,13 +56,11 @@ static unsigned int menu_seed = 0;
  */
 void init_default_config(MapConfig *config) {
     config->map_size = LEVEL_MEDIUM;
-    config->room_count = LEVEL_MEDIUM;
-    config->room_size = LEVEL_MEDIUM;
     config->secret_rooms = LEVEL_MEDIUM;
     config->false_corridors = LEVEL_MEDIUM;
     config->secret_treasures = LEVEL_MEDIUM;
     config->hidden_corridors = LEVEL_MEDIUM;
-    config->difficulty_level = 5; // Medium difficulty
+    config->difficulty_level = 5;
 }
 
 /**
@@ -84,17 +72,11 @@ static unsigned char calculate_difficulty(const MapConfig *config) {
     // Larger map increases difficulty (harder to navigate)
     difficulty += config->map_size * 1;
 
-    // More rooms = easier navigation (more landmarks)
-    difficulty -= config->room_count * 1;
-
-    // Larger rooms = easier (more space)
-    difficulty -= config->room_size * 1;
-
     // Hidden elements increase difficulty
     difficulty += config->secret_rooms * 2;
     difficulty += config->false_corridors * 1;
     difficulty += config->secret_treasures * 1;
-    difficulty += config->hidden_corridors * 2;  // Hidden corridors significantly increase difficulty
+    difficulty += config->hidden_corridors * 2;
 
     // Normalize to 0-10 scale
     if (difficulty < 0) difficulty = 0;
@@ -132,7 +114,7 @@ static void print_seed_value(unsigned char row, unsigned int seed) {
  * @return Entered seed value (0-65535)
  */
 static unsigned int input_seed_value(void) {
-    unsigned int offset = 17 * 40 + 28;
+    unsigned int offset = 15 * 40 + 28;
     unsigned char input_buf[6];  // 5 digits + null
     unsigned char pos = 0;
     unsigned char key;
@@ -243,7 +225,7 @@ static void update_cursor(unsigned char old_cursor, unsigned char new_cursor) {
 
 /**
  * @brief Update value at specific menu position using correct display type
- * @param menu_item Menu item index (0-5, determines display type)
+ * @param menu_item Menu item index (0-4, determines display type)
  * @param value Preset level value (0-2)
  */
 static void update_value(unsigned char menu_item, PresetLevel value) {
@@ -253,16 +235,10 @@ static void update_value(unsigned char menu_item, PresetLevel value) {
     unsigned char i;
 
     // Select display string based on setting type
-    switch (setting_types[menu_item]) {
-        case 0:  // Map size
-            name = size_names[value];
-            break;
-        case 1:  // Room count
-            name = room_count_names[value];
-            break;
-        default: // Percentage
-            name = percent_names[value];
-            break;
+    if (setting_types[menu_item] == 0) {
+        name = size_names[value];
+    } else {
+        name = percent_names[value];
     }
 
     for (i = 0; i < 6; i++) {
@@ -292,23 +268,21 @@ static void show_config_menu(MapConfig *config) {
 
     // Menu items - centered layout
     print_at(7, 5, "map size");
-    print_at(7, 7, "room count");
-    print_at(7, 9, "secret rooms");
-    print_at(7, 11, "false corridors");
-    print_at(7, 13, "secret treasures");
-    print_at(7, 15, "hidden corridors");
-    print_at(7, 17, "seed");
+    print_at(7, 7, "secret rooms");
+    print_at(7, 9, "false corridors");
+    print_at(7, 11, "secret treasures");
+    print_at(7, 13, "hidden corridors");
+    print_at(7, 15, "seed");
 
-    // Initial values - use menu item index (0-5) for correct display type
+    // Initial values - use menu item index (0-4) for correct display type
     update_value(0, config->map_size);
-    update_value(1, config->room_count);
-    update_value(2, config->secret_rooms);
-    update_value(3, config->false_corridors);
-    update_value(4, config->secret_treasures);
-    update_value(5, config->hidden_corridors);
+    update_value(1, config->secret_rooms);
+    update_value(2, config->false_corridors);
+    update_value(3, config->secret_treasures);
+    update_value(4, config->hidden_corridors);
 
     // Seed value (0 = random)
-    print_seed_value(17, menu_seed);
+    print_seed_value(15, menu_seed);
 
     // Instructions - centered
     print_at(10, 21, "joy2: navigation");
@@ -330,17 +304,17 @@ static void show_config_menu(MapConfig *config) {
                 cursor--;
                 update_cursor(old_cursor, cursor);
             }
-            // Navigation - DOWN (7 menu items: 0-6)
-            else if (!(joy2 & 0x02) && cursor < 6) {
+            // Navigation - DOWN (6 menu items: 0-5)
+            else if (!(joy2 & 0x02) && cursor < 5) {
                 cursor++;
                 update_cursor(old_cursor, cursor);
             }
             // FIRE button - start generation or seed input
             else if (!(joy2 & 0x10)) {
-                if (cursor == 6) {
+                if (cursor == 5) {
                     // Seed selected - enter numeric input mode
                     menu_seed = input_seed_value();
-                    print_seed_value(17, menu_seed);
+                    print_seed_value(15, menu_seed);
                 } else {
                     // Start generation
                     done = 1;
@@ -357,33 +331,27 @@ static void show_config_menu(MapConfig *config) {
                         }
                         break;
                     case 1:
-                        if (config->room_count < LEVEL_LARGE) {
-                            config->room_count++;
-                            update_value(1, config->room_count);
+                        if (config->secret_rooms < LEVEL_LARGE) {
+                            config->secret_rooms++;
+                            update_value(1, config->secret_rooms);
                         }
                         break;
                     case 2:
-                        if (config->secret_rooms < LEVEL_LARGE) {
-                            config->secret_rooms++;
-                            update_value(2, config->secret_rooms);
+                        if (config->false_corridors < LEVEL_LARGE) {
+                            config->false_corridors++;
+                            update_value(2, config->false_corridors);
                         }
                         break;
                     case 3:
-                        if (config->false_corridors < LEVEL_LARGE) {
-                            config->false_corridors++;
-                            update_value(3, config->false_corridors);
+                        if (config->secret_treasures < LEVEL_LARGE) {
+                            config->secret_treasures++;
+                            update_value(3, config->secret_treasures);
                         }
                         break;
                     case 4:
-                        if (config->secret_treasures < LEVEL_LARGE) {
-                            config->secret_treasures++;
-                            update_value(4, config->secret_treasures);
-                        }
-                        break;
-                    case 5:
                         if (config->hidden_corridors < LEVEL_LARGE) {
                             config->hidden_corridors++;
-                            update_value(5, config->hidden_corridors);
+                            update_value(4, config->hidden_corridors);
                         }
                         break;
                 }
@@ -398,33 +366,27 @@ static void show_config_menu(MapConfig *config) {
                         }
                         break;
                     case 1:
-                        if (config->room_count > LEVEL_SMALL) {
-                            config->room_count--;
-                            update_value(1, config->room_count);
+                        if (config->secret_rooms > LEVEL_SMALL) {
+                            config->secret_rooms--;
+                            update_value(1, config->secret_rooms);
                         }
                         break;
                     case 2:
-                        if (config->secret_rooms > LEVEL_SMALL) {
-                            config->secret_rooms--;
-                            update_value(2, config->secret_rooms);
+                        if (config->false_corridors > LEVEL_SMALL) {
+                            config->false_corridors--;
+                            update_value(2, config->false_corridors);
                         }
                         break;
                     case 3:
-                        if (config->false_corridors > LEVEL_SMALL) {
-                            config->false_corridors--;
-                            update_value(3, config->false_corridors);
+                        if (config->secret_treasures > LEVEL_SMALL) {
+                            config->secret_treasures--;
+                            update_value(3, config->secret_treasures);
                         }
                         break;
                     case 4:
-                        if (config->secret_treasures > LEVEL_SMALL) {
-                            config->secret_treasures--;
-                            update_value(4, config->secret_treasures);
-                        }
-                        break;
-                    case 5:
                         if (config->hidden_corridors > LEVEL_SMALL) {
                             config->hidden_corridors--;
-                            update_value(5, config->hidden_corridors);
+                            update_value(4, config->hidden_corridors);
                         }
                         break;
                 }
