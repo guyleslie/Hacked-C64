@@ -56,8 +56,7 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 ### Configuration System
 
 **Pre-Generation Parameters:**
-- **Map Size**: Small (48×48), Medium (64×64), Large (80×80)
-- **Room Count**: Small (8), Medium (12), Large (16)
+- **Map Size**: Small (48×48, 9 rooms), Medium (64×64, 16 rooms), Large (80×80, 20 rooms)
 - **Secret Rooms**: 10%/25%/50% of max rooms (percentage-based)
 - **Secret Treasures**: 10%/25%/50% of non-secret rooms (percentage-based, calculated post-MST)
 - **False Corridors**: 10%/25%/50% of available walls (percentage-based, calculated post-MST)
@@ -207,10 +206,10 @@ The generation process displays real-time progress with centered progress bar an
 
 ### Phase 0: Building Rooms
 
-The room generation operates on a 4×4 grid system providing 16 potential positions across the map. The process works as follows:
+The room generation operates on a dynamic grid system based on map size (3×3 for Small, 4×4 for Medium, 5×5 for Large). The process works as follows:
 
 **Grid-Based Placement:**
-- The map is divided into 16 equal cells (4×4 grid)
+- The map is divided into equal cells based on map size (3×3, 4×4, or 5×5 grid)
 - Each cell represents a potential room position
 - Cell order is randomized using Fisher-Yates shuffle algorithm
 
@@ -218,9 +217,8 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - Room size is **fixed at 4×4 to 8×8 tiles** (not configurable by preset)
 - Both width and height are independently random within this range
 - Actual implementation: `min_room_size = 4`, `max_room_size = 8` (hardcoded in `mapgen_config.c`)
-- Room count varies based on configuration (8/12/16)
+- Room count determined by map size: Small (9), Medium (16), Large (20)
 - Each room maintains minimum spacing from others
-- Note: `room_size_table[]` exists but is currently unused
 
 **Collision Detection System:**
 - Pre-placement validation checks against existing rooms
@@ -729,9 +727,7 @@ unsigned char mapgen_generate_dungeon(void);
 
 // Production mode API - direct parameter generation
 unsigned char mapgen_generate_with_params(
-    unsigned char map_size,        // 0=SMALL(48x48), 1=MEDIUM(64x64), 2=LARGE(80x80)
-    unsigned char room_count,      // 0=SMALL(8), 1=MEDIUM(12), 2=LARGE(16)
-    unsigned char room_size,       // Currently unused (fixed 4-8), reserved for future
+    unsigned char map_size,        // 0=SMALL(48x48,9rooms), 1=MEDIUM(64x64,16rooms), 2=LARGE(80x80,20rooms)
     unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
     unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
     unsigned char secret_treasures,// 0=10%, 1=25%, 2=50%
@@ -747,7 +743,7 @@ unsigned char mapgen_get_map_size(void);  // Returns current map width
 
 ```c
 // Map save/load (DEBUG mode only, defined in map_export.h)
-void save_map_seed(const char* filename);                    // Save seed + config (9 bytes)
+void save_map_seed(const char* filename);                    // Save seed + config (7 bytes)
 unsigned char load_map_seed(const char* filename, MapConfig* config);  // Load seed + config
 ```
 

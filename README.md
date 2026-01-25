@@ -87,13 +87,12 @@ https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 
 | Control | Action |
 |---------|---------|
-| **Up/Down** | Navigate menu options (7 items including seed) |
+| **Up/Down** | Navigate menu options (6 items including seed) |
 | **Left/Right** | Adjust values |
 | **Fire Button** | Start generation / Enter seed input mode |
 
 **Menu Display Values:**
-- Map Size: small, medium, large
-- Room Count: 8, 12, 16
+- Map Size: small (9 rooms), medium (16 rooms), large (20 rooms)
 - Percentage settings: 10%, 25%, 50%
 - Seed: 0-65535 (0 = random, press FIRE to enter number)
 
@@ -111,14 +110,13 @@ https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 
 ## Features
 
-- **Pre-Generation Configuration**: Customize map parameters before generation (map size, room count, secret features)
+- **Pre-Generation Configuration**: Customize map parameters before generation (map size with automatic room count, secret feature percentages)
 - **Real-time Procedural Generation**: Grid-based room placement with MST connectivity ensures all rooms are reachable
 - **Joystick Control**: Full joystick 2 support with diagonal movement and intuitive menu navigation
 - **Interactive Navigation**: Explore generated dungeons with responsive joystick control and 40×25 viewport
-- **Dynamic Map Sizing**: Runtime selection of map dimensions (48×48, 64×64, or 80×80) with single optimized buffer
+- **Dynamic Map Sizing**: Runtime selection of map dimensions with automatic room count
 - **Configurable Parameters**:
-  - Map Size (Small: 48×48, Medium: 64×64, Large: 80×80)
-  - Room Count (Small: 8, Medium: 12, Large: 16)
+  - Map Size: Small (48×48, 9 rooms), Medium (64×64, 16 rooms), Large (80×80, 20 rooms)
   - Secret Rooms (10%/25%/50% of total rooms)
   - Secret Treasures (10%/25%/50% of non-secret rooms)
   - False Corridors (10%/25%/50% of available walls in non-secret rooms)
@@ -128,7 +126,7 @@ https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 - **False Corridors**: Misleading dead-end passages on available walls (walls without doors in non-secret rooms)
 - **Hidden Corridors**: Non-branching corridor doors between rooms randomly converted to secret doors (percentage of eligible corridors)
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
-- **Map Save/Load**: Save and load map seed and configuration to/from disk (9 bytes - maps are reproducible from seed)
+- **Map Save/Load**: Save and load map seed and configuration to/from disk (7 bytes - maps are reproducible from seed)
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
 - **Progress Display**: Real-time generation progress with phase indicators
 
