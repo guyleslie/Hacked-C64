@@ -17,15 +17,16 @@
 // Current generation parameters (set via mapgen_set_parameters)
 // Non-static so other modules can access via extern declaration
 MapParameters current_params = {
-    72,  // map_width (default MEDIUM)
-    72,  // map_height
-    20,  // max_rooms
+    64,  // map_width (default MEDIUM)
+    64,  // map_height
+    4,   // grid_size (4x4 for MEDIUM)
+    16,  // max_rooms (4x4=16)
     4,   // min_room_size
     8,   // max_room_size
-    4,   // secret_room_count (20% of 20)
-    5,   // false_corridor_count
+    4,   // secret_room_count (25% of 16)
+    4,   // false_corridor_count
     4,   // treasure_count
-    3,   // hidden_corridor_count (default: 3)
+    3,   // hidden_corridor_count
     1    // preset (default: LEVEL_MEDIUM)
 };
 

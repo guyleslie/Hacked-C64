@@ -99,10 +99,11 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
 unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, unsigned char h,
                                     unsigned char *result_x, unsigned char *result_y) {
     // Get base grid position using optimized inline helpers
-    const unsigned char grid_x = get_grid_x(grid_index);
-    const unsigned char grid_y = get_grid_y(grid_index);
-    const unsigned char cell_w = get_grid_cell_width(current_params.map_width);
-    const unsigned char cell_h = get_grid_cell_height(current_params.map_height);
+    const unsigned char gs = current_params.grid_size;
+    const unsigned char grid_x = get_grid_x(grid_index, gs);
+    const unsigned char grid_y = get_grid_y(grid_index, gs);
+    const unsigned char cell_w = get_grid_cell_width(current_params.map_width, gs);
+    const unsigned char cell_h = get_grid_cell_height(current_params.map_height, gs);
 
     // Calculate grid cell boundaries
     const unsigned char cell_min_x = MAP_BORDER + grid_x * cell_w;
@@ -358,27 +359,25 @@ void init_rooms(void) {
 // Generates all rooms using grid-based placement
 void create_rooms(void) {
     unsigned char placed_rooms = 0;
-    unsigned char grid_positions[16]; // Maximum 4x4 grid
-    unsigned char grid_count = 0;
+    unsigned char grid_positions[25]; // Maximum 5x5 grid
+    const unsigned char grid_size = current_params.grid_size;
+    const unsigned char grid_total = grid_size * grid_size;
 
     // Initialize room structures
     init_rooms();
-    
+
     // OPTIMIZATION: Pre-calculate Y bit stride before room placement
     // This must be called after map parameters are set
     // Allows can_place_room() to use fast cached multiplication
     calculate_y_bit_stride();
-    
-    // Room creation phase - progress handled by main generation loop
-    
+
     // Initialize grid position array
-    for (unsigned char i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+    for (unsigned char i = 0; i < grid_total; i++) {
         grid_positions[i] = i;
-        grid_count++;
     }
-    
+
     // Shuffle grid positions using Fisher-Yates algorithm
-    for (unsigned char i = grid_count - 1; i > 0; i--) {
+    for (unsigned char i = grid_total - 1; i > 0; i--) {
         unsigned char j = rnd(i + 1);
         unsigned char temp = grid_positions[i];
         grid_positions[i] = grid_positions[j];
@@ -386,7 +385,7 @@ void create_rooms(void) {
     }
 
     // Generate rooms at shuffled grid positions
-    for (unsigned char i = 0; i < current_params.max_rooms && placed_rooms < current_params.max_rooms && i < grid_count; i++) {
+    for (unsigned char i = 0; i < grid_total && placed_rooms < current_params.max_rooms; i++) {
         unsigned char w, h, x, y;
         unsigned char min_size = current_params.min_room_size;
         unsigned char max_size = current_params.max_room_size;
