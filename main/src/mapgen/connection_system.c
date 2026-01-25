@@ -147,16 +147,19 @@ static unsigned char build_corridor_line(unsigned char start_x, unsigned char st
     unsigned char y = start_y;
 
     if (mode == CORRIDOR_MODE_CHECK) {
-        while (x != end_x || y != end_y) {
+        // Check all tiles INCLUDING endpoint
+        while (1) {
             if (!can_place_corridor(x, y, 2)) {
                 return 0;
             }
+            if (x == end_x && y == end_y) break;
             step_towards_target(&x, &y, end_x, end_y);
         }
     } else {
-        while (x != end_x || y != end_y) {
+        // Draw floor tiles INCLUDING endpoint - walling handled at segment level
+        while (1) {
             set_compact_tile(x, y, tile_type);
-            place_walls_around_corridor_tile(x, y);
+            if (x == end_x && y == end_y) break;
             step_towards_target(&x, &y, end_x, end_y);
         }
     }
@@ -182,12 +185,24 @@ static unsigned char process_corridor_path(unsigned char start_x, unsigned char 
         if (!build_corridor_line(current_x, current_y, next_x, next_y, mode, tile_type)) {
             return 0;
         }
+
+        // Segment-based walling (DRAW mode only)
+        if (mode == CORRIDOR_MODE_DRAW) {
+            place_wall_straight_corridor(current_x, current_y, next_x, next_y);
+            place_wall_corridor_junction(next_x, next_y);  // Fill diagonal corners at breakpoint
+        }
+
         current_x = next_x;
         current_y = next_y;
     }
 
     if (!build_corridor_line(current_x, current_y, end_x, end_y, mode, tile_type)) {
         return 0;
+    }
+
+    // Final segment walling
+    if (mode == CORRIDOR_MODE_DRAW) {
+        place_wall_straight_corridor(current_x, current_y, end_x, end_y);
     }
 
     return 1;
@@ -801,9 +816,12 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
         }
     }
 
-    // Draw the corridor
+    // Draw the corridor (endpoint included by build_corridor_line)
     process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
                           CORRIDOR_MODE_DRAW, TILE_FLOOR);
+
+    // Wall the dead-end (diagonal corners not covered by segment walling)
+    place_walls_around_corridor_tile(endpoint_x, endpoint_y);
 
     place_door(door_x, door_y);
 
