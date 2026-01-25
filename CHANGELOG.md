@@ -2,6 +2,52 @@
 
 ## [Unreleased] - 2026-01-25
 
+### Dynamic Grid-Based Room Generation
+
+Major refactoring: Room count now automatically determined by map size, eliminating redundant configuration and improving generation speed.
+
+#### Architecture Changes
+- **Dynamic grid size**: Grid dimensions now based on map size (SMALL: 3×3, MEDIUM: 4×4, LARGE: 5×5)
+- **Automatic room count**: `max_rooms = grid_size × grid_size` (9, 16, or 20 rooms)
+- **Removed `room_count` configuration**: No longer a separate preset - derived from map size
+- **New `grid_size` field**: Added to `MapParameters` struct for runtime access
+
+#### Room Generation by Map Size
+| Map Size | Dimensions | Grid | Max Rooms | Grid Cell |
+|----------|------------|------|-----------|-----------|
+| SMALL    | 48×48      | 3×3  | 9         | 13×13     |
+| MEDIUM   | 64×64      | 4×4  | 16        | 14×14     |
+| LARGE    | 80×80      | 5×5  | 20        | 14×14     |
+
+#### API Changes
+- **`mapgen_generate_with_params()`**: Reduced from 7 to 5 parameters
+  - Removed: `room_count`, `room_size` (unused)
+  - Signature: `(map_size, secret_rooms, false_corridors, secret_treasures, hidden_corridors)`
+- **`MapConfig` struct**: Removed `room_count` and `room_size` fields
+- **DEBUG menu**: Reduced from 6 to 5 configuration items (room count removed)
+
+#### Configuration Changes
+- **`mapgen_config.c`**: Replaced `room_count_table[3]` with `grid_size_table[3]`
+- **`mapgen_types.h`**: Removed fixed `GRID_SIZE = 4` constant
+- **`mapgen_utils.h`**: Grid helper functions now take `grid_size` parameter
+
+#### Export Format
+- **Seed file format**: Reduced from 9 to 7 bytes (room_count/room_size bytes removed)
+- **Not backward compatible**: Old seed files will not load correctly
+
+#### Performance
+- **Faster generation**: No wasted attempts on physically impossible room placements
+- **Optimal room density**: Grid cell size (~13-14 tiles) matches room size (4-8) + padding (4)
+- **Guaranteed coverage**: Every grid cell can fit a room
+
+#### Build Sizes
+- Mapgen TEST build: 13,146 bytes
+- Mapgen RELEASE build: 8,608 bytes
+
+---
+
+## [Unreleased] - 2026-01-25
+
 ### Segment-Based Corridor Walling
 
 - **`build_corridor_line()` endpoint fix**: Modified to include endpoint tile in both CHECK and DRAW modes
