@@ -184,8 +184,12 @@ For detailed technical information, see:
 
 - **[Project Specification](docs/project-specification.md)** - Complete technical specification including algorithms, data structures, and implementation details
 
+- **[Game Architecture Plan](docs/game-architecture-plan.md)** - High-level game design and architecture overview
+
 - **[Oscar64 Development Reference](docs/oscar64-c64-development-reference.md)** - Comprehensive guide for C64 development using Oscar64 compiler
 
 - **[TMEA: Tile Metadata Extension Architecture](docs/TMEA.md)** - Lightweight metadata system for tile features and dynamic entities (doors, traps, objects, monsters)
+
+- **[Debug/Production Split](docs/mapgen-debug-production-split.md)** - Documentation of DEBUG vs RELEASE build configurations
 
 - **[Changelog](CHANGELOG.md)** - Version history and feature updates
