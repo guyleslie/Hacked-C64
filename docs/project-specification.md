@@ -230,9 +230,9 @@ The room generation operates on a 4×4 grid system providing 16 potential positi
 - Boundary clamping keeps rooms within map limits
 
 **Wall Construction:**
-- Walls are built immediately around each room during placement
-- 8-directional wall placement covers cardinal and diagonal positions
-- Existing tiles are not overwritten to preserve previously placed structures
+- Walls are built immediately around each room during placement via `place_walls_around_room()`
+- Optimized: No TILE_EMPTY checks needed because room placement guarantees empty buffer area
+- MIN_ROOM_DISTANCE (4 tiles) ensures no room overlap or wall conflicts
 
 ### Phase 1: Connecting Rooms
 
@@ -316,8 +316,8 @@ Wall side values are determined by `get_wall_side_from_exit()` based on door pos
 
 ## Corridor Construction Process
 
-**Two-pass Walker:** `process_corridor_path()` drives both validation and drawing for straight, L, and Z-shaped corridors.
-**Wall Building:** Walls are constructed around each corridor tile as it's placed.
+**Two-pass Walker:** `process_corridor_path()` drives both validation (CHECK mode) and drawing (DRAW mode) for straight, L, and Z-shaped corridors.
+**Segment-based Walling:** Walls are constructed per-segment using `place_wall_straight_corridor()` (parallel walls) and `place_wall_corridor_junction()` (diagonal corners at breakpoints).
 **Atomic Operations:** All corridor metadata stored atomically to prevent inconsistent states.
 **Geometric Validation:** Each corridor type validates path safety before construction.
 **System Integration:** Door metadata includes position, wall direction, and corridor type.
@@ -325,10 +325,12 @@ Wall side values are determined by `get_wall_side_from_exit()` based on door pos
 **Construction Flow:**
 1. `connect_rooms()` determines optimal corridor type (straight, L, or Z-shaped)
 2. `draw_corridor_from_door()` initiates corridor drawing
-3. `build_corridor_line()` builds corridor segments tile-by-tile
-4. `process_corridor_path()` computes breakpoints and draws corridor segments
-5. Success: door metadata stored in both connected rooms
-6. Failure: connection metadata rolled back
+3. `process_corridor_path()` computes breakpoints and iterates segments:
+   - `build_corridor_line()` draws floor tiles INCLUDING endpoint
+   - `place_wall_straight_corridor()` walls parallel to segment (above/below or left/right)
+   - `place_wall_corridor_junction()` fills diagonal corners at breakpoints
+4. Success: door metadata stored in both connected rooms
+5. Failure: connection metadata rolled back
 
 ### Phase 2: Secret Areas
 
@@ -421,7 +423,7 @@ The false corridor system creates Nethack-style misleading dead-end passages:
 8. **Validate Path**: `process_corridor_path(CHECK)` catches room/corridor collisions
 9. **Validate Endpoint**: `check_adjacent_tile_types()` ensures endpoint isolation
 10. **Fallback**: If shaped fails, try minimum straight (4 tiles) with same validation
-11. **Draw**: `process_corridor_path(DRAW)` + place door + update metadata
+11. **Draw**: `process_corridor_path(DRAW)` + `place_walls_around_corridor_tile()` for dead-end + place door + update metadata
 
 **Shape Generation:**
 - **Straight (shape=0)**: Full length in primary direction only
@@ -663,7 +665,8 @@ typedef struct {
 ### Computational Complexity
 - **Room Placement**: O(n) with grid constraints
 - **MST Generation**: O(n²) for complete connectivity
-- **Wall Placement**: O(room_perimeter + corridor_length) incremental during creation
+- **Room Wall Placement**: O(perimeter) per room, no TILE_EMPTY checks (optimized)
+- **Corridor Wall Placement**: O(segment_length) per segment via `place_wall_straight_corridor()`, O(1) per junction via `place_wall_corridor_junction()`
 - **Screen Rendering**: O(viewport_size) with delta optimization
 
 ### Hardware Integration
