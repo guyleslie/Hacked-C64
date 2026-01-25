@@ -64,6 +64,10 @@ unsigned char count_non_branching_from_flags(void);
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h);
 void place_walls_around_corridor_tile(unsigned char x, unsigned char y);
 
+// Segment-based corridor walling (more efficient than per-tile)
+void place_wall_straight_corridor(unsigned char x1, unsigned char y1, unsigned char x2, unsigned char y2);
+void place_wall_corridor_junction(unsigned char jx, unsigned char jy);
+
 // Door placement functions
 void place_door(unsigned char x, unsigned char y);
 

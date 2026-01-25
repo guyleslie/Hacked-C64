@@ -334,22 +334,28 @@ unsigned char mapgen_generate_with_params(
     return result ? 0 : 2;
 }
 
+/**
+ * @brief Place walls around a room perimeter
+ * @param x Room top-left X
+ * @param y Room top-left Y
+ * @param w Room width
+ * @param h Room height
+ *
+ * OPTIMIZATION: No TILE_EMPTY checks needed because:
+ * 1. can_place_room() validated buffer area is completely TILE_EMPTY
+ * 2. Room floor placed BEFORE walls, wall positions still TILE_EMPTY
+ * 3. MIN_ROOM_DISTANCE (4 tiles) guarantees no room overlap
+ */
 void place_walls_around_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
+    // Top and bottom walls (including corners)
     for (unsigned char ix = x - 1; ix <= x + w; ix++) {
-        if (get_compact_tile(ix, y - 1) == TILE_EMPTY) {
-            set_compact_tile(ix, y - 1, TILE_WALL);
-        }
-        if (get_compact_tile(ix, y + h) == TILE_EMPTY) {
-            set_compact_tile(ix, y + h, TILE_WALL);
-        }
+        set_compact_tile(ix, y - 1, TILE_WALL);  // Top wall
+        set_compact_tile(ix, y + h, TILE_WALL);  // Bottom wall
     }
+    // Left and right walls (excluding corners - already done)
     for (unsigned char iy = y; iy < y + h; iy++) {
-        if (get_compact_tile(x - 1, iy) == TILE_EMPTY) {
-            set_compact_tile(x - 1, iy, TILE_WALL);
-        }
-        if (get_compact_tile(x + w, iy) == TILE_EMPTY) {
-            set_compact_tile(x + w, iy, TILE_WALL);
-        }
+        set_compact_tile(x - 1, iy, TILE_WALL);  // Left wall
+        set_compact_tile(x + w, iy, TILE_WALL);  // Right wall
     }
 }
 
@@ -361,6 +367,70 @@ void place_walls_around_corridor_tile(unsigned char x, unsigned char y) {
             unsigned char wall_y = y + dy;
             if (get_compact_tile(wall_x, wall_y) == TILE_EMPTY) {
                 set_compact_tile(wall_x, wall_y, TILE_WALL);
+            }
+        }
+    }
+}
+
+/**
+ * @brief Wall a straight corridor segment (horizontal or vertical)
+ * @param x1, y1 Segment start
+ * @param x2, y2 Segment end
+ * @note Only walls TILE_EMPTY to preserve existing structures
+ */
+void place_wall_straight_corridor(unsigned char x1, unsigned char y1,
+                                  unsigned char x2, unsigned char y2) {
+    if (y1 == y2) {
+        // Horizontal segment
+        unsigned char start_x = (x1 < x2) ? x1 : x2;
+        unsigned char end_x = (x1 < x2) ? x2 : x1;
+
+        for (unsigned char x = start_x; x <= end_x; x++) {
+            // Wall above
+            if (get_compact_tile(x, y1 - 1) == TILE_EMPTY)
+                set_compact_tile(x, y1 - 1, TILE_WALL);
+            // Wall below
+            if (get_compact_tile(x, y1 + 1) == TILE_EMPTY)
+                set_compact_tile(x, y1 + 1, TILE_WALL);
+        }
+        // End caps
+        if (get_compact_tile(start_x - 1, y1) == TILE_EMPTY)
+            set_compact_tile(start_x - 1, y1, TILE_WALL);
+        if (get_compact_tile(end_x + 1, y1) == TILE_EMPTY)
+            set_compact_tile(end_x + 1, y1, TILE_WALL);
+    } else {
+        // Vertical segment
+        unsigned char start_y = (y1 < y2) ? y1 : y2;
+        unsigned char end_y = (y1 < y2) ? y2 : y1;
+
+        for (unsigned char y = start_y; y <= end_y; y++) {
+            // Wall left
+            if (get_compact_tile(x1 - 1, y) == TILE_EMPTY)
+                set_compact_tile(x1 - 1, y, TILE_WALL);
+            // Wall right
+            if (get_compact_tile(x1 + 1, y) == TILE_EMPTY)
+                set_compact_tile(x1 + 1, y, TILE_WALL);
+        }
+        // End caps
+        if (get_compact_tile(x1, start_y - 1) == TILE_EMPTY)
+            set_compact_tile(x1, start_y - 1, TILE_WALL);
+        if (get_compact_tile(x1, end_y + 1) == TILE_EMPTY)
+            set_compact_tile(x1, end_y + 1, TILE_WALL);
+    }
+}
+
+/**
+ * @brief Wall around a corridor junction (L-corner or Z-bend breakpoints)
+ * @param jx, jy Junction center coordinates
+ * @note Fills diagonal corners not covered by place_wall_straight_corridor()
+ */
+void place_wall_corridor_junction(unsigned char jx, unsigned char jy) {
+    for (signed char dy = -1; dy <= 1; dy++) {
+        for (signed char dx = -1; dx <= 1; dx++) {
+            unsigned char wx = jx + dx;
+            unsigned char wy = jy + dy;
+            if (get_compact_tile(wx, wy) == TILE_EMPTY) {
+                set_compact_tile(wx, wy, TILE_WALL);
             }
         }
     }
