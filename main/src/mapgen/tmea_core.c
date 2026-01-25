@@ -126,8 +126,6 @@ unsigned char add_tile_metadata(unsigned char x, unsigned char y,
 
     // Strategy 1: Try room-based storage (optimal for 70% of cases)
     if (point_in_any_room(x, y, &room_id)) {
-        __assume(room_id < MAX_ROOMS);  // Oscar64 optimization hint
-
         // Check if room pool has space
         if (room_meta_count[room_id] < META_PER_ROOM) {
             // Calculate room-local coordinates
@@ -190,8 +188,6 @@ unsigned char get_tile_metadata(unsigned char x, unsigned char y,
 
     // Strategy 1: Search room pool first (70% hit rate)
     if (point_in_any_room(x, y, &room_id)) {
-        __assume(room_id < MAX_ROOMS);
-
         // Calculate room-local coordinates
         unsigned char local_x = global_to_local_x(x, room_id);
         unsigned char local_y = global_to_local_y(y, room_id);
@@ -233,8 +229,6 @@ unsigned char remove_tile_metadata(unsigned char x, unsigned char y) {
 
     // Strategy 1: Try room pool
     if (point_in_any_room(x, y, &room_id)) {
-        __assume(room_id < MAX_ROOMS);
-
         unsigned char local_x = global_to_local_x(x, room_id);
         unsigned char local_y = global_to_local_y(y, room_id);
         unsigned char packed = pack_local_pos(local_x, local_y);
@@ -303,8 +297,6 @@ unsigned char update_tile_metadata_flags(unsigned char x, unsigned char y,
 
     // Try room pool
     if (point_in_any_room(x, y, &room_id)) {
-        __assume(room_id < MAX_ROOMS);
-
         unsigned char local_x = global_to_local_x(x, room_id);
         unsigned char local_y = global_to_local_y(y, room_id);
         unsigned char packed = pack_local_pos(local_x, local_y);
@@ -340,8 +332,6 @@ unsigned char update_tile_metadata_data(unsigned char x, unsigned char y,
 
     // Try room pool
     if (point_in_any_room(x, y, &room_id)) {
-        __assume(room_id < MAX_ROOMS);
-
         unsigned char local_x = global_to_local_x(x, room_id);
         unsigned char local_y = global_to_local_y(y, room_id);
         unsigned char packed = pack_local_pos(local_x, local_y);

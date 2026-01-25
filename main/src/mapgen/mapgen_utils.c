@@ -48,6 +48,8 @@ inline unsigned char rnd(unsigned char max) {
 
 unsigned char get_compact_tile(unsigned char x, unsigned char y) {
     if (x >= current_params.map_width || y >= current_params.map_height) return TILE_EMPTY;
+
+    // After bounds check, help compiler optimize bit arithmetic
     __assume(x < 80);
     __assume(y < 80);
 
@@ -67,6 +69,8 @@ unsigned char get_compact_tile(unsigned char x, unsigned char y) {
 
 void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
     if (x >= current_params.map_width || y >= current_params.map_height) return;
+
+    // After bounds check, help compiler optimize bit arithmetic
     __assume(x < 80);
     __assume(y < 80);
     __assume(tile <= 7);
@@ -118,7 +122,6 @@ unsigned char point_in_room(unsigned char x, unsigned char y, unsigned char room
 
 unsigned char is_inside_any_room(unsigned char x, unsigned char y) {
     for (unsigned char i = 0; i < room_count; i++) {
-        __assume(room_count <= MAX_ROOMS);
         Room *room = &room_list[i];
         if (x >= room->x && x < room->x + room->w &&
             y >= room->y && y < room->y + room->h) {
@@ -130,7 +133,6 @@ unsigned char is_inside_any_room(unsigned char x, unsigned char y) {
 
 unsigned char point_in_any_room(unsigned char x, unsigned char y, unsigned char *room_id) {
     for (unsigned char i = 0; i < room_count; i++) {
-        __assume(room_count <= MAX_ROOMS);
         unsigned char rx = room_list[i].x;
         unsigned char ry = room_list[i].y;
         unsigned char rw = room_list[i].w;
@@ -146,7 +148,6 @@ unsigned char point_in_any_room(unsigned char x, unsigned char y, unsigned char 
 
 unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
     for (unsigned char i = 0; i < room_count; i++) {
-        __assume(room_count <= MAX_ROOMS);
         unsigned char room_x = room_list[i].x;
         unsigned char room_y = room_list[i].y;
         unsigned char room_w = room_list[i].w;

@@ -89,10 +89,6 @@ void init_progress_bar_simple(const char* title) {
 }
 
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total) {
-    __assume(phase < 8);
-    __assume(current <= total);
-    __assume(total > 0);
-
     if (total == 0) return;
 
     unsigned char phase_start = phase_boundaries[phase];
@@ -111,9 +107,6 @@ void update_progress_step(unsigned char phase, unsigned char current, unsigned c
 
     unsigned char pos = progress_steps >> 2;
     unsigned char phase_char = progress_steps & 3;
-
-    __assume(pos < 21);
-    __assume(phase_char < 4);
 
     volatile unsigned char * const screen_mem = (volatile unsigned char *)SCREEN_MEMORY_BASE;
     unsigned short base_pos = progress_y * 40 + (progress_x + 1);

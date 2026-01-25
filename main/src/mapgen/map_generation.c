@@ -72,10 +72,7 @@ void add_stairs(void) {
     unsigned char max_distance = calculate_room_distance(0, 1);
 
     for (unsigned char i = 0; i < room_count; i++) {
-        __assume(room_count <= MAX_ROOMS);
         for (unsigned char j = i + 1; j < room_count; j++) {
-            __assume(i < MAX_ROOMS);
-            __assume(j < MAX_ROOMS);
             unsigned char dist = calculate_room_distance(i, j);
             if (dist > max_distance) {
                 max_distance = dist;

@@ -463,30 +463,24 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
 // Connect all rooms using Minimum Spanning Tree algorithm
 void build_room_network(void) {
     static unsigned char connected[MAX_ROOMS];
-    
-    // Help compiler with range analysis
-    __assume(room_count <= MAX_ROOMS);
-    
+
     // Initialize - only first room is connected
     for (unsigned char i = 0; i < room_count; i++) {
-        __assume(room_count <= MAX_ROOMS);
         connected[i] = (i == 0) ? 1 : 0;
     }
-    
+
     unsigned char connections_made = 0;
-    
+
     // MST algorithm - connect closest unconnected rooms
     while (connections_made < room_count - 1) {
         unsigned char best_room1 = 255, best_room2 = 255;
         unsigned char min_distance = 255;
-        
+
         // Find closest unconnected room pair
         for (unsigned char i = 0; i < room_count; i++) {
-            __assume(room_count <= MAX_ROOMS);
             if (!connected[i]) continue;
-            
+
             for (unsigned char j = 0; j < room_count; j++) {
-                __assume(room_count <= MAX_ROOMS);
                 if (connected[j] || i == j) continue;
                 
                 unsigned char distance = calculate_room_distance(i, j);
@@ -608,8 +602,6 @@ void place_secret_rooms(unsigned char room_count_target) {
     unsigned char secrets_made = 0;
 
     for (unsigned char i = 0; i < room_count && secrets_made < room_count_target; i++) {
-        __assume(room_count <= MAX_ROOMS);
-
         if (create_secret_room(i)) {
             secrets_made++;
             total_secret_rooms++; // Runtime tracking for percentage calculation
@@ -675,10 +667,7 @@ void place_hidden_corridors(unsigned char corridor_count) {
 
     // Find all non-branching corridor candidates
     for (unsigned char i = 0; i < room_count && candidate_count < 40; i++) {
-        __assume(room_count <= MAX_ROOMS);
         for (unsigned char j = i + 1; j < room_count && candidate_count < 40; j++) {
-            __assume(j <= MAX_ROOMS);
-
             // Check if connected and eligible
             if (room_has_connection_to(i, j) && is_non_branching_corridor(i, j)) {
                 candidates_room1[candidate_count] = i;

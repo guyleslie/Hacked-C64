@@ -399,7 +399,6 @@ static inline unsigned char unpack_local_y(unsigned char packed) {
  */
 static inline unsigned char global_to_local_x(unsigned char global_x,
                                               unsigned char room_id) {
-    __assume(room_id < MAX_ROOMS);
     return global_x - room_list[room_id].x;
 }
 
@@ -414,7 +413,6 @@ static inline unsigned char global_to_local_x(unsigned char global_x,
  */
 static inline unsigned char global_to_local_y(unsigned char global_y,
                                               unsigned char room_id) {
-    __assume(room_id < MAX_ROOMS);
     return global_y - room_list[room_id].y;
 }
 
