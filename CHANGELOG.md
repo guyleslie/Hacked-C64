@@ -2,27 +2,43 @@
 
 ## [Unreleased] - 2026-01-25
 
-### Segment-Based Corridor Walling Optimization
+### Segment-Based Corridor Walling
 
-Optimized corridor wall placement with segment-based approach and function consistency improvements.
-
-#### Changed
-- **`build_corridor_line()` includes endpoint**: Modified to draw floor tiles INCLUDING the endpoint
-  - Fixes junction walling at corridor breakpoints
-  - Breakpoints are now FLOOR when junction walling happens (not EMPTY)
-  - Both CHECK and DRAW modes include endpoint in their iteration
+- **`build_corridor_line()` endpoint fix**: Modified to include endpoint tile in both CHECK and DRAW modes
+  - Problem: Breakpoints were EMPTY when `place_wall_corridor_junction()` ran
+  - Solution: Changed loop from `while (x != end_x || y != end_y)` to include endpoint
+  - Now breakpoints are FLOOR before junction walling, walls placed correctly
 - **Function renames for consistency**:
   - `wall_straight_corridor()` → `place_wall_straight_corridor()`
   - `wall_corridor_junction()` → `place_wall_corridor_junction()`
-  - Matches naming convention of other wall placement functions
+  - Matches naming convention: `place_walls_around_room()`, `place_walls_around_corridor_tile()`
 
-#### Technical Details
-- **Segment-based walling**: `place_wall_straight_corridor()` places walls parallel to corridor segment (above/below or left/right)
-- **Junction walling**: `place_wall_corridor_junction()` fills diagonal corners at breakpoints not covered by segment walling
-- **Corridor types**: Straight (0 breakpoints), L-shaped (1 breakpoint), Z-shaped (2 breakpoints)
-- **Dead-end walling**: False corridor endpoints use `place_walls_around_corridor_tile()` for 8-directional coverage
+### `__assume()` Compiler Hint Optimization
 
-#### Build Sizes
+- **Outliner interference identified**: Scattered `__assume()` hints prevent `-Oo` outliner from finding common code sequences
+  - Each hint causes slightly different code generation at that location
+  - Outliner can't match sequences → code size INCREASES instead of decreases
+- **Removed 25 redundant hints**:
+  - `__assume(room_count <= MAX_ROOMS)` in loops (connection_system.c, mapgen_utils.c, map_generation.c)
+  - `__assume(room_id < MAX_ROOMS)` in tmea_core.c and tmea_core.h inline functions
+  - `__assume()` hints in mapgen_progress.c (DEBUG only)
+- **Kept 5 effective hints** in `get_compact_tile()` and `set_compact_tile()`:
+  - `__assume(x < 80)`, `__assume(y < 80)`, `__assume(tile <= 7)`
+  - These are HOT PATH functions with bit arithmetic AFTER bounds checks
+  - Single definition, many call sites → outliner unaffected
+
+### Dead Code Removal
+
+- **`can_place_room_original()` removed** from room_management.c
+  - Was kept "for reference" but never called
+  - Optimized version `can_place_room()` is the only implementation now
+
+### Documentation
+
+- **oscar64-c64-development-reference.md**: Added `__assume()` and outliner interaction explanation
+- **project-specification.md**: Added project-specific `__assume()` usage rule
+
+### Build Sizes
 - Mapgen TEST build: 13,302 bytes
 - Mapgen RELEASE build: 8,507 bytes
 
@@ -707,7 +723,7 @@ Major upgrade to the Tile Metadata Extension Architecture with data-oriented des
 
 ### Technical Details
 - Coordinate packing: Room-local coords use 4+4 bits (1 byte), supports up to 15×15 rooms
-- Oscar64 optimizations: `__assume()` hints, `static inline` functions, bitfield support
+- Oscar64 optimizations: `static inline` functions, bitfield support
 - API: Unified interface with automatic routing, simple spawn/despawn/query functions
 - Export: Extended PRG format (version 0x02) with metadata and entity persistence
 - Backward compatible: Zero breaking changes, TILE_MARKER (7) was previously unused
