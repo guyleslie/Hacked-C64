@@ -63,9 +63,7 @@ int main(void) {
     // This also ensures the mapgen code is not optimized away
     mapgen_init(12345);
     mapgen_generate_with_params(
-        1,  // MEDIUM map (64x64)
-        1,  // MEDIUM rooms (12-16)
-        1,  // MEDIUM room size
+        1,  // MEDIUM map (64x64, 16 rooms)
         1,  // 25% secret rooms
         1,  // 25% false corridors
         1,  // 25% treasures
