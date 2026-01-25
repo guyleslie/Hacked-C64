@@ -13,11 +13,11 @@
 // PRESET TABLES - Used for configuration conversion
 // =============================================================================
 
-// Map size table (width, height)
+// Map size table (width, height) - optimized for consistent 14×14 grid cells
 const unsigned char map_size_table[3][2] = {
-    {48, 48},  // SMALL
-    {64, 64},  // MEDIUM
-    {80, 80}   // LARGE
+    {50, 50},  // SMALL: 3×14+8=50
+    {64, 64},  // MEDIUM: 4×14+8=64
+    {78, 78}   // LARGE: 5×14+8=78
 };
 
 // Grid size table - determines max rooms per map size

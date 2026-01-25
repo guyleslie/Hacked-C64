@@ -116,7 +116,7 @@ https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 - **Interactive Navigation**: Explore generated dungeons with responsive joystick control and 40×25 viewport
 - **Dynamic Map Sizing**: Runtime selection of map dimensions with automatic room count
 - **Configurable Parameters**:
-  - Map Size: Small (48×48, 9 rooms), Medium (64×64, 16 rooms), Large (80×80, 20 rooms)
+  - Map Size: Small (50×50, 9 rooms), Medium (64×64, 16 rooms), Large (78×78, 20 rooms)
   - Secret Rooms (10%/25%/50% of total rooms)
   - Secret Treasures (10%/25%/50% of non-secret rooms)
   - False Corridors (10%/25%/50% of available walls in non-secret rooms)
@@ -140,7 +140,7 @@ https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 
 ### Map Specifications
 
-- **Map Size**: 48×48, 64×64, or 80×80
+- **Map Size**: 50×50, 64×64, or 78×78
 - **Room Count**: Up to 20 rooms (4×4 to 8×8 tiles each)
 
 ### Performance

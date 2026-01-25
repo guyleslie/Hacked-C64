@@ -56,7 +56,7 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 ### Configuration System
 
 **Pre-Generation Parameters:**
-- **Map Size**: Small (48×48, 9 rooms), Medium (64×64, 16 rooms), Large (80×80, 20 rooms)
+- **Map Size**: Small (50×50, 9 rooms), Medium (64×64, 16 rooms), Large (78×78, 20 rooms)
 - **Secret Rooms**: 10%/25%/50% of max rooms (percentage-based)
 - **Secret Treasures**: 10%/25%/50% of non-secret rooms (percentage-based, calculated post-MST)
 - **False Corridors**: 10%/25%/50% of available walls (percentage-based, calculated post-MST)
@@ -511,7 +511,7 @@ Map data is stored using a 3-bit per tile encoding:
 
 **Bit-Level Compression:**
 - Each tile type is represented by 3 bits (8 possible types)
-- Dynamic map sizes (48×48, 64×64, 80×80) with runtime bit offset calculation
+- Dynamic map sizes (50×50, 64×64, 78×78) with runtime bit offset calculation
 - Bits can span byte boundaries for maximum compression
 - Direct bit manipulation provides O(1) tile access with `calculate_y_bit_stride()` cached stride
 
@@ -727,7 +727,7 @@ unsigned char mapgen_generate_dungeon(void);
 
 // Production mode API - direct parameter generation
 unsigned char mapgen_generate_with_params(
-    unsigned char map_size,        // 0=SMALL(48x48,9rooms), 1=MEDIUM(64x64,16rooms), 2=LARGE(80x80,20rooms)
+    unsigned char map_size,        // 0=SMALL(50x50,9rooms), 1=MEDIUM(64x64,16rooms), 2=LARGE(78x78,20rooms)
     unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
     unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
     unsigned char secret_treasures,// 0=10%, 1=25%, 2=50%
@@ -854,7 +854,7 @@ unsigned char load_map_seed(const char* filename, MapConfig* config);  // Load a
 - **Generation Time**: ~2-5 seconds on C64 hardware (varies by map size and configuration)
 - **Executable Size**: ~8.2KB release build, ~13KB test build (with full optimization)
 - **Memory Management**: Static allocation with maximum-sized buffers, runtime bounds checking
-- **Map Storage**: 2400 bytes max buffer (handles 48×48=864, 64×64=1536, 80×80=2400)
+- **Map Storage**: 2400 bytes max buffer (handles 50×50=864, 64×64=1536, 78×78=2400)
 - **Room Data**: 48 bytes per room with packed structures, cached center coordinates, and wall door counters
 - **Total Room Storage**: 960 bytes (48 bytes × 20 rooms maximum)
 - **Scrolling**: Partial screen updates with no slowdown at map boundaries

@@ -15,9 +15,11 @@ Major refactoring: Room count now automatically determined by map size, eliminat
 #### Room Generation by Map Size
 | Map Size | Dimensions | Grid | Max Rooms | Grid Cell |
 |----------|------------|------|-----------|-----------|
-| SMALL    | 48×48      | 3×3  | 9         | 13×13     |
+| SMALL    | 50×50      | 3×3  | 9         | 14×14     |
 | MEDIUM   | 64×64      | 4×4  | 16        | 14×14     |
-| LARGE    | 80×80      | 5×5  | 20        | 14×14     |
+| LARGE    | 78×78      | 5×5  | 20        | 14×14     |
+
+Map sizes optimized for consistent 14×14 grid cells across all presets.
 
 #### API Changes
 - **`mapgen_generate_with_params()`**: Reduced from 7 to 5 parameters

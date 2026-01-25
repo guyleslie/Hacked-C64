@@ -189,7 +189,7 @@ TOTAL SPRITE SYSTEM:                  ~2.3 KB
 - **Maximum Visible Area:** 30 columns ÷ 3 chars/tile = **10 tiles wide**
 - **Vertical:** 25 rows ÷ 3 chars/tile = **8 tiles tall**
 - **Camera System:** Centered on player with map scrolling
-- **Map Sizes:** 48×48, 64×64, 80×80 tiles (selectable via mapgen config)
+- **Map Sizes:** 50×50, 64×64, 78×78 tiles (selectable via mapgen config)
 
 ### 3.4 HUD Contents
 
