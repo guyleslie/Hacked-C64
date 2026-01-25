@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-01-25
+
+### Segment-Based Corridor Walling Optimization
+
+Optimized corridor wall placement with segment-based approach and function consistency improvements.
+
+#### Changed
+- **`build_corridor_line()` includes endpoint**: Modified to draw floor tiles INCLUDING the endpoint
+  - Fixes junction walling at corridor breakpoints
+  - Breakpoints are now FLOOR when junction walling happens (not EMPTY)
+  - Both CHECK and DRAW modes include endpoint in their iteration
+- **Function renames for consistency**:
+  - `wall_straight_corridor()` → `place_wall_straight_corridor()`
+  - `wall_corridor_junction()` → `place_wall_corridor_junction()`
+  - Matches naming convention of other wall placement functions
+
+#### Technical Details
+- **Segment-based walling**: `place_wall_straight_corridor()` places walls parallel to corridor segment (above/below or left/right)
+- **Junction walling**: `place_wall_corridor_junction()` fills diagonal corners at breakpoints not covered by segment walling
+- **Corridor types**: Straight (0 breakpoints), L-shaped (1 breakpoint), Z-shaped (2 breakpoints)
+- **Dead-end walling**: False corridor endpoints use `place_walls_around_corridor_tile()` for 8-directional coverage
+
+#### Build Sizes
+- Mapgen TEST build: 13,302 bytes
+- Mapgen RELEASE build: 8,507 bytes
+
+---
+
 ## [Unreleased] - 2026-01-18
 
 ### TMEA v3: Data-Oriented Entity System
