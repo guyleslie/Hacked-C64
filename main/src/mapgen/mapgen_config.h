@@ -33,9 +33,6 @@ typedef struct {
 
     // Hidden corridors preset
     PresetLevel hidden_corridors;
-
-    // Difficulty level (auto-calculated or manually set)
-    unsigned char difficulty_level;
 } MapConfig;
 
 // Concrete parameter values (computed from config)

@@ -60,29 +60,6 @@ void init_default_config(MapConfig *config) {
     config->false_corridors = LEVEL_MEDIUM;
     config->secret_treasures = LEVEL_MEDIUM;
     config->hidden_corridors = LEVEL_MEDIUM;
-    config->difficulty_level = 5;
-}
-
-/**
- * @brief Calculate difficulty level from configuration (0-10 scale)
- */
-static unsigned char calculate_difficulty(const MapConfig *config) {
-    signed char difficulty = 0;
-
-    // Larger map increases difficulty (harder to navigate)
-    difficulty += config->map_size * 1;
-
-    // Hidden elements increase difficulty
-    difficulty += config->secret_rooms * 2;
-    difficulty += config->false_corridors * 1;
-    difficulty += config->secret_treasures * 1;
-    difficulty += config->hidden_corridors * 2;
-
-    // Normalize to 0-10 scale
-    if (difficulty < 0) difficulty = 0;
-    if (difficulty > 10) difficulty = 10;
-
-    return (unsigned char)difficulty;
 }
 
 /**
@@ -395,9 +372,6 @@ static void show_config_menu(MapConfig *config) {
             prev_joy2 = joy2;
         }
     }
-
-    // Calculate difficulty before exiting
-    config->difficulty_level = calculate_difficulty(config);
 }
 
 // =============================================================================
