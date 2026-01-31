@@ -146,25 +146,6 @@ unsigned char point_in_any_room(unsigned char x, unsigned char y, unsigned char 
     return 0;
 }
 
-unsigned char is_on_room_edge(unsigned char x, unsigned char y) {
-    for (unsigned char i = 0; i < room_count; i++) {
-        unsigned char room_x = room_list[i].x;
-        unsigned char room_y = room_list[i].y;
-        unsigned char room_w = room_list[i].w;
-        unsigned char room_h = room_list[i].h;
-        unsigned char right_edge = room_x + room_w - 1;
-        unsigned char bottom_edge = room_y + room_h - 1;
-
-        if (x < room_x || x > right_edge || y < room_y || y > bottom_edge) continue;
-
-        if (y == room_y && x >= room_x && x <= right_edge) return 1;
-        if (y == bottom_edge && x >= room_x && x <= right_edge) return 1;
-        if (x == room_x && y >= room_y && y <= bottom_edge) return 1;
-        if (x == right_edge && y >= room_y && y <= bottom_edge) return 1;
-    }
-    return 0;
-}
-
 inline unsigned char abs_diff(unsigned char a, unsigned char b) {
     return (a > b) ? a - b : b - a;
 }

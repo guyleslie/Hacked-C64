@@ -22,8 +22,6 @@ extern MapParameters current_params;
 // SCREEN CONSTANTS
 // =============================================================================
 
-#define SCREEN_MEMORY_BASE 0x0400
-
 // Progress bar PETSCII characters (quarter-block increments)
 static const unsigned char PROGRESS_QUARTER = 0x65;
 static const unsigned char PROGRESS_HALF = 0x61;
