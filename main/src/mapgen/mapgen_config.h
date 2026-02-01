@@ -19,20 +19,10 @@ typedef enum {
 
 // Main configuration structure (user-facing settings)
 typedef struct {
-    // Map size preset (determines MAP_W, MAP_H, and grid size)
-    PresetLevel map_size;
-
-    // Secret rooms preset
-    PresetLevel secret_rooms;
-
-    // False corridors preset
-    PresetLevel false_corridors;
-
-    // Secret treasures preset
-    PresetLevel secret_treasures;
-
-    // Hidden corridors preset
-    PresetLevel hidden_corridors;
+    PresetLevel map_size;        // Map size (determines grid)
+    PresetLevel hidden_rooms;    // Hidden room percentage
+    PresetLevel niches;          // Wall niche percentage
+    PresetLevel deception;       // Deception level (decoys + hidden passages)
 } MapConfig;
 
 // Concrete parameter values (computed from config)
@@ -43,11 +33,9 @@ typedef struct {
     unsigned char max_rooms;
     unsigned char min_room_size;
     unsigned char max_room_size;
-    unsigned char secret_room_count;
-    unsigned char false_corridor_count;
-    unsigned char treasure_count;
-    unsigned char hidden_corridor_count;  // Hidden corridor count (non-branching corridors to hide)
-    unsigned char preset;  // Feature preset level (for percentage ratio lookups)
+    unsigned char hidden_room_count;
+    unsigned char niche_count;
+    unsigned char deception_count;
 } MapParameters;
 
 // =============================================================================

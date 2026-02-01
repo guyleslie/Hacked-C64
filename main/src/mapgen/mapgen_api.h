@@ -15,11 +15,10 @@ unsigned char mapgen_generate_dungeon(void);
 
 // Production mode API - direct parameter generation
 unsigned char mapgen_generate_with_params(
-    unsigned char map_size,        // 0=SMALL(50x50,9rooms), 1=MEDIUM(64x64,16rooms), 2=LARGE(78x78,20rooms)
-    unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
-    unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
-    unsigned char secret_treasures,// 0=10%, 1=25%, 2=50%
-    unsigned char hidden_corridors // 0=10%, 1=25%, 2=50%
+    unsigned char map_size,      // 0=SMALL, 1=MEDIUM, 2=LARGE
+    unsigned char hidden_rooms,  // 0=10%, 1=25%, 2=50%
+    unsigned char niches,        // 0=10%, 1=25%, 2=50%
+    unsigned char deception      // 0=10%, 1=25%, 2=50%
 );
 
 // Query functions
