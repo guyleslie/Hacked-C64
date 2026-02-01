@@ -242,20 +242,19 @@ void reset_all_generation_data(void) {
         room_list[i].center_y = 0;
         room_list[i].connections = 0;
         room_list[i].state = 0;
-        room_list[i].treasure_wall_side = 255;
-        room_list[i].false_corridor_wall_side = 255;
-        room_list[i].false_corridor_end_x = 255;
-        room_list[i].false_corridor_end_y = 255;
+        room_list[i].niche_wall_side = 255;
+        room_list[i].decoy_wall_side = 255;
+        room_list[i].decoy_end_x = 255;
+        room_list[i].decoy_end_y = 255;
     }
 
     room_count = 0;
     reset_tmea_data();
 
     total_connections = 0;
-    total_secret_rooms = 0;
-    total_treasures = 0;
-    total_false_corridors = 0;
-    total_hidden_corridors = 0;
+    total_hidden_rooms = 0;
+    total_niches = 0;
+    total_decoys = 0;
     available_walls_count = 0;
 }
 
@@ -279,24 +278,22 @@ unsigned char mapgen_generate_dungeon(void) {
 
 unsigned char mapgen_generate_with_params(
     unsigned char map_size,
-    unsigned char secret_rooms,
-    unsigned char false_corridors,
-    unsigned char secret_treasures,
-    unsigned char hidden_corridors
+    unsigned char hidden_rooms,
+    unsigned char niches,
+    unsigned char deception
 ) {
     MapConfig config;
     MapParameters params;
 
-    if (map_size > 2 || secret_rooms > 2 || false_corridors > 2 ||
-        secret_treasures > 2 || hidden_corridors > 2) {
+    // Validate preset values (0-2)
+    if (map_size > 2 || hidden_rooms > 2 || niches > 2 || deception > 2) {
         return 1;
     }
 
     config.map_size = (PresetLevel)map_size;
-    config.secret_rooms = (PresetLevel)secret_rooms;
-    config.false_corridors = (PresetLevel)false_corridors;
-    config.secret_treasures = (PresetLevel)secret_treasures;
-    config.hidden_corridors = (PresetLevel)hidden_corridors;
+    config.hidden_rooms = (PresetLevel)hidden_rooms;
+    config.niches = (PresetLevel)niches;
+    config.deception = (PresetLevel)deception;
 
     validate_and_adjust_config(&config, &params);
     mapgen_set_parameters(&params);

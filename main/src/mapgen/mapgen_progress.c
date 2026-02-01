@@ -60,10 +60,10 @@ void init_progress_weights(void) {
     unsigned char weights[8];
     weights[0] = current_params.max_rooms;
     weights[1] = current_params.max_rooms - 1;
-    weights[2] = current_params.secret_room_count;
-    weights[3] = current_params.treasure_count;
-    weights[4] = current_params.false_corridor_count;
-    weights[5] = current_params.hidden_corridor_count;
+    weights[2] = current_params.hidden_room_count;
+    weights[3] = current_params.niche_count;
+    weights[4] = current_params.deception_count;  // Decoys
+    weights[5] = current_params.deception_count;  // Hidden passages (same count)
     weights[6] = 2;
     weights[7] = 1;
 
@@ -136,16 +136,16 @@ void finish_progress_bar(void) {
 // =============================================================================
 
 static const char phase_strings[] =
-    "Building Rooms\0"
-    "Connecting Rooms\0"
-    "Secret Areas\0"
-    "Secret Treasures\0"
-    "False Corridors\0"
-    "Hidden Corridors\0"
+    "Carving Chambers\0"
+    "Digging Corridors\0"
+    "Hiding Rooms\0"
+    "Carving Niches\0"
+    "Laying Traps\0"
+    "Concealing Doors\0"
     "Placing Stairs\0"
     "Generation Complete!";
 
-static const unsigned char phase_offsets[8] = {0, 15, 32, 45, 62, 78, 95, 110};
+static const unsigned char phase_offsets[8] = {0, 17, 35, 48, 63, 76, 93, 108};
 
 void show_phase(unsigned char phase_id) {
     if (phase_id >= 8) return;

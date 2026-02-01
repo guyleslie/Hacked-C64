@@ -59,12 +59,12 @@ void finish_progress_bar(void);
  * @param phase_id Phase index (0-7)
  *
  * Phase names:
- * 0: "Building Rooms"
- * 1: "Connecting Rooms"
- * 2: "Secret Areas"
- * 3: "Secret Treasures"
- * 4: "False Corridors"
- * 5: "Hidden Corridors"
+ * 0: "Carving Chambers"
+ * 1: "Digging Corridors"
+ * 2: "Hiding Rooms"
+ * 3: "Carving Niches"
+ * 4: "Laying Traps"
+ * 5: "Concealing Doors"
  * 6: "Placing Stairs"
  * 7: "Generation Complete!"
  */
