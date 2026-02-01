@@ -432,10 +432,10 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
         add_secret_door_metadata(exit2_x, exit2_y);
     }
 
-    // Mark secret rooms
+    // Mark hidden rooms
     if (is_secret) {
-        room_list[room1].state |= ROOM_SECRET;
-        room_list[room2].state |= ROOM_SECRET;
+        room_list[room1].state |= ROOM_HIDDEN;
+        room_list[room2].state |= ROOM_HIDDEN;
     }
 
     // Store connection metadata
@@ -517,11 +517,11 @@ void build_room_network(void) {
 // SHARED HELPER FUNCTIONS
 // =============================================================================
 
-// Check if corridor between two rooms is non-branching (shared by secret rooms and hidden corridors)
+// Check if corridor between two rooms is non-branching (shared by hidden rooms and hidden passages)
 static unsigned char is_non_branching_corridor(unsigned char room1, unsigned char room2) {
-    // Skip secret rooms (already hidden via different mechanism)
-    if (room_list[room1].state & ROOM_SECRET) return 0;
-    if (room_list[room2].state & ROOM_SECRET) return 0;
+    // Skip hidden rooms (already hidden via different mechanism)
+    if (room_list[room1].state & ROOM_HIDDEN) return 0;
+    if (room_list[room2].state & ROOM_HIDDEN) return 0;
 
     // Find room1's door to room2
     for (unsigned char i = 0; i < room_list[room1].connections; i++) {
@@ -551,19 +551,19 @@ static unsigned char is_non_branching_corridor(unsigned char room1, unsigned cha
 }
 
 // =============================================================================
-// SECRET ROOM SYSTEM
+// HIDDEN ROOM SYSTEM
 // =============================================================================
 
-// Create a single secret room from a room with exactly one connection
-static unsigned char create_secret_room(unsigned char room_idx) {
+// Create a single hidden room from a room with exactly one connection
+static unsigned char create_hidden_room(unsigned char room_idx) {
     Room *room = &room_list[room_idx];
 
-    // Skip if already secret or doesn't have exactly one connection
-    if (room->state & ROOM_SECRET) return 0;
+    // Skip if already hidden or doesn't have exactly one connection
+    if (room->state & ROOM_HIDDEN) return 0;
     if (room->connections != 1) return 0;
 
     // Random chance to convert (50% of eligible rooms)
-    if (rnd(100) >= SECRET_ROOM_PERCENTAGE) return 0;
+    if (rnd(100) >= HIDDEN_ROOM_PERCENTAGE) return 0;
 
     unsigned char connected_room = room->conn_data[0].room_id;
 
@@ -584,138 +584,128 @@ static unsigned char create_secret_room(unsigned char room_idx) {
         return 0;
     }
 
-    // Mark room as secret
-    room->state |= ROOM_SECRET;
+    // Mark room as hidden
+    room->state |= ROOM_HIDDEN;
 
     // Convert the normal room's door to secret door
-    // This creates a hidden entrance to the secret room
+    // This creates a hidden entrance to the hidden room
     // Door tile is already TILE_DOOR, just add secret metadata
     add_secret_door_metadata(connected_door_x, connected_door_y);
 
-    return 1; // Successfully created secret room
+    return 1; // Successfully created hidden room
 }
 
-// Main secret room placement function
-void place_secret_rooms(unsigned char room_count_target) {
+// Main hidden room placement function
+void place_hidden_rooms(unsigned char room_count_target) {
     if (room_count == 0 || room_count_target == 0) return;
 
-    unsigned char secrets_made = 0;
+    unsigned char hidden_made = 0;
 
-    for (unsigned char i = 0; i < room_count && secrets_made < room_count_target; i++) {
-        if (create_secret_room(i)) {
-            secrets_made++;
-            total_secret_rooms++; // Runtime tracking for percentage calculation
+    for (unsigned char i = 0; i < room_count && hidden_made < room_count_target; i++) {
+        if (create_hidden_room(i)) {
+            hidden_made++;
+            total_hidden_rooms++; // Runtime tracking for percentage calculation
 
-            // Exclude secret room walls from available_walls_count
+            // Exclude hidden room walls from available_walls_count
             Room *room = &room_list[i];
             for (unsigned char w = 0; w < 4; w++) {
                 if (room->wall_door_count[w] == 0) {
-                    available_walls_count--; // Unused walls in secret rooms not available
+                    available_walls_count--; // Unused walls in hidden rooms not available
                 }
             }
 
 #ifdef DEBUG_MAPGEN
-            // Phase 2: Secret room progress
-            update_progress_step(2, secrets_made, room_count_target);
+            // Phase 2: Hidden room progress
+            update_progress_step(2, hidden_made, room_count_target);
 #endif
         }
     }
 }
 
 // =============================================================================
-// SECRET TREASURE PLACEMENT SYSTEM
+// NICHE PLACEMENT SYSTEM (1-tile hidden spaces in walls)
 // =============================================================================
 
 
 // =============================================================================
-// HIDDEN CORRIDOR SYSTEM
+// HIDDEN PASSAGE SYSTEM (real corridors with secret doors)
 // =============================================================================
 
-// Create a hidden corridor by converting both door tiles to secret doors
-static unsigned char create_hidden_corridor(unsigned char room1, unsigned char room2) {
-    // Reuse eligibility check from shared helper
+// Create a hidden passage - only ONE door becomes secret
+static unsigned char create_hidden_passage(unsigned char room1, unsigned char room2) {
     if (!is_non_branching_corridor(room1, room2)) {
-        return 0; // Not eligible for hiding
-    }
-    // Get door positions
-    unsigned char door1_x, door1_y, wall1_side, corridor_type;
-    if (!get_connection_info(room1, room2, &door1_x, &door1_y, &wall1_side, &corridor_type)) {
         return 0;
     }
 
-    unsigned char door2_x, door2_y, wall2_side, temp_type;
-    if (!get_connection_info(room2, room1, &door2_x, &door2_y, &wall2_side, &temp_type)) {
+    unsigned char door_x, door_y, wall_side, corridor_type;
+    if (!get_connection_info(room1, room2, &door_x, &door_y, &wall_side, &corridor_type)) {
         return 0;
     }
 
-    // Convert door tiles to secret doors using TMEA metadata
-    // Door tiles are already TILE_DOOR, just add secret metadata
-    add_secret_door_metadata(door1_x, door1_y);
-    add_secret_door_metadata(door2_x, door2_y);
+    // Only one door becomes secret - player finds it, exits through normal door
+    add_secret_door_metadata(door_x, door_y);
 
     return 1;
 }
 
-// Main hidden corridor placement function
-void place_hidden_corridors(unsigned char corridor_count) {
-    if (room_count < 2 || corridor_count == 0) return;
+// Place hidden passages - count matches actual decoys placed for balance
+void place_hidden_passages(unsigned char passage_count) {
+    if (room_count < 2 || passage_count == 0) return;
 
-    // Static candidate storage (max 40 pairs to limit memory)
-    static unsigned char candidates_room1[40];
-    static unsigned char candidates_room2[40];
-    unsigned char candidate_count = 0;
+    // Collect eligible corridor candidates
+    static unsigned char cand_r1[40];
+    static unsigned char cand_r2[40];
+    unsigned char cand_count = 0;
 
-    // Find all non-branching corridor candidates
-    for (unsigned char i = 0; i < room_count && candidate_count < 40; i++) {
-        for (unsigned char j = i + 1; j < room_count && candidate_count < 40; j++) {
-            // Check if connected and eligible
+    for (unsigned char i = 0; i < room_count && cand_count < 40; i++) {
+        for (unsigned char j = i + 1; j < room_count && cand_count < 40; j++) {
             if (room_has_connection_to(i, j) && is_non_branching_corridor(i, j)) {
-                candidates_room1[candidate_count] = i;
-                candidates_room2[candidate_count] = j;
-                candidate_count++;
+                cand_r1[cand_count] = i;
+                cand_r2[cand_count] = j;
+                cand_count++;
             }
         }
     }
 
-    // Early exit if no candidates
-    if (candidate_count == 0) {
+    if (cand_count == 0) {
 #ifdef DEBUG_MAPGEN
-        update_progress_step(5, 0, corridor_count);
+        update_progress_step(5, 0, passage_count);
 #endif
         return;
     }
 
-    // Hide random corridors from candidates
+    // Hide passages up to passage_count (= total_decoys for balance)
     unsigned char hidden = 0;
-    unsigned char attempts = 0;
-    unsigned char max_attempts = candidate_count * 2; // Reasonable attempt limit
 
-    while (hidden < corridor_count && attempts < max_attempts) {
-        unsigned char idx = rnd(candidate_count);
+    while (hidden < passage_count && cand_count > 0) {
+        unsigned char idx = rnd(cand_count);
 
-        if (create_hidden_corridor(candidates_room1[idx], candidates_room2[idx])) {
+        if (create_hidden_passage(cand_r1[idx], cand_r2[idx])) {
             hidden++;
-            total_hidden_corridors++; // Runtime tracking for percentage calculation
 #ifdef DEBUG_MAPGEN
-            update_progress_step(5, hidden, corridor_count);
+            update_progress_step(5, hidden, passage_count);
 #endif
         }
-        attempts++;
+
+        // Remove used candidate (swap with last, decrement count)
+        cand_count--;
+        cand_r1[idx] = cand_r1[cand_count];
+        cand_r2[idx] = cand_r2[cand_count];
     }
 }
 
 // =============================================================================
-// FALSE CORRIDOR SYSTEM
+// DECOY CORRIDOR SYSTEM (dead-end corridors that mislead the player)
 // =============================================================================
 
-// Create a false corridor - Calculate available space first to prevent unsigned wrap
-static unsigned char create_false_corridor(unsigned char room_idx, unsigned char wall_side) {
+// Create a decoy corridor - dead-end that looks like a real passage
+static unsigned char create_decoy_corridor(unsigned char room_idx, unsigned char wall_side) {
     Room *room = &room_list[room_idx];
 
     // Quick eligibility checks
-    if (room->state & ROOM_SECRET) return 0;
+    if (room->state & ROOM_HIDDEN) return 0;
     if (room->wall_door_count[wall_side] > 0) return 0;
-    if (room->treasure_wall_side == wall_side) return 0;
+    if (room->niche_wall_side == wall_side) return 0;
 
     // Calculate door position and available space in single switch
     unsigned char door_x, door_y, available;
@@ -814,10 +804,10 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
 
     place_door(door_x, door_y);
 
-    room->state |= ROOM_HAS_FALSE_CORRIDOR;
-    room->false_corridor_wall_side = wall_side;
-    room->false_corridor_end_x = endpoint_x;
-    room->false_corridor_end_y = endpoint_y;
+    room->state |= ROOM_HAS_DECOY;
+    room->decoy_wall_side = wall_side;
+    room->decoy_end_x = endpoint_x;
+    room->decoy_end_y = endpoint_y;
     room->wall_door_count[wall_side]++;
 
     return 1;
@@ -825,39 +815,67 @@ static unsigned char create_false_corridor(unsigned char room_idx, unsigned char
 
 
 
-// Place false corridors across the map - keep trying until target reached
-void place_false_corridors(unsigned char corridor_count) {
+// Place decoy corridors across the map
+void place_decoy_corridors(unsigned char corridor_count) {
     if (room_count == 0 || corridor_count == 0) return;
 
-    unsigned char corridors_placed = 0;
-    unsigned char attempts = 0;
-    unsigned char max_attempts = room_count << 5;  // room_count * 32 - early exits are fast
+    // Collect all eligible room+wall candidates
+    static unsigned char cand_room[80];  // max 20 rooms × 4 walls
+    static unsigned char cand_wall[80];
+    unsigned char cand_count = 0;
 
-    // Keep trying random room/wall combinations until we reach target or max attempts
-    while (corridors_placed < corridor_count && attempts < max_attempts) {
-        unsigned char room_idx = rnd(room_count);
-        unsigned char wall_side = rnd(4);  // Choose random wall (0=left, 1=right, 2=top, 3=bottom)
+    for (unsigned char r = 0; r < room_count && cand_count < 80; r++) {
+        Room *room = &room_list[r];
 
-        if (create_false_corridor(room_idx, wall_side)) {
-            corridors_placed++;
-            total_false_corridors++; // Runtime tracking for percentage calculation
-            // NOTE: available_walls_count-- already handled in create_false_corridor() line ~811
+        // Skip hidden rooms entirely
+        if (room->state & ROOM_HIDDEN) continue;
+
+        for (unsigned char w = 0; w < 4; w++) {
+            // Skip walls with existing doors or niches
+            if (room->wall_door_count[w] > 0) continue;
+            if (room->niche_wall_side == w) continue;
+
+            cand_room[cand_count] = r;
+            cand_wall[cand_count] = w;
+            cand_count++;
+        }
+    }
+
+    if (cand_count == 0) {
 #ifdef DEBUG_MAPGEN
-            // Phase 4: False corridor placement progress
-            update_progress_step(4, corridors_placed, corridor_count);
+        update_progress_step(4, 0, corridor_count);
+#endif
+        return;
+    }
+
+    // Place decoys from candidate list
+    unsigned char placed = 0;
+
+    while (placed < corridor_count && cand_count > 0) {
+        unsigned char idx = rnd(cand_count);
+
+        if (create_decoy_corridor(cand_room[idx], cand_wall[idx])) {
+            placed++;
+            total_decoys++;
+#ifdef DEBUG_MAPGEN
+            update_progress_step(4, placed, corridor_count);
 #endif
         }
-        attempts++;
+
+        // Remove used candidate (swap with last, decrement count)
+        cand_count--;
+        cand_room[idx] = cand_room[cand_count];
+        cand_wall[idx] = cand_wall[cand_count];
     }
 }
 
-// Create a single secret treasure for a room
-static unsigned char create_secret_treasure(unsigned char room_idx) {
+// Create a single niche for a room (1-tile hidden space in wall)
+static unsigned char create_niche(unsigned char room_idx) {
     Room *room = &room_list[room_idx];
 
-    // Skip rooms that already have treasure or are secret rooms
-    if (room->state & (ROOM_HAS_TREASURE | ROOM_SECRET)) {
-        return 0; // Room already has treasure or is a secret room
+    // Skip rooms that already have niche or are hidden rooms
+    if (room->state & (ROOM_HAS_NICHE | ROOM_HIDDEN)) {
+        return 0; // Room already has niche or is a hidden room
     }
 
     // Try each wall side to find walls without doors
@@ -868,93 +886,93 @@ static unsigned char create_secret_treasure(unsigned char room_idx) {
         }
 
         // OPTIMIZED: Direct wall_side comparison (no coordinate recalculation!)
-        if (room->false_corridor_wall_side == wall_side) {
+        if (room->decoy_wall_side == wall_side) {
             continue;
         }
-        
+
         // Calculate wall boundaries excluding only corners
         unsigned char start_pos, end_pos;
-        unsigned char wall_x, wall_y, treasure_x, treasure_y;
-        
+        unsigned char wall_x, wall_y, niche_x, niche_y;
+
         if (wall_side == 0) { // Left wall (consistent with get_wall_side_from_exit)
             start_pos = room->y + 1;
             end_pos = room->y + room->h - 1;
             if (start_pos >= end_pos) continue; // Wall too small
-            
+
             unsigned char selected_y = start_pos + rnd(end_pos - start_pos);
             wall_x = room->x - 1; wall_y = selected_y;
-            treasure_x = wall_x - 1; treasure_y = wall_y;
+            niche_x = wall_x - 1; niche_y = wall_y;
         } else if (wall_side == 1) { // Right wall
             start_pos = room->y + 1;
             end_pos = room->y + room->h - 1;
             if (start_pos >= end_pos) continue; // Wall too small
-            
+
             unsigned char selected_y = start_pos + rnd(end_pos - start_pos);
             wall_x = room->x + room->w; wall_y = selected_y;
-            treasure_x = wall_x + 1; treasure_y = wall_y;
+            niche_x = wall_x + 1; niche_y = wall_y;
         } else if (wall_side == 2) { // Top wall
             start_pos = room->x + 1;
             end_pos = room->x + room->w - 1;
             if (start_pos >= end_pos) continue; // Wall too small
-            
+
             unsigned char selected_x = start_pos + rnd(end_pos - start_pos);
             wall_x = selected_x; wall_y = room->y - 1;
-            treasure_x = wall_x; treasure_y = wall_y - 1;
+            niche_x = wall_x; niche_y = wall_y - 1;
         } else { // Bottom wall (wall_side == 3)
             start_pos = room->x + 1;
             end_pos = room->x + room->w - 1;
             if (start_pos >= end_pos) continue; // Wall too small
-            
+
             unsigned char selected_x = start_pos + rnd(end_pos - start_pos);
             wall_x = selected_x; wall_y = room->y + room->h;
-            treasure_x = wall_x; treasure_y = wall_y + 1;
+            niche_x = wall_x; niche_y = wall_y + 1;
         }
 
-        // Boundary check: treasure chamber + surrounding walls must be ≥3 tiles from map edges
-        // treasure_x/y ±1 for walls = 3 tiles minimum margin required
-        if (treasure_x < 3 || treasure_x >= current_params.map_width - 3 ||
-            treasure_y < 3 || treasure_y >= current_params.map_height - 3) {
-            continue; // Skip this wall, treasure would be too close to map boundary
+        // Boundary check: niche + surrounding walls must be ≥3 tiles from map edges
+        // niche_x/y ±1 for walls = 3 tiles minimum margin required
+        if (niche_x < 3 || niche_x >= current_params.map_width - 3 ||
+            niche_y < 3 || niche_y >= current_params.map_height - 3) {
+            continue; // Skip this wall, niche would be too close to map boundary
         }
 
         // set_compact_tile() already handles bounds checking
-        // Create secret door in wall, normal floor in treasure chamber
+        // Create secret door in wall, normal floor in niche
         set_compact_tile(wall_x, wall_y, TILE_DOOR);
         add_secret_door_metadata(wall_x, wall_y);
-        set_compact_tile(treasure_x, treasure_y, TILE_FLOOR);
+        set_compact_tile(niche_x, niche_y, TILE_FLOOR);
 
-        // Place walls around treasure chamber
-        place_walls_around_corridor_tile(treasure_x, treasure_y);
+        // Place walls around niche
+        place_walls_around_corridor_tile(niche_x, niche_y);
 
         // OPTIMIZED: Store wall_side only (coordinates can be recalculated!)
         // Target coordinates can be calculated from wall_side + room geometry
-        room->state |= ROOM_HAS_TREASURE;
-        room->treasure_wall_side = wall_side;  // Only 1 byte!
+        room->state |= ROOM_HAS_NICHE;
+        room->niche_wall_side = wall_side;  // Only 1 byte!
 
-        return 1; // Successfully placed treasure
+        return 1; // Successfully placed niche
     }
 
-    return 0; // Failed to place treasure for this room
+    return 0; // Failed to place niche for this room
 }
 
-// Main secret treasure placement function
-void place_secret_treasures(unsigned char treasure_count) {
-    if (room_count == 0 || treasure_count == 0) return;
+// Main niche placement function
+void place_niches(unsigned char niche_count) {
+    if (room_count == 0 || niche_count == 0) return;
 
-    unsigned char treasures_placed = 0;
+    unsigned char niches_placed = 0;
     unsigned char attempts = 0;
     unsigned char max_attempts = room_count * 2; // Reasonable attempt limit
 
-    while (treasures_placed < treasure_count && attempts < max_attempts) {
+    while (niches_placed < niche_count && attempts < max_attempts) {
         unsigned char room_idx = rnd(room_count);
 
-        if (create_secret_treasure(room_idx)) {
-            treasures_placed++;
-            total_treasures++; // Runtime tracking for percentage calculation
-            available_walls_count--; // Treasure uses 1 wall
+        if (create_niche(room_idx)) {
+            niches_placed++;
+            total_niches++; // Runtime tracking for percentage calculation
+            available_walls_count--; // Niche uses 1 wall
 #ifdef DEBUG_MAPGEN
-            // Phase 3: Treasure placement progress
-            update_progress_step(3, treasures_placed, treasure_count);
+            // Phase 3: Niche placement progress
+            update_progress_step(3, niches_placed, niche_count);
 #endif
         }
         attempts++;

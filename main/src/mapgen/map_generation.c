@@ -23,24 +23,21 @@ MapParameters current_params = {
     16,  // max_rooms (4x4=16)
     4,   // min_room_size
     8,   // max_room_size
-    4,   // secret_room_count (25% of 16)
-    4,   // false_corridor_count
-    4,   // treasure_count
-    3,   // hidden_corridor_count
-    1    // preset (default: LEVEL_MEDIUM)
+    4,   // hidden_room_count (25% of 16)
+    25,  // niche_count (ratio %, calculated post-MST)
+    25   // deception_count (ratio %, calculated post-MST)
 };
 
 // =============================================================================
-// RUNTIME FEATURE COUNTERS (6 bytes total - 0.009% of C64 RAM)
+// RUNTIME FEATURE COUNTERS
 // =============================================================================
-// These counters track features during generation for percentage-based calculations
+// Track features during generation for deception system balancing
 
-unsigned char total_connections = 0;         // Total MST corridors created
-unsigned char total_secret_rooms = 0;        // Secret rooms placed
-unsigned char total_treasures = 0;           // Treasure chambers placed
-unsigned char total_false_corridors = 0;     // False corridors placed
-unsigned char total_hidden_corridors = 0;    // Hidden corridors placed
-unsigned char available_walls_count = 0;     // Walls without doors (non-secret rooms)
+unsigned char total_connections = 0;     // MST corridors created
+unsigned char total_hidden_rooms = 0;    // Hidden rooms placed
+unsigned char total_niches = 0;          // Wall niches placed
+unsigned char total_decoys = 0;          // Decoy corridors placed
+unsigned char available_walls_count = 0; // Walls without doors
 
 // =============================================================================
 // PHASE 1: ROOM CREATION
@@ -109,32 +106,29 @@ void add_stairs(void) {
 // =============================================================================
 
 /**
- * @brief Calculate actual feature counts from percentages using runtime counters
+ * @brief Calculate actual feature counts after MST and hidden rooms are placed
  *
- * This function runs after secret rooms are placed and uses runtime-tracked data
- * to calculate accurate feature counts based on actual dungeon topology.
- *
- * Calculations:
- * - Treasure count: percentage of non-secret rooms
- * - Hidden corridor count: percentage of non-branching corridors
- * - False corridor count: percentage of available walls
+ * Uses runtime-tracked topology data to calculate safe feature counts.
+ * Deception is limited by usable non-branching corridors (excluding hidden rooms).
  */
 void calculate_post_mst_feature_counts(void) {
-    unsigned char preset = current_params.preset;
+    // Niche count: percentage of non-hidden rooms
+    unsigned char eligible_rooms = room_count - total_hidden_rooms;
+    current_params.niche_count =
+        calculate_percentage_count(eligible_rooms, current_params.niche_count);
 
-    // Treasure count: percentage of eligible rooms (non-secret rooms)
-    unsigned char eligible_rooms = room_count - total_secret_rooms;
-    current_params.treasure_count =
-        calculate_percentage_count(eligible_rooms, treasure_ratio[preset]);
+    // Deception: limited by usable non-branching corridors
+    unsigned char usable_non_branching = count_non_branching_from_flags();
+    if (usable_non_branching > total_hidden_rooms) {
+        usable_non_branching -= total_hidden_rooms;
+    } else {
+        usable_non_branching = 0;
+    }
 
-    // Hidden corridor count: percentage of non-branching corridors
-    unsigned char non_branching = count_non_branching_from_flags();
-    current_params.hidden_corridor_count =
-        calculate_percentage_count(non_branching, hidden_corridor_ratio[preset]);
-
-    // False corridor count: percentage of available walls (runtime tracked)
-    current_params.false_corridor_count =
-        calculate_percentage_count(available_walls_count, false_corridor_ratio[preset]);
+    // Deception count capped by available non-branching corridors
+    unsigned char max_deception = calculate_percentage_count(
+        usable_non_branching, current_params.deception_count);
+    current_params.deception_count = max_deception;
 }
 
 // =============================================================================
@@ -173,31 +167,31 @@ unsigned char generate_level(void) {
     build_room_network();
 
 #ifdef DEBUG_MAPGEN
-    // Phase 2.5: Convert single-connection rooms to secret rooms
-    show_phase(2); // "Secret Areas"
+    // Phase 2: Convert single-connection rooms to hidden rooms
+    show_phase(2); // "Hiding Rooms"
 #endif
-    place_secret_rooms(current_params.secret_room_count);
+    place_hidden_rooms(current_params.hidden_room_count);
 
-    // POST-MST CALCULATION: Calculate feature counts from percentages using runtime data
+    // POST-MST CALCULATION: Calculate feature counts using runtime data
     calculate_post_mst_feature_counts();
 
 #ifdef DEBUG_MAPGEN
-    // Phase 2.6: Place secret treasures
-    show_phase(3); // "Secret Treasures"
+    // Phase 3: Carve wall niches
+    show_phase(3); // "Carving Niches"
 #endif
-    place_secret_treasures(current_params.treasure_count);
+    place_niches(current_params.niche_count);
 
 #ifdef DEBUG_MAPGEN
-    // Phase 2.7: Place false corridors
-    show_phase(4); // "False Corridors"
+    // Phase 4: Place decoy corridors (dead-ends)
+    show_phase(4); // "Decoys"
 #endif
-    place_false_corridors(current_params.false_corridor_count);
+    place_decoy_corridors(current_params.deception_count);
 
 #ifdef DEBUG_MAPGEN
-    // Phase 2.8: Place hidden corridors
-    show_phase(5); // "Hidden Corridors"
+    // Phase 5: Hide passages (use actual decoy count for balance)
+    show_phase(5); // "Hidden Passages"
 #endif
-    place_hidden_corridors(current_params.hidden_corridor_count);
+    place_hidden_passages(total_decoys);
 
 #ifdef DEBUG_MAPGEN
     // Phase 3: Place stairs for level navigation

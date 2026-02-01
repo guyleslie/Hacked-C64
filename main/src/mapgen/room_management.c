@@ -184,10 +184,10 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         room_list[room_count].center_y = y + (h - 1) / 2;
 
         // Reset per-room metadata to sentinel defaults on placement
-        room_list[room_count].treasure_wall_side = 255;       // 255 = no treasure
-        room_list[room_count].false_corridor_wall_side = 255; // 255 = no false corridor
-        room_list[room_count].false_corridor_end_x = 255;
-        room_list[room_count].false_corridor_end_y = 255;
+        room_list[room_count].niche_wall_side = 255;       // 255 = no treasure
+        room_list[room_count].decoy_wall_side = 255; // 255 = no false corridor
+        room_list[room_count].decoy_end_x = 255;
+        room_list[room_count].decoy_end_y = 255;
 
         room_count++;
     }
@@ -348,10 +348,10 @@ void init_rooms(void) {
         }
 
         // Initialize treasure and corridor metadata 
-        room_list[i].treasure_wall_side = 255;       // 255 = no treasure
-        room_list[i].false_corridor_wall_side = 255; // 255 = no false corridor
-        room_list[i].false_corridor_end_x = 255;
-        room_list[i].false_corridor_end_y = 255;
+        room_list[i].niche_wall_side = 255;       // 255 = no treasure
+        room_list[i].decoy_wall_side = 255; // 255 = no false corridor
+        room_list[i].decoy_end_x = 255;
+        room_list[i].decoy_end_y = 255;
     }
     room_count = 0;
 }
