@@ -1,5 +1,5 @@
 // =============================================================================
-// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v3
+// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v4
 // Core Implementation - Oscar64 Optimized
 // =============================================================================
 
@@ -31,7 +31,11 @@ TinyMon mon_pool[MAX_TINY_MONSTERS];                // 48 bytes (6 × 8)
 TinyMon *mon_free_list;                             // 2 bytes
 TinyMon *mon_active_list;                           // 2 bytes
 
-// Total: ~620 bytes
+// Combat state
+StatusTimers player_status_timers;                  // 10 bytes
+BossAI boss_ai_state[MAX_BOSSES];                   // 9 bytes (3 × 3)
+
+// Total: ~640 bytes
 
 // =============================================================================
 // INITIALIZATION FUNCTIONS
@@ -85,6 +89,25 @@ void init_tmea_system(void) {
     mon_pool[MAX_TINY_MONSTERS - 1].next = NULL;
     mon_free_list = &mon_pool[0];
     mon_active_list = NULL;
+
+    // Initialize combat state
+    player_status_timers.poison_turns = 0;
+    player_status_timers.haste_turns = 0;
+    player_status_timers.shield_turns = 0;
+    player_status_timers.berserk_turns = 0;
+    player_status_timers.invis_turns = 0;
+    player_status_timers.blessed_turns = 0;
+    player_status_timers.cursed_turns = 0;
+    player_status_timers.regen_turns = 0;
+    player_status_timers.fire_shield_turns = 0;
+    player_status_timers.confused_turns = 0;
+
+    // Initialize boss AI state
+    for (i = 0; i < MAX_BOSSES; i++) {
+        boss_ai_state[i].cooldown = 0;
+        boss_ai_state[i].attack_type = 0;
+        boss_ai_state[i].current_cooldown = 0;
+    }
 }
 
 void reset_tmea_data(void) {
@@ -113,6 +136,25 @@ void reset_tmea_data(void) {
     mon_pool[MAX_TINY_MONSTERS - 1].next = NULL;
     mon_free_list = &mon_pool[0];
     mon_active_list = NULL;
+
+    // Reset combat state
+    player_status_timers.poison_turns = 0;
+    player_status_timers.haste_turns = 0;
+    player_status_timers.shield_turns = 0;
+    player_status_timers.berserk_turns = 0;
+    player_status_timers.invis_turns = 0;
+    player_status_timers.blessed_turns = 0;
+    player_status_timers.cursed_turns = 0;
+    player_status_timers.regen_turns = 0;
+    player_status_timers.fire_shield_turns = 0;
+    player_status_timers.confused_turns = 0;
+
+    // Reset boss AI state
+    for (i = 0; i < MAX_BOSSES; i++) {
+        boss_ai_state[i].cooldown = 0;
+        boss_ai_state[i].attack_type = 0;
+        boss_ai_state[i].current_cooldown = 0;
+    }
 }
 
 // =============================================================================

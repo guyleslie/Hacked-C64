@@ -2,7 +2,7 @@
 #define TMEA_TYPES_H
 
 // =============================================================================
-// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v3
+// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v4
 // Type Definitions, Lookup Tables, and Constants
 // =============================================================================
 //
@@ -14,8 +14,8 @@
 // - Upper 4 bits: Category (weapon, armor, potion, etc.)
 // - Lower 4 bits: Subtype within category
 //
-// Memory Overhead: ~765 bytes RAM for runtime pools
-// Lookup Tables: ~300-500 bytes ROM (const data)
+// Memory Overhead: ~640 bytes RAM for runtime pools
+// Lookup Tables: ~340 bytes ROM (const data)
 //
 // =============================================================================
 
@@ -28,7 +28,7 @@
 // Item Categories (upper 4 bits)
 #define ITEM_CAT_WEAPON     0x00    // 0x00-0x07: 8 weapon types
 #define ITEM_CAT_ARMOR      0x10    // 0x10-0x17: 8 armor types
-#define ITEM_CAT_SHIELD     0x20    // 0x20-0x27: 8 shield types
+#define ITEM_CAT_SHIELD     0x20    // 0x20-0x24: 5 shield types
 #define ITEM_CAT_POTION     0x30    // 0x30-0x35: 6 potion types
 #define ITEM_CAT_SCROLL     0x40    // 0x40-0x4D: 14 scroll types
 #define ITEM_CAT_GEM        0x50    // 0x50-0x54: 5 gem types
@@ -43,63 +43,63 @@
 // -----------------------------------------------------------------------------
 // Weapons (ITEM_CAT_WEAPON + subtype)
 // -----------------------------------------------------------------------------
-#define ITEM_DAGGER         0x00    // light, fast
+#define ITEM_DAGGER         0x00    // light, fast, poison
 #define ITEM_SHORT_SWORD    0x01    // balanced
 #define ITEM_LONG_SWORD     0x02    // standard
-#define ITEM_AXE            0x03    // heavy damage
-#define ITEM_MACE           0x04    // blunt, anti-undead bonus
-#define ITEM_SPEAR          0x05    // reach
+#define ITEM_BATTLE_AXE     0x03    // heavy, cleave, two-handed
+#define ITEM_MACE           0x04    // blunt, anti-undead, stun
+#define ITEM_SPEAR          0x05    // reach, pierce armor
 #define ITEM_BOW            0x06    // ranged
-#define ITEM_STAFF          0x07    // magic bonus
+#define ITEM_CURSED_BLADE   0x07    // life drain, anti-demon
 
 // -----------------------------------------------------------------------------
 // Armor (ITEM_CAT_ARMOR + subtype)
 // -----------------------------------------------------------------------------
-#define ITEM_CLOTH_ARMOR    0x10    // light, no penalty
+#define ITEM_CLOTH_ARMOR    0x10    // light, stealth bonus
 #define ITEM_LEATHER_ARMOR  0x11    // light
 #define ITEM_STUDDED_ARMOR  0x12    // medium-light
 #define ITEM_CHAIN_ARMOR    0x13    // medium
-#define ITEM_SCALE_ARMOR    0x14    // medium-heavy
+#define ITEM_SCALE_ARMOR    0x14    // medium-heavy, fire resist
 #define ITEM_PLATE_ARMOR    0x15    // heavy, best defense
-#define ITEM_ROBE           0x16    // magic bonus
-#define ITEM_CLOAK          0x17    // stealth bonus
+#define ITEM_ROBE           0x16    // magic resist
+#define ITEM_DRAGON_SCALE   0x17    // poison immune
 
 // -----------------------------------------------------------------------------
 // Shields (ITEM_CAT_SHIELD + subtype)
 // -----------------------------------------------------------------------------
 #define ITEM_BUCKLER        0x20    // small, light
-#define ITEM_WOODEN_SHIELD  0x21    // basic
-#define ITEM_IRON_SHIELD    0x22    // standard
-#define ITEM_STEEL_SHIELD   0x23    // good
-#define ITEM_TOWER_SHIELD   0x24    // heavy, best block
+#define ITEM_ROUND_SHIELD   0x21    // bash
+#define ITEM_KITE_SHIELD    0x22    // standard
+#define ITEM_TOWER_SHIELD   0x23    // spell block
+#define ITEM_MIRROR_SHIELD  0x24    // reflect arrows
 
 // -----------------------------------------------------------------------------
 // Potions (ITEM_CAT_POTION + subtype)
 // -----------------------------------------------------------------------------
-#define ITEM_POTION_HEAL    0x30    // restore HP
-#define ITEM_POTION_MANA    0x31    // restore MP
-#define ITEM_POTION_CURE    0x32    // cure poison/status
-#define ITEM_POTION_SPEED   0x33    // temporary speed boost
-#define ITEM_POTION_STRENGTH 0x34   // temporary damage boost
-#define ITEM_POTION_INVISIBILITY 0x35 // temporary invisibility
+#define ITEM_POTION_HEAL        0x30    // restore HP
+#define ITEM_POTION_FULL_HEAL   0x31    // restore to max HP
+#define ITEM_POTION_BERSERK     0x32    // +50% damage, -20% AC
+#define ITEM_POTION_REGEN       0x33    // heal over time
+#define ITEM_POTION_CURE_POISON 0x34    // remove poison
+#define ITEM_POTION_INVISIBLE   0x35    // invisibility
 
 // -----------------------------------------------------------------------------
 // Scrolls (ITEM_CAT_SCROLL + subtype)
 // -----------------------------------------------------------------------------
-#define ITEM_SCROLL_LIGHT       0x40    // illuminate dark rooms
-#define ITEM_SCROLL_TURN_UNDEAD 0x41    // destroy/flee undead
-#define ITEM_SCROLL_FIREBALL    0x42    // area fire damage
-#define ITEM_SCROLL_ICE_BOLT    0x43    // single target ice
-#define ITEM_SCROLL_LIGHTNING   0x44    // chain lightning
-#define ITEM_SCROLL_HEAL        0x45    // restore HP
-#define ITEM_SCROLL_TELEPORT    0x46    // random teleport
-#define ITEM_SCROLL_MAPPING     0x47    // reveal map
-#define ITEM_SCROLL_IDENTIFY    0x48    // identify items
-#define ITEM_SCROLL_ENCHANT     0x49    // upgrade weapon/armor
-#define ITEM_SCROLL_REMOVE_CURSE 0x4A   // remove curse
-#define ITEM_SCROLL_PROTECTION  0x4B    // temporary defense
-#define ITEM_SCROLL_CONFUSION   0x4C    // confuse enemies
-#define ITEM_SCROLL_SLEEP       0x4D    // sleep enemies
+#define ITEM_SCROLL_LIGHT           0x40    // illuminate dark rooms
+#define ITEM_SCROLL_MAGIC_MAPPING   0x41    // reveal map
+#define ITEM_SCROLL_DETECT_SECRET   0x42    // reveal secret doors/traps
+#define ITEM_SCROLL_TELEPORT        0x43    // random teleport
+#define ITEM_SCROLL_IDENTIFY        0x44    // identify items
+#define ITEM_SCROLL_ENCHANT_WEAPON  0x45    // +1 weapon modifier
+#define ITEM_SCROLL_ENCHANT_ARMOR   0x46    // +1 armor modifier
+#define ITEM_SCROLL_REMOVE_CURSE    0x47    // remove curse
+#define ITEM_SCROLL_SUMMON          0x48    // CURSED: spawn enemy
+#define ITEM_SCROLL_EARTHQUAKE      0x49    // break walls 3x3
+#define ITEM_SCROLL_TURN_UNDEAD     0x4A    // kill/flee undead
+#define ITEM_SCROLL_FIREBALL        0x4B    // area fire damage
+#define ITEM_SCROLL_HASTE           0x4C    // speed buff
+#define ITEM_SCROLL_SHIELD          0x4D    // AC buff
 
 // -----------------------------------------------------------------------------
 // Gems (ITEM_CAT_GEM + subtype)
@@ -129,25 +129,27 @@
 #define ITEM_QUEST_ITEM_2   0x7E    // quest specific
 #define ITEM_QUEST_ITEM_3   0x7F    // quest specific
 
+#define ITEM_NONE           0xFF    // no item equipped
+
 // =============================================================================
-// ITEM DATA BYTE ENCODING
+// ITEM DATA BYTE ENCODING (Modifiers)
 // =============================================================================
 //
-// For weapons/armor/shields: MMMM_0000
-//   M = modifier: 0=normal, 1=+1, 2=+2, 3=+3, 15=cursed
+// For weapons/armor/shields: lower 4 bits = modifier
+//   0 = normal, 1 = +1, 2 = +2, 3 = +3, 15 = cursed
 //
 // For gold: full 8 bits = amount (0-255)
 // For torch: full 8 bits = fuel remaining (0-255)
-// For potions/scrolls: usually 0 (or charges if stacking)
+// For potions/scrolls: usually 0 (unidentified flag possible)
 
 #define ITEM_MOD_NORMAL     0x00
-#define ITEM_MOD_PLUS_1     0x10
-#define ITEM_MOD_PLUS_2     0x20
-#define ITEM_MOD_PLUS_3     0x30
-#define ITEM_MOD_CURSED     0xF0
+#define ITEM_MOD_PLUS_1     0x01
+#define ITEM_MOD_PLUS_2     0x02
+#define ITEM_MOD_PLUS_3     0x03
+#define ITEM_MOD_CURSED     0x0F
 
-#define ITEM_GET_MODIFIER(data)     (((data) >> 4) & 0x0F)
-#define ITEM_SET_MODIFIER(mod)      (((mod) & 0x0F) << 4)
+#define ITEM_GET_MODIFIER(data)     ((data) & 0x0F)
+#define ITEM_SET_MODIFIER(mod)      ((mod) & 0x0F)
 
 // =============================================================================
 // MONSTER TYPES
@@ -161,15 +163,26 @@ enum MonsterType {
     MON_ORC         = 3,    // strong
     MON_ZOMBIE      = 4,    // slow, tough undead
     MON_TROLL       = 5,    // regenerates
-    MON_GHOST       = 6,    // undead, incorporeal
+    MON_GHOST       = 6,    // undead, incorporeal, life drain
     MON_SPIDER      = 7,    // poison attack
 
     // Boss enemies (8-10)
-    MON_BOSS_DEMON  = 8,    // fire attacks
-    MON_BOSS_LICH   = 9,    // undead mage
-    MON_BOSS_DRAGON = 10,   // final boss
+    MON_BOSS_DEMON  = 8,    // fire attacks, summons
+    MON_BOSS_LICH   = 9,    // undead mage, life drain
+    MON_BOSS_DRAGON = 10,   // fire breath, massive HP
 
     MON_TYPE_COUNT  = 11
+};
+
+// =============================================================================
+// AI TYPES
+// =============================================================================
+
+enum AIType {
+    AI_SIMPLE_CHASE = 0,    // Direct chase, no pathing
+    AI_SMART_CHASE  = 1,    // Chase with obstacle avoidance
+    AI_SLOW_CHASE   = 2,    // Slow movement (Zombie)
+    AI_BOSS         = 3     // Boss AI with special attacks
 };
 
 // =============================================================================
@@ -191,51 +204,222 @@ enum MonsterState {
 #define FLEE_DURATION_TURNS 20
 
 // =============================================================================
-// MONSTER RUNTIME FLAGS
+// MONSTER RUNTIME FLAGS (stored in TinyMon.flags)
 // =============================================================================
 
-enum MonsterRuntimeFlags {
-    MFLAG_ALIVE     = 0x01,   // monster is alive
-    MFLAG_HOSTILE   = 0x02,   // hostile to player
-    MFLAG_POISONED  = 0x04,   // taking poison DOT
-    MFLAG_BURNING   = 0x08,   // taking fire DOT
-    MFLAG_FROZEN    = 0x10,   // slowed, ice effect
-    MFLAG_CONFUSED  = 0x20,   // moves randomly
-    MFLAG_INVISIBLE = 0x40,   // hidden from player
-    MFLAG_UNDEAD_VAR= 0x80    // undead variant (Undead Goblin, etc.)
+#define MFLAG_ALIVE         0x01    // monster is alive
+#define MFLAG_HOSTILE       0x02    // hostile to player
+#define MFLAG_POISONED      0x04    // taking poison DOT
+#define MFLAG_STUNNED       0x08    // stunned (skip turn)
+#define MFLAG_SLEEPING      0x10    // sleeping (auto-hit)
+#define MFLAG_FLEEING       0x20    // fleeing (from Turn Undead)
+#define MFLAG_UNDEAD_VAR    0x40    // undead variant (Undead Goblin/Troll)
+#define MFLAG_RESERVED      0x80    // reserved for future use
+
+// =============================================================================
+// MONSTER DEFINITION FLAGS (static, in lookup table)
+// =============================================================================
+
+#define MDEF_UNDEAD         0x01    // affected by Turn Undead, Mace bonus
+#define MDEF_DEMON          0x02    // affected by Holy weapons
+#define MDEF_POISON_ATK     0x04    // attacks can poison (30% chance)
+#define MDEF_LIFE_DRAIN     0x08    // drains HP on hit (heals self)
+#define MDEF_REGENERATE     0x10    // regenerates 2 HP/turn
+#define MDEF_FLYING         0x20    // can fly over pits/traps
+#define MDEF_BOSS           0x40    // boss monster (special mechanics)
+#define MDEF_RANGED         0x80    // has ranged attack (2-3 tiles)
+
+// =============================================================================
+// WEAPON SPECIAL FLAGS
+// =============================================================================
+
+#define WEAPON_SPECIAL_NONE         0x00
+#define WEAPON_SPECIAL_VS_UNDEAD    0x01    // +3 damage vs undead
+#define WEAPON_SPECIAL_VS_DEMON     0x02    // +3 damage vs demon
+#define WEAPON_SPECIAL_CLEAVE       0x04    // 25% damage to adjacent enemies
+#define WEAPON_SPECIAL_STUN         0x08    // 15% stun chance
+#define WEAPON_SPECIAL_LIFE_DRAIN   0x10    // heal 20% of damage dealt
+#define WEAPON_SPECIAL_POISON       0x20    // 30% poison chance
+#define WEAPON_SPECIAL_PIERCE_ARMOR 0x40    // ignore 50% of enemy AC
+#define WEAPON_SPECIAL_TWO_HANDED   0x80    // cannot use shield
+
+// =============================================================================
+// ARMOR SPECIAL FLAGS
+// =============================================================================
+
+#define ARMOR_SPECIAL_NONE          0x00
+#define ARMOR_SPECIAL_FIRE_RESIST   0x01    // -50% fire damage
+#define ARMOR_SPECIAL_POISON_IMMUNE 0x02    // immune to poison
+#define ARMOR_SPECIAL_MAGIC_RESIST  0x04    // -25% magic damage
+#define ARMOR_SPECIAL_STEALTH       0x08    // +20% stealth
+
+// =============================================================================
+// SHIELD SPECIAL FLAGS
+// =============================================================================
+
+#define SHIELD_SPECIAL_NONE         0x00
+#define SHIELD_SPECIAL_BASH         0x01    // can shield bash (stun + 1 dmg)
+#define SHIELD_SPECIAL_SPELL_BLOCK  0x02    // 30% chance block magic
+#define SHIELD_SPECIAL_REFLECT      0x04    // 15% chance reflect arrows
+
+// =============================================================================
+// SCROLL/POTION EFFECT TYPES
+// =============================================================================
+
+enum ScrollEffect {
+    EFFECT_LIGHT            = 0,    // light aura
+    EFFECT_MAP_REVEAL       = 1,    // reveal entire map
+    EFFECT_DETECT_SECRET    = 2,    // reveal secret doors/traps
+    EFFECT_TELEPORT         = 3,    // random safe teleport
+    EFFECT_IDENTIFY         = 4,    // identify item
+    EFFECT_ENCHANT_WEAPON   = 5,    // +1 weapon modifier
+    EFFECT_ENCHANT_ARMOR    = 6,    // +1 armor modifier
+    EFFECT_REMOVE_CURSE     = 7,    // remove curse from item
+    EFFECT_SUMMON_ENEMY     = 8,    // CURSED: spawn enemy
+    EFFECT_BREAK_WALLS      = 9,    // earthquake (3x3 area)
+    EFFECT_TURN_UNDEAD      = 10,   // kill/flee undead
+    EFFECT_FIREBALL         = 11,   // area fire damage
+    EFFECT_HASTE            = 12,   // speed buff
+    EFFECT_SHIELD_BUFF      = 13    // AC buff
 };
+
+enum PotionEffect {
+    EFFECT_HEAL         = 0,    // restore HP
+    EFFECT_FULL_HEAL    = 1,    // restore to max HP
+    EFFECT_BERSERK      = 2,    // +50% damage, -20% AC
+    EFFECT_REGEN        = 3,    // heal over time
+    EFFECT_CURE_POISON  = 4,    // remove poison
+    EFFECT_INVISIBLE    = 5     // invisibility
+};
+
+// =============================================================================
+// BOSS SPECIAL ATTACK TYPES
+// =============================================================================
+
+#define BOSS_ATK_FIREBALL       0   // 3x3 area fire damage (Dragon)
+#define BOSS_ATK_SUMMON_ADDS    1   // summon 2 minions (Demon)
+#define BOSS_ATK_LIFE_DRAIN     2   // drain 10 HP, heal self (Lich)
+#define BOSS_ATK_POISON_CLOUD   3   // 5x5 poison cloud
+#define BOSS_ATK_TELEPORT       4   // teleport away + heal
+
+// =============================================================================
+// PLAYER STATUS EFFECT FLAGS (16-bit bitfield)
+// =============================================================================
+
+#define STATUS_NONE         0x0000
+#define STATUS_POISONED     0x0001  // -3 HP/turn
+#define STATUS_HASTE        0x0002  // +50% speed, +10% hit
+#define STATUS_SHIELD_BUFF  0x0004  // +3 AC
+#define STATUS_BERSERK      0x0008  // +50% damage, -20% AC
+#define STATUS_INVISIBLE    0x0010  // 50% avoid combat
+#define STATUS_BLESSED      0x0020  // +2 to all rolls
+#define STATUS_CURSED       0x0040  // -2 to all rolls
+#define STATUS_STUNNED      0x0080  // skip next turn
+#define STATUS_BLIND        0x0100  // -20% hit chance
+#define STATUS_REGENERATING 0x0200  // +2 HP/turn
+#define STATUS_FIRE_SHIELD  0x0400  // reflect 3 damage
+#define STATUS_CONFUSED     0x0800  // 50% random movement
 
 // =============================================================================
 // LOOKUP TABLE STRUCTURES (const/ROM data)
 // =============================================================================
 
-// Item definition (3 bytes each)
+// Weapon definition (8 bytes each)
 typedef struct {
-    unsigned char base_value;   // damage/defense/heal amount/gold value
-    unsigned char gold_price;   // selling price in gold
-    unsigned char tile_id;      // 3x3 char tile pattern ID
-} ItemDef;
+    unsigned char damage;       // base damage (1-15)
+    unsigned char hit_bonus;    // to-hit modifier (0-5)
+    unsigned char speed;        // attack speed (1-15, affects turn order)
+    unsigned char crit_chance;  // critical hit % (0-15)
+    unsigned char special;      // special flags (WEAPON_SPECIAL_*)
+    unsigned char range;        // attack range (1=melee, 2-3=ranged)
+    unsigned char gold_price;   // base price
+    unsigned char tile_id;      // display sprite/tile
+} WeaponDef;
 
-// Monster definition (5 bytes each)
+// Armor definition (5 bytes each)
 typedef struct {
-    unsigned char base_hp;      // starting HP
-    unsigned char damage;       // attack damage
-    unsigned char xp_value;     // XP reward on kill
-    unsigned char def_flags;    // MDEF_* flags (static properties)
-    unsigned char sprite_id;    // sprite frame ID
+    unsigned char armor_class;  // AC bonus (1-10)
+    unsigned char weight;       // weight class (0-3, affects movement)
+    unsigned char special;      // special properties (ARMOR_SPECIAL_*)
+    unsigned char gold_price;   // base price
+    unsigned char tile_id;      // display sprite/tile
+} ArmorDef;
+
+// Shield definition (5 bytes each)
+typedef struct {
+    unsigned char defense;      // AC bonus (1-5)
+    unsigned char block_chance; // % chance to block (10-35%)
+    unsigned char special;      // special properties (SHIELD_SPECIAL_*)
+    unsigned char gold_price;   // base price
+    unsigned char tile_id;      // display sprite/tile
+} ShieldDef;
+
+// Scroll definition (6 bytes each)
+typedef struct {
+    unsigned char effect_type;  // ScrollEffect enum
+    unsigned char magnitude;    // effect strength (damage, radius, etc.)
+    unsigned char duration;     // duration in turns (0 = instant)
+    unsigned char special;      // special flags (1 = cursed)
+    unsigned char gold_price;   // base price
+    unsigned char tile_id;      // display sprite/tile
+} ScrollDef;
+
+// Potion definition (6 bytes each)
+typedef struct {
+    unsigned char effect_type;  // PotionEffect enum
+    unsigned char magnitude;    // effect strength
+    unsigned char duration;     // duration in turns (0 = instant)
+    unsigned char special;      // special flags
+    unsigned char gold_price;   // base price
+    unsigned char tile_id;      // display sprite/tile
+} PotionDef;
+
+// Gem definition (3 bytes each) - simple value items
+typedef struct {
+    unsigned char gold_value;   // selling price
+    unsigned char rarity;       // spawn weight (lower = rarer)
+    unsigned char tile_id;      // display sprite/tile
+} GemDef;
+
+// Monster definition (8 bytes each)
+typedef struct {
+    unsigned char base_hp;      // base hit points
+    unsigned char damage;       // base damage
+    unsigned char defense;      // defense value (reduces hit chance)
+    unsigned char armor_class;  // AC (reduces damage taken)
+    unsigned char xp_value;     // XP awarded on kill
+    unsigned char def_flags;    // definition flags (MDEF_*)
+    unsigned char sprite_id;    // display sprite
+    unsigned char ai_type;      // AI behavior type (AIType enum)
 } MonsterDef;
 
-// Monster definition flags (static, in lookup table)
-#define MDEF_UNDEAD     0x01    // affected by Turn Undead
-#define MDEF_BOSS       0x02    // boss monster
-#define MDEF_FLYING     0x04    // ignores floor traps
-#define MDEF_MAGIC_RES  0x08    // magic resistance
-#define MDEF_POISON_ATK 0x10    // attacks can poison
-#define MDEF_REGEN      0x20    // regenerates HP each turn
-#define MDEF_LIFE_DRAIN 0x40    // steals HP on hit, heals self
+// =============================================================================
+// COMBAT STATE STRUCTURES (RAM)
+// =============================================================================
+
+// Player status duration tracking (10 bytes)
+typedef struct {
+    unsigned char poison_turns;         // 0-255
+    unsigned char haste_turns;          // 0-255
+    unsigned char shield_turns;         // 0-255
+    unsigned char berserk_turns;        // 0-255
+    unsigned char invis_turns;          // 0-255
+    unsigned char blessed_turns;        // 0-255
+    unsigned char cursed_turns;         // 0-255
+    unsigned char regen_turns;          // 0-255
+    unsigned char fire_shield_turns;    // 0-255
+    unsigned char confused_turns;       // 0-255
+} StatusTimers;
+
+// Boss AI state (3 bytes per boss)
+typedef struct {
+    unsigned char cooldown;             // turns between special attacks
+    unsigned char attack_type;          // current special attack type
+    unsigned char current_cooldown;     // countdown to next special
+} BossAI;
 
 // =============================================================================
-// TILE METADATA STRUCTURES (unchanged from v2)
+// TILE METADATA STRUCTURES
 // =============================================================================
 
 // Tile metadata flag system (8-bit packed flags)
@@ -318,7 +502,7 @@ typedef struct obj {
     unsigned char data;         // 1 byte - modifier/amount/fuel
 } TinyObj;
 
-// Runtime monster instance (6 bytes)
+// Runtime monster instance (8 bytes)
 typedef struct mon {
     struct mon *next;           // 2 bytes - linked list
     unsigned char x;            // 1 byte - position
@@ -327,7 +511,7 @@ typedef struct mon {
     unsigned char hp;           // 1 byte - current HP
     unsigned char flags;        // 1 byte - runtime MFLAG_* flags
     unsigned char state;        // 1 byte - MonsterState enum
-} TinyMon;  // Note: Actually 8 bytes with this layout
+} TinyMon;
 
 // =============================================================================
 // POOL SIZE CONFIGURATION
@@ -337,6 +521,7 @@ typedef struct mon {
 #define GLOBAL_META_POOL_SIZE   16      // global metadata slots
 #define MAX_TINY_OBJECTS        48      // max active items
 #define MAX_TINY_MONSTERS       6       // max active monsters (sprite limit!)
+#define MAX_BOSSES              3       // max boss AI states
 
 // =============================================================================
 // HELPER MACROS

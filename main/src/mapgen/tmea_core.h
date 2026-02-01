@@ -2,7 +2,7 @@
 #define TMEA_CORE_H
 
 // =============================================================================
-// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v3
+// TILE METADATA EXTENSION ARCHITECTURE (TMEA) v4
 // Core API and Global State
 // =============================================================================
 //
@@ -19,6 +19,8 @@
 // - Room metadata lookup: ~260 cycles (0.26ms @ 1MHz)
 // - Global metadata lookup: ~440 cycles (0.44ms @ 1MHz)
 // - Average (weighted): ~310 cycles (0.31ms @ 1MHz)
+//
+// Memory: ~640 bytes RAM + ~340 bytes ROM
 //
 // =============================================================================
 
@@ -51,7 +53,11 @@ extern TinyMon mon_pool[MAX_TINY_MONSTERS];                // 48 bytes (6 monste
 extern TinyMon *mon_free_list;                             // 2 bytes
 extern TinyMon *mon_active_list;                           // 2 bytes
 
-// Total TMEA overhead: ~620 bytes (reduced monster pool)
+// Combat state (player status + boss AI)
+extern StatusTimers player_status_timers;                  // 10 bytes
+extern BossAI boss_ai_state[MAX_BOSSES];                   // 9 bytes (3 bosses × 3 bytes)
+
+// Total TMEA RAM overhead: ~640 bytes
 
 // =============================================================================
 // INITIALIZATION FUNCTIONS

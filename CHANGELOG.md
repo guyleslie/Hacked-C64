@@ -2,6 +2,53 @@
 
 ## [Unreleased] - 2026-02-01
 
+### TMEA v4: Combat-Ready Data Structures
+
+Major upgrade to lookup tables with specialized item structures and full combat system support.
+
+#### Lookup Table Restructuring
+- **WeaponDef expanded**: 3 bytes → 8 bytes (damage, hit_bonus, speed, crit_chance, special, range, gold_price, tile_id)
+- **ArmorDef specialized**: 3 bytes → 5 bytes (armor_class, weight, special, gold_price, tile_id)
+- **ShieldDef specialized**: 3 bytes → 5 bytes (defense, block_chance, special, gold_price, tile_id)
+- **ScrollDef specialized**: 3 bytes → 6 bytes (effect_type, magnitude, duration, special, gold_price, tile_id)
+- **PotionDef specialized**: 3 bytes → 6 bytes (effect_type, magnitude, duration, special, gold_price, tile_id)
+- **MonsterDef expanded**: 5 bytes → 8 bytes (added defense, armor_class, ai_type)
+- **GemDef added**: 3 bytes (gold_value, rarity, tile_id)
+
+#### Combat State Structures (RAM)
+- **StatusTimers**: 10 bytes - Player status effect durations (poison, haste, shield, berserk, invis, blessed, cursed, regen, fire_shield, confused)
+- **BossAI[3]**: 9 bytes - Boss special attack cooldowns and state
+
+#### New Flag Systems
+- **Weapon special flags**: VS_UNDEAD, VS_DEMON, CLEAVE, STUN, LIFE_DRAIN, POISON, PIERCE_ARMOR, TWO_HANDED
+- **Armor special flags**: FIRE_RESIST, POISON_IMMUNE, MAGIC_RESIST, STEALTH
+- **Shield special flags**: BASH, SPELL_BLOCK, REFLECT
+- **Monster def flags**: Added MDEF_DEMON, MDEF_RANGED
+- **Monster runtime flags**: MFLAG_STUNNED, MFLAG_SLEEPING, MFLAG_FLEEING (replaces BURNING/FROZEN)
+
+#### New Enums
+- **AIType**: SIMPLE_CHASE, SMART_CHASE, SLOW_CHASE, BOSS
+- **ScrollEffect**: 14 effect types (LIGHT, MAP_REVEAL, DETECT_SECRET, TELEPORT, etc.)
+- **PotionEffect**: 6 effect types (HEAL, FULL_HEAL, BERSERK, REGEN, CURE_POISON, INVISIBLE)
+- **Boss attack types**: FIREBALL, SUMMON_ADDS, LIFE_DRAIN, POISON_CLOUD, TELEPORT
+
+#### API Changes
+- **Specialized getters**: `get_weapon_def()`, `get_armor_def()`, `get_shield_def()`, `get_potion_def()`, `get_scroll_def()`, `get_gem_def()`
+- **Removed generic ItemDef**: Each item category now has dedicated structure
+- **Item modifier encoding**: Fixed to lower 4 bits (was incorrectly using upper 4 bits)
+
+#### Memory Changes
+- RAM: ~620 bytes → ~640 bytes (+20 bytes for combat state)
+- ROM: ~200 bytes → ~340 bytes (+140 bytes for expanded lookup tables)
+
+#### Build Sizes
+- Mapgen TEST build: 13,158 bytes
+- Mapgen RELEASE build: 8,283 bytes
+
+---
+
+## [Unreleased] - 2026-02-01
+
 ### Unified Deception System & Terminology Refactoring
 
 Major refactoring of feature systems with unified deception mechanics and clearer terminology.

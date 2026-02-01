@@ -59,14 +59,13 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 - **Map Size**: Small (50×50, 9 rooms), Medium (64×64, 16 rooms), Large (78×78, 20 rooms)
 - **Hidden Rooms**: 10%/25%/50% of max rooms (percentage-based)
 - **Niches**: 10%/25%/50% of non-hidden rooms (percentage-based, calculated post-MST)
-- **Decoy Corridors**: 10%/25%/50% of available walls (percentage-based, calculated post-MST)
-- **Hidden Passages**: 10%/25%/50% of non-branching corridors (percentage-based, calculated post-MST)
+- **Deception**: 10%/25%/50% - unified system controlling both decoy corridors and hidden passages (calculated post-MST)
 
 **Implementation Details:**
 - Configuration stored in `MapConfig` structure with preset levels (Small/Medium/Large)
 - Values validated and converted to `MapParameters` with percentage ratios
 - **Post-MST Calculation**: Feature counts calculated from actual network topology using runtime counters
-- **Runtime Tracking**: 6-byte counter system (total_connections, total_hidden_rooms, total_niches, total_decoys, total_hidden_passages, available_walls_count)
+- **Runtime Tracking**: 5-byte counter system (total_connections, total_hidden_rooms, total_niches, total_deception, available_walls_count)
 - Dynamic parameter passing to generation pipeline
 - Real-time value updates in menu display
 
@@ -76,7 +75,7 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 
 **TMEA (Tile Metadata Extension Architecture) v3** is a lightweight metadata and entity system that extends the base tile system with additional properties and dynamic entities. It uses **data-oriented design** with lookup tables for static properties (ROM) and minimal runtime structs for dynamic state (RAM).
 
-**Memory Overhead:** ~620 bytes RAM + ~200 bytes ROM (lookup tables)
+**Memory Overhead:** ~640 bytes RAM + ~340 bytes ROM (lookup tables)
 
 ### Architecture Philosophy
 
@@ -98,7 +97,7 @@ TMEA uses a **hybrid two-tier architecture** optimized for room-based dungeon ge
    - Always use global coordinates for movement
 
 4. **Lookup Tables** (Static, ROM):
-   - `monster_table[11]` - HP, damage, XP, flags, sprite
+   - `monster_table[11]` - HP, damage, defense, AC, XP, flags, sprite, AI type (8 bytes each)
    - `weapon_table[8]`, `armor_table[8]`, `shield_table[5]`
    - `potion_table[6]`, `scroll_table[14]`, `gem_table[5]`
    - Item type encoding: CCCC_SSSS (category + subtype)
@@ -809,7 +808,7 @@ mapgen_generate_with_params(presets...);
 
 **Save/Load Functions:**
 ```c
-void save_map_seed(const char* filename);                    // Save seed + config (9 bytes)
+void save_map_seed(const char* filename);                    // Save seed + config (3 bytes)
 unsigned char load_map_seed(const char* filename, MapConfig* config);  // Load and return success
 ```
 
@@ -820,20 +819,20 @@ unsigned char load_map_seed(const char* filename, MapConfig* config);  // Load a
 **Technical Implementation (Save):**
 1. Query current seed using `mapgen_get_seed()`
 2. Store seed as little-endian (2 bytes)
-3. Store preset value from `current_params.preset` for all config fields (7 bytes)
+3. Store packed presets in 1 byte (2 bits each: map_size, hidden_rooms, niches, deception)
 4. Use sequential file I/O: `krnio_open()` + `krnio_write()` + `krnio_close()`
-5. Total: 9 bytes of raw data (no PRG header)
+5. Total: 3 bytes of raw data (no PRG header)
 
 **Technical Implementation (Load):**
 1. Open file with `krnio_open()` on device 8
-2. Read 9 bytes with `krnio_read()` into buffer
+2. Read 3 bytes with `krnio_read()` into buffer
 3. Extract seed and initialize RNG with `mapgen_init(seed)`
-4. Extract config presets and populate MapConfig structure
+4. Extract packed presets (2 bits each) and populate MapConfig structure
 5. Validate preset values (clamp to 0-2 range)
 6. Close file and regenerate map with loaded settings
 
 **Advantages:**
-- Minimal disk space usage (9 bytes vs 800-2400+ bytes)
+- Minimal disk space usage (3 bytes vs 800-2400+ bytes)
 - Fast save/load operations
 - Perfect reproducibility via deterministic RNG
 - Sequential file format prevents program memory overwrites
