@@ -87,13 +87,13 @@ https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 
 | Control | Action |
 |---------|---------|
-| **Up/Down** | Navigate menu options (6 items including seed) |
+| **Up/Down** | Navigate menu options (5 items including seed) |
 | **Left/Right** | Adjust values |
 | **Fire Button** | Start generation / Enter seed input mode |
 
 **Menu Display Values:**
 - Map Size: small (9 rooms), medium (16 rooms), large (20 rooms)
-- Percentage settings: 10%, 25%, 50%
+- Hidden Rooms, Niches, Deception: 10%, 25%, 50%
 - Seed: 0-65535 (0 = random, press FIRE to enter number)
 
 ## Map Elements
@@ -104,7 +104,7 @@ https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 | █ | Wall | Solid barrier |
 | . | Floor | Walkable room area |
 | + | Door | Room entrance/exit |
-| ░ | Secret Door | Secret door (hidden entrance, treasure, corridor) |
+| ░ | Secret Door | Hidden entrance (to hidden room, niche, or passage) |
 | < | Up Stairs | Level exit up |
 | > | Down Stairs | Level exit down |
 
@@ -117,16 +117,15 @@ https://github.com/user-attachments/assets/6beec8fa-e673-4bfc-9aa2-2a3fde94312c
 - **Dynamic Map Sizing**: Runtime selection of map dimensions with automatic room count
 - **Configurable Parameters**:
   - Map Size: Small (50×50, 9 rooms), Medium (64×64, 16 rooms), Large (78×78, 20 rooms)
-  - Secret Rooms (10%/25%/50% of total rooms)
-  - Secret Treasures (10%/25%/50% of non-secret rooms)
-  - False Corridors (10%/25%/50% of available walls in non-secret rooms)
-  - Hidden Corridors (10%/25%/50% of non-branching corridors)
-- **Secret Rooms**: Hidden areas accessible through secret doors (percentage of single-connection rooms)
-- **Secret Treasures**: Hidden treasure chambers placed on walls without doors in non-secret rooms only
-- **False Corridors**: Misleading dead-end passages on available walls (walls without doors in non-secret rooms)
-- **Hidden Corridors**: Non-branching corridor doors between rooms randomly converted to secret doors (percentage of eligible corridors)
+  - Hidden Rooms (10%/25%/50% of single-connection rooms)
+  - Niches (10%/25%/50% of non-hidden rooms)
+  - Deception (10%/25%/50% - controls both decoy corridors and hidden passages)
+- **Hidden Rooms**: Rooms accessible only through secret doors (converted from single-connection rooms)
+- **Niches**: 1-tile hidden spaces in walls behind secret doors (can contain treasure, traps, enemies)
+- **Decoy Corridors**: Dead-end passages that mislead the player
+- **Hidden Passages**: Real corridors with one secret door (count matches decoy count for balance)
 - **Three Corridor Types**: Straight, L-shaped, and Z-shaped connections with geometric validation
-- **Map Save/Load**: Save and load map seed and configuration to/from disk (7 bytes - maps are reproducible from seed)
+- **Map Save/Load**: Save and load map seed and configuration to/from disk (3 bytes - maps are reproducible from seed)
 - **Memory Optimized**: 3-bit tile encoding and packed data structures for C64 constraints
 - **Progress Display**: Real-time generation progress with phase indicators
 
@@ -165,16 +164,16 @@ Before generation, configure map parameters using joystick 2:
 
 The dungeon is generated in real-time with a progress bar showing each phase:
 
-1. **Building Rooms**: Creates rooms of various sizes across the map
-2. **Connecting Rooms**: Links all rooms together with corridors so every area is reachable
-3. **Creating Secret Areas**: Converts some isolated rooms into hidden secret areas
-4. **Placing Secret Treasures**: Adds hidden treasure chambers accessible through secret doors
-5. **Placing False Corridors**: Creates dead-end passages to add exploration challenge
-6. **Hiding Corridors**: Randomly converts non-branching corridor doors to secret doors to obscure navigation routes
+1. **Carving Chambers**: Creates rooms of various sizes across the map
+2. **Digging Corridors**: Links all rooms together with corridors so every area is reachable
+3. **Hiding Rooms**: Converts some isolated rooms into hidden areas (secret door entrance)
+4. **Carving Niches**: Adds 1-tile hidden spaces in walls behind secret doors
+5. **Laying Traps**: Creates decoy corridors (dead-ends) to mislead the player
+6. **Concealing Doors**: Hides passage doors to obscure navigation routes
 7. **Placing Stairs**: Positions up and down stairs for level navigation
-8. **Generation Complete**: Map is ready for exploration
+8. **Generation Complete!**: Map is ready for exploration
 
-The number of rooms, secret areas, treasures, false corridors, and hidden corridors varies based on your configuration settings.
+The number of rooms, hidden areas, niches, and deception features varies based on your configuration settings.
 
 ## Documentation
 

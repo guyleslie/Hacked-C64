@@ -1200,7 +1200,7 @@ MapGen (already implemented):              ~9 KB  ✅
   ├─ 8-phase generation pipeline
   ├─ Room placement (Fisher-Yates on 4×4 grid)
   ├─ MST corridor connections
-  ├─ Secret rooms, treasures, false/hidden corridors
+  ├─ Hidden rooms, niches, deception (decoys/hidden passages)
   ├─ Stairs placement (distance-based)
   └─ TMEA metadata management
 

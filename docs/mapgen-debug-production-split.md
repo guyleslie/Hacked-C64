@@ -24,10 +24,9 @@ Successful separation of the mapgen module into DEBUG and production modes using
 ```c
 unsigned char mapgen_generate_with_params(
     unsigned char map_size,        // 0=SMALL(50x50,9rooms), 1=MEDIUM(64x64,16rooms), 2=LARGE(78x78,20rooms)
-    unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
-    unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
-    unsigned char secret_treasures,// 0=10%, 1=25%, 2=50%
-    unsigned char hidden_corridors // 0=10%, 1=25%, 2=50%
+    unsigned char hidden_rooms,    // 0=10%, 1=25%, 2=50%
+    unsigned char niches,          // 0=10%, 1=25%, 2=50%
+    unsigned char deception        // 0=10%, 1=25%, 2=50% (controls both decoy corridors and hidden passages)
 );
 ```
 
@@ -109,13 +108,13 @@ void update_full_screen(void) { ... }
 ```c
 #ifdef DEBUG_MAPGEN
 
-// Seed-based save format (11 bytes total vs 800-2400+ bytes for raw map data)
+// Seed-based save format (3 bytes total vs 800-2400+ bytes for raw map data)
 // File format:
-//   Byte 0-1:  PRG load address (KERNAL)
-//   Byte 2-3:  Seed (16-bit, little-endian)
-//   Byte 4-10: Config presets (7 bytes)
+//   Byte 0-1:  Seed (16-bit, little-endian)
+//   Byte 2:    Packed presets (2 bits each: deception, niches, hidden_rooms, map_size)
 
 void save_map_seed(const char* filename) { ... }
+unsigned char load_map_seed(const char* filename, MapConfig* config);
 
 #endif // DEBUG_MAPGEN
 ```
@@ -167,12 +166,12 @@ void init_generation_progress(void);
 ```
 
 **8 Generation Phases (0-7):**
-- Phase 0: "Building Rooms"
-- Phase 1: "Connecting Rooms"
-- Phase 2: "Secret Areas"
-- Phase 3: "Secret Treasures"
-- Phase 4: "False Corridors"
-- Phase 5: "Hidden Corridors"
+- Phase 0: "Carving Chambers"
+- Phase 1: "Digging Corridors"
+- Phase 2: "Hiding Rooms"
+- Phase 3: "Carving Niches"
+- Phase 4: "Laying Traps"
+- Phase 5: "Concealing Doors"
 - Phase 6: "Placing Stairs"
 - Phase 7: "Generation Complete!"
 
@@ -248,7 +247,7 @@ int main(void) {
 #else
     // PRODUCTION MODE: Direct parameter generation
     unsigned char result = mapgen_generate_with_params(
-        1, 1, 1, 1, 1, 1, 1  // MEDIUM preset for all parameters
+        1, 1, 1, 1  // MEDIUM preset for all parameters (map_size, hidden_rooms, niches, deception)
     );
 
     // Map data in compact_map[], room_list[], TMEA pools
@@ -371,12 +370,9 @@ void game_init_level(unsigned char difficulty) {
     // Generate map with difficulty-based parameters
     unsigned char result = mapgen_generate_with_params(
         difficulty > 5 ? 2 : 1,  // LARGE if hard, MEDIUM if normal
-        difficulty > 5 ? 2 : 1,  // More rooms if hard
-        1,                        // Room size (currently unused)
-        difficulty > 3 ? 2 : 1,  // More secrets if hard
-        difficulty > 3 ? 2 : 1,  // More false corridors if hard
-        difficulty > 3 ? 2 : 1,  // More treasures if hard
-        difficulty > 3 ? 2 : 1   // More hidden corridors if hard
+        difficulty > 3 ? 2 : 1,  // More hidden rooms if hard
+        difficulty > 3 ? 2 : 1,  // More niches if hard
+        difficulty > 3 ? 2 : 1   // More deception if hard
     );
 
     if (result == 0) {
@@ -394,7 +390,7 @@ void game_init_level(unsigned char difficulty) {
 
         // Populate enemies in rooms (skip first room)
         for (unsigned char i = 1; i < num_rooms; i++) {
-            if (!(room_list[i].state & ROOM_SECRET)) {
+            if (!(room_list[i].state & ROOM_HIDDEN)) {
                 spawn_enemies_in_room(i);
             }
         }
@@ -404,8 +400,8 @@ void game_init_level(unsigned char difficulty) {
         for (unsigned char y = 0; y < map_h; y++) {
             for (unsigned char x = 0; x < map_w; x++) {
                 if (get_tile_metadata(x, y, &meta.flags, &meta.data)) {
-                    if (meta.flags & META_TREASURE) {
-                        spawn_treasure(x, y);
+                    if (meta.flags & META_NICHE) {
+                        spawn_niche_content(x, y);
                     }
                 }
             }
@@ -499,7 +495,7 @@ The mapgen module now supports deterministic, reproducible dungeon generation vi
 mapgen_init(12345);  // Set 16-bit seed
 
 // Generate map - will use the set seed
-mapgen_generate_with_params(1, 1, 1, 1, 1, 1, 1);
+mapgen_generate_with_params(1, 1, 1, 1);  // MEDIUM preset for all
 
 // Query the seed used (for display/export)
 unsigned int used_seed = mapgen_get_seed();
@@ -586,6 +582,6 @@ unsigned char mapgen_generate_phase(unsigned char phase);
 - room_list[20] - room metadata
 - room_count - room count
 - current_params - generation parameters
-- TMEA pools (~765 bytes) - secret doors, treasures, entities
+- TMEA pools (~620 bytes) - secret doors, niches, entities
 
 **The mapgen module is ready for game engine integration!**

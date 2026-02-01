@@ -1,5 +1,67 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-02-01
+
+### Unified Deception System & Terminology Refactoring
+
+Major refactoring of feature systems with unified deception mechanics and clearer terminology.
+
+#### Terminology Changes
+- **"Secret Rooms" → "Hidden Rooms"**: Rooms accessible only through secret doors
+- **"Treasure" → "Niche"**: 1-tile hidden space in walls (can contain treasure, trap, enemy, etc.)
+- **"False Corridors" → "Decoy Corridors"**: Dead-end passages that mislead the player
+- **"Hidden Corridors" → "Hidden Passages"**: Real corridors with one secret door
+
+#### Unified Deception System
+- **Merged presets**: `false_corridors` and `hidden_corridors` → single `deception` preset
+- **Linked counts**: Hidden passage count = actual decoy count placed (balanced gameplay)
+- **Limiting factor**: Deception capped by available non-branching corridors minus hidden rooms
+
+#### Candidate Selection Fix
+- **Swap & Pop pattern**: Both `place_hidden_passages()` and `place_decoy_corridors()` now pre-collect candidates
+- **No wasted attempts**: Each candidate tried exactly once, removed after attempt
+- **Guaranteed placement**: If candidates exist and space allows, features will be placed
+
+#### Updated Phase Names (Dungeon-Themed)
+| Phase | Old Name | New Name |
+|-------|----------|----------|
+| 0 | Building Rooms | Carving Chambers |
+| 1 | Connecting Rooms | Digging Corridors |
+| 2 | Creating Secret Areas | Hiding Rooms |
+| 3 | Placing Secret Treasures | Carving Niches |
+| 4 | Placing False Corridors | Laying Traps |
+| 5 | Hiding Corridors | Concealing Doors |
+| 6 | Placing Stairs | Placing Stairs |
+| 7 | Generation Complete | Generation Complete! |
+
+#### API Changes
+- **`MapConfig` struct**: 4 presets (map_size, hidden_rooms, niches, deception)
+- **`MapParameters` struct**: `hidden_room_count`, `niche_count`, `deception_count`
+- **`mapgen_generate_with_params()`**: 4 parameters instead of 5
+- **DEBUG menu**: 4 configuration items + seed (was 5 + seed)
+
+#### Runtime Counter Renames
+- `total_secret_rooms` → `total_hidden_rooms`
+- `total_treasures` → `total_niches`
+- `total_false_corridors` → `total_decoys`
+
+#### Room State Flag Renames
+- `ROOM_SECRET` → `ROOM_HIDDEN`
+- `ROOM_HAS_TREASURE` → `ROOM_HAS_NICHE`
+
+#### Room Struct Field Renames
+- `treasure_wall_side` → `niche_wall_side`
+
+#### Export Format
+- **Reduced to 3 bytes**: Seed (2 bytes) + packed presets (1 byte with 2 bits each)
+- **Not backward compatible**: Old 7/9-byte seed files will not load correctly
+
+#### Build Sizes
+- Mapgen TEST build: 13,142 bytes
+- Mapgen RELEASE build: 8,258 bytes
+
+---
+
 ## [Unreleased] - 2026-01-25
 
 ### Dynamic Grid-Based Room Generation

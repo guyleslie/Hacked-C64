@@ -4,7 +4,7 @@ A real-time dungeon map generation system for the Commodore 64, utilizing OSCAR6
 
 ## Project Overview
 
-This project implements a highly optimized procedural dungeon generation algorithm for the Commodore 64 hardware architecture. The system generates connected room networks using minimum spanning tree algorithms, features secret room mechanics, and provides interactive navigation with constrained memory usage.
+This project implements a highly optimized procedural dungeon generation algorithm for the Commodore 64 hardware architecture. The system generates connected room networks using minimum spanning tree algorithms, features hidden room mechanics, and provides interactive navigation with constrained memory usage.
 
 **Target Platform:** Commodore 64 (6502 processor, 64KB RAM)
 **Compiler:** OSCAR64 cross-compiler with full optimization suite
@@ -57,16 +57,16 @@ The system uses **Joystick 2** for all primary interactions via CIA1 Port A ($DC
 
 **Pre-Generation Parameters:**
 - **Map Size**: Small (50×50, 9 rooms), Medium (64×64, 16 rooms), Large (78×78, 20 rooms)
-- **Secret Rooms**: 10%/25%/50% of max rooms (percentage-based)
-- **Secret Treasures**: 10%/25%/50% of non-secret rooms (percentage-based, calculated post-MST)
-- **False Corridors**: 10%/25%/50% of available walls (percentage-based, calculated post-MST)
-- **Hidden Corridors**: 10%/25%/50% of non-branching corridors (percentage-based, calculated post-MST)
+- **Hidden Rooms**: 10%/25%/50% of max rooms (percentage-based)
+- **Niches**: 10%/25%/50% of non-hidden rooms (percentage-based, calculated post-MST)
+- **Decoy Corridors**: 10%/25%/50% of available walls (percentage-based, calculated post-MST)
+- **Hidden Passages**: 10%/25%/50% of non-branching corridors (percentage-based, calculated post-MST)
 
 **Implementation Details:**
 - Configuration stored in `MapConfig` structure with preset levels (Small/Medium/Large)
 - Values validated and converted to `MapParameters` with percentage ratios
 - **Post-MST Calculation**: Feature counts calculated from actual network topology using runtime counters
-- **Runtime Tracking**: 6-byte counter system (total_connections, total_secret_rooms, total_treasures, total_false_corridors, total_hidden_corridors, available_walls_count)
+- **Runtime Tracking**: 6-byte counter system (total_connections, total_hidden_rooms, total_niches, total_decoys, total_hidden_passages, available_walls_count)
 - Dynamic parameter passing to generation pipeline
 - Real-time value updates in menu display
 
@@ -183,7 +183,7 @@ reset_tmea_data();   // Clear metadata, rebuild entity pools
 ```
 
 All secret door creation now uses TMEA:
-- Secret rooms: `add_secret_door_metadata()` instead of `TILE_SECRET_DOOR`
+- Hidden rooms: `add_secret_door_metadata()` instead of `TILE_SECRET_DOOR`
 - Secret treasures: `add_secret_door_metadata()` for treasure chamber entrance
 - Hidden corridors: `add_secret_door_metadata()` for both corridor doors
 
@@ -330,18 +330,18 @@ Wall side values are determined by `get_wall_side_from_exit()` based on door pos
 4. Success: door metadata stored in both connected rooms
 5. Failure: connection metadata rolled back
 
-### Phase 2: Secret Areas
+### Phase 2: Hiding Rooms
 
-The secret room system provides a special gameplay mechanic:
+The hidden room system provides a special gameplay mechanic:
 
-**Secret Room Criteria:**
+**Hidden Room Criteria:**
 - Only rooms with exactly 1 connection are eligible
 - Connected room must not have other doors on the same wall (prevents corridor deletion)
-- 50% probability of conversion to secret status
-- Room `state` field receives `ROOM_SECRET` flag marking (prevents treasure placement)
+- 50% probability of conversion to hidden status
+- Room `state` field receives `ROOM_HIDDEN` flag marking (prevents niche placement)
 - **Target count**: 10%/25%/50% of max_rooms based on preset level
 
-**Secret Door Conversion (TMEA-First Architecture):**
+**Hidden Room Door Conversion (TMEA-First Architecture):**
 - Base tile remains `TILE_DOOR`, TMEA metadata marks it as secret (`TMFLAG_DOOR_SECRET`)
 - Uses `add_secret_door_metadata()` to add TMEA metadata instead of changing tile type
 - Visual representation: Display system checks `is_door_secret()` and renders `░` symbol
@@ -349,65 +349,65 @@ The secret room system provides a special gameplay mechanic:
 - Enables 5 door states (secret, locked, trapped, revealed, open) vs previous 2 states
 
 **Runtime Tracking:**
-- Increments `total_secret_rooms` counter when secret room created
-- Decrements `available_walls_count` for each unused wall in secret room (walls become unavailable for false corridors)
+- Increments `total_hidden_rooms` counter when hidden room created
+- Decrements `available_walls_count` for each unused wall in hidden room (walls become unavailable for decoy corridors)
 
 **Post-MST Feature Count Calculation:**
 
-After secret rooms are placed (end of Phase 2), the system calculates actual feature counts based on network topology. This is not a separate phase, but an internal calculation step:
+After hidden rooms are placed (end of Phase 2), the system calculates actual feature counts based on network topology. This is not a separate phase, but an internal calculation step:
 
 **Calculation Logic:**
-- **Treasure count**: `calculate_percentage_count(room_count - total_secret_rooms, treasure_ratio[preset])`
-- **Hidden corridor count**: `calculate_percentage_count(count_non_branching_from_flags(), hidden_corridor_ratio[preset])`
-- **False corridor count**: `calculate_percentage_count(available_walls_count, false_corridor_ratio[preset])`
+- **Treasure count**: `calculate_percentage_count(room_count - total_hidden_rooms, niche_ratio[preset])`
+- **Hidden corridor count**: `calculate_percentage_count(count_non_branching_from_flags(), deception_ratio[preset])`
+- **False corridor count**: `calculate_percentage_count(available_walls_count, deception_ratio[preset])`
 - Uses round-up formula: `(total * percentage + 99) / 100` to ensure minimum 1 feature when base > 0
 - Progress weights recalculated with updated feature counts for accurate progress bar
 
-### Phase 3: Secret Treasures
+### Phase 3: Carving Niches
 
-The secret treasure system creates hidden treasure chambers accessible through walls:
+The niche system creates 1-tile hidden spaces accessible through walls:
 
-**Secret Treasure Criteria:**
-- **Target count**: Calculated post-MST as percentage of non-secret rooms (10%/25%/50%)
-- Only places treasures on walls without doors, false corridor entrances, or treasure metadata
-- Excludes secret rooms (rooms with `ROOM_SECRET` flag)
-- Prevents duplicate treasures per room using `ROOM_HAS_TREASURE` flag
+**Niche Criteria:**
+- **Target count**: Calculated post-MST as percentage of non-hidden rooms (10%/25%/50%)
+- Only places niches on walls without doors, decoy corridor entrances, or existing niche metadata
+- Excludes hidden rooms (rooms with `ROOM_HIDDEN` flag)
+- Prevents duplicate niches per room using `ROOM_HAS_NICHE` flag
 - Excludes corners to prevent placement conflicts
 - Validates wall availability using `wall_door_count[wall_side]` to ensure no existing doors
 
-**Treasure Chamber Construction (TMEA-First Architecture):**
+**Niche Construction (TMEA-First Architecture):**
 - Wall position becomes a door with TMEA secret metadata - secret entrance through wall
   - Base tile: `TILE_DOOR`, TMEA metadata: `TMFLAG_DOOR_SECRET`
   - Uses `add_secret_door_metadata()` instead of `TILE_SECRET_DOOR` tile type
-- Adjacent position outside room becomes `TILE_FLOOR` (treasure chamber)
-- `place_walls_around_corridor_tile()` builds protective walls around chamber
+- Adjacent position outside room becomes `TILE_FLOOR` (niche space)
+- `place_walls_around_corridor_tile()` builds protective walls around niche
 - Maintains wall_side consistency with existing door system (0=Left, 1=Right, 2=Top, 3=Bottom)
-- Treasure wall_side stored in room metadata for runtime queries
+- Niche wall_side stored in room metadata for runtime queries
 
 **Wall Selection Algorithm:**
-- Early return if room has `ROOM_SECRET` or `ROOM_HAS_TREASURE` flags
+- Early return if room has `ROOM_HIDDEN` or `ROOM_HAS_NICHE` flags
 - Iterates through all 4 wall sides per room
-- Skips walls containing any doors (normal connections + false corridors) using enhanced helper pattern
+- Skips walls containing any doors (normal connections + decoy corridors) using enhanced helper pattern
 - Randomly selects position within wall boundaries (excluding corners)
-- **Boundary validation**: Treasure chamber + surrounding walls must be ≥3 tiles from map edges
-  - Prevents treasure structures (3×3 total) from extending beyond map boundaries
-  - Validation: `treasure_x < 3 || treasure_x >= map_width - 3 || treasure_y < 3 || treasure_y >= map_height - 3`
-- Sets `ROOM_HAS_TREASURE` flag upon successful placement
+- **Boundary validation**: Niche + surrounding walls must be ≥3 tiles from map edges
+  - Prevents niche structures (3×3 total) from extending beyond map boundaries
+  - Validation: `niche_x < 3 || niche_x >= map_width - 3 || niche_y < 3 || niche_y >= map_height - 3`
+- Sets `ROOM_HAS_NICHE` flag upon successful placement
 
 **Runtime Tracking:**
-- Increments `total_treasures` counter when treasure created
-- Decrements `available_walls_count` (treasure uses 1 wall)
+- Increments `total_niches` counter when niche created
+- Decrements `available_walls_count` (niche uses 1 wall)
 
-### Phase 4: False Corridors
+### Phase 4: Laying Traps (Decoy Corridors)
 
-The false corridor system creates Nethack-style misleading dead-end passages:
+The decoy corridor system creates Nethack-style misleading dead-end passages:
 
 **Target Count:**
 - **Calculated post-MST** as percentage of available walls (10%/25%/50%)
-- Based on `available_walls_count` which excludes walls with doors and secret room walls
+- Based on `available_walls_count` which excludes walls with doors and hidden room walls
 
 **Algorithm:**
-1. **Quick Checks**: Skip secret rooms, walls with doors, walls with treasure
+1. **Quick Checks**: Skip hidden rooms, walls with doors, walls with treasure
 2. **Calculate Door Position**: Door placed at center of selected wall
 3. **Calculate Available Space**: Distance to map edge (prevents unsigned wrap)
    - Left wall: `available = door_x - 2`
@@ -430,8 +430,8 @@ The false corridor system creates Nethack-style misleading dead-end passages:
 
 **False Corridor Criteria:**
 - Minimum 4 tiles of available space required
-- Only places on walls with no doors, treasure entrances, or false corridor metadata
-- Excludes secret rooms (rooms with `ROOM_SECRET` flag)
+- Only places on walls with no doors, treasure entrances, or decoy corridor metadata
+- Excludes hidden rooms (rooms with `ROOM_HIDDEN` flag)
 - Endpoint must not be adjacent to any walkable tile (FLOOR/DOOR)
 - Falls back to minimum straight if shaped corridor validation fails
 
@@ -442,12 +442,12 @@ The false corridor system creates Nethack-style misleading dead-end passages:
 - Consistent with room connections - uses same `process_corridor_path()` logic
 
 **Runtime Tracking:**
-- Increments `total_false_corridors` counter when false corridor created
+- Increments `total_decoys` counter when decoy corridor created
 - `available_walls_count` already decremented in `add_connection_to_room()` when door added
 
-### Phase 5: Hidden Corridors
+### Phase 5: Concealing Doors (Hidden Passages)
 
-The hidden corridor system identifies and conceals non-branching corridors to increase navigation difficulty:
+The hidden passage system identifies and conceals non-branching corridors to increase navigation difficulty:
 
 **Target Count:**
 - **Calculated post-MST** as percentage of non-branching corridors (10%/25%/50%)
@@ -460,7 +460,7 @@ The hidden corridor system identifies and conceals non-branching corridors to in
   - Updated to 0 if wall becomes branching (multiple doors on same wall)
   - Enables O(1) queries via `count_non_branching_from_flags()` without iteration
 - Branching detection uses pre-computed `is_branching` flag in Door structure (set during connection creation)
-- Excludes secret rooms (already hidden via different mechanism)
+- Excludes hidden rooms (already hidden via different mechanism)
 - Excludes doors already marked as secret
 
 **Selection Process:**
@@ -477,7 +477,7 @@ The hidden corridor system identifies and conceals non-branching corridors to in
 - Display system checks `is_door_secret()` to render appropriate visual representation
 
 **Runtime Tracking:**
-- Increments `total_hidden_corridors` counter when corridor hidden
+- Increments `total_hidden_passages` counter when corridor hidden
 
 ### Phase 6: Placing Stairs
 
@@ -533,7 +533,7 @@ Each room maintains metadata for:
 - `w, h`: Room width and height dimensions
 - `center_x, center_y`: Cached room center coordinates
 - `connections`: Number of active connections
-- `state`: Secret room flag and status bits
+- `state`: Hidden room flag and status bits
 
 **Connection Metadata:**
 - `conn_data[4]`: Packed connection structures with room ID and corridor type
@@ -572,9 +572,9 @@ This project uses `__assume()` only in `get_compact_tile()` and `set_compact_til
 
 **Room State Flags:**
 ```c
-#define ROOM_SECRET 0x01             // Designated as a secret room
-#define ROOM_HAS_TREASURE 0x02       // Room contains a secret treasure (wall placement)
-#define ROOM_HAS_FALSE_CORRIDOR 0x04 // Room contains a false corridor
+#define ROOM_HIDDEN 0x01             // Designated as a hidden room
+#define ROOM_HAS_NICHE 0x02       // Room contains a wall niche
+#define ROOM_HAS_DECOY 0x04 // Room contains a decoy corridor
 ```
 
 **Room Structure:**
@@ -588,7 +588,7 @@ typedef struct {
 
     // Wall door counters (4 bytes) - tracks door count per wall
     // Index: 0=left, 1=right, 2=top, 3=bottom
-    unsigned char wall_door_count[4];      // Door count per wall (normal + false corridors)
+    unsigned char wall_door_count[4];      // Door count per wall (normal + decoy corridors)
 
     // Packed connection metadata (4 bytes)
     PackedConnection conn_data[4];         // Connection info (room_id, corridor_type)
@@ -596,13 +596,13 @@ typedef struct {
     // Door metadata (12 bytes)
     Door doors[4];                         // Door positions and metadata
 
-    // Secret treasure metadata (1 byte) - wall side only (coordinates calculated on-demand)
-    unsigned char treasure_wall_side;      // Wall side (0-3) or 255=no treasure
+    // Niche metadata (1 byte) - wall side only (coordinates calculated on-demand)
+    unsigned char niche_wall_side;      // Wall side (0-3) or 255=no niche
 
-    // False corridor metadata (3 bytes) - wall side + endpoint coordinates
-    unsigned char false_corridor_wall_side; // Wall side (0-3) or 255=no false corridor
-    unsigned char false_corridor_end_x;     // False corridor end X coordinate
-    unsigned char false_corridor_end_y;     // False corridor end Y coordinate
+    // Decoy corridor metadata (3 bytes) - wall side + endpoint coordinates
+    unsigned char decoy_wall_side; // Wall side (0-3) or 255=no decoy corridor
+    unsigned char decoy_end_x;     // Decoy corridor end X coordinate
+    unsigned char decoy_end_y;     // Decoy corridor end Y coordinate
 } Room;                                     // 48 bytes total
 ```
 
@@ -611,7 +611,7 @@ typedef struct {
 typedef struct {
     unsigned char room_id : 5;              // Connected room ID (0-31)
     unsigned char corridor_type : 2;        // Corridor type (0-3): Straight=0, L-shaped=1, Z-shaped=2
-    unsigned char is_non_branching : 1;     // Non-branching corridor flag (runtime tracking for hidden corridors)
+    unsigned char is_non_branching : 1;     // Non-branching corridor flag (runtime tracking for hidden passages)
 } PackedConnection;                         // 1 byte total (optimized: corridor_type reduced 3→2 bits)
 ```
 
@@ -626,7 +626,7 @@ typedef struct {
 typedef struct {
     unsigned char x, y;                    // Door coordinates
     unsigned char wall_side : 2;           // Wall side (0-3)
-    unsigned char is_branching : 1;        // Branching corridor flag (used by hidden corridor system)
+    unsigned char is_branching : 1;        // Branching corridor flag (used by hidden passage system)
     unsigned char reserved : 5;            // Reserved for future use
 } Door;                                    // 3 bytes total
 ```
@@ -648,19 +648,19 @@ typedef struct {
 - Computed on-demand by `compute_corridor_breakpoints()` during corridor drawing
 - Not stored permanently - recalculated when needed for pathfinding or queries
 
-### Secret Metadata Tracking
+### Feature Metadata Tracking
 
-**Secret Treasure System:**
-- `treasure_wall_side`: Wall side index (0-3) or 255 for no treasure
+**Niche System:**
+- `niche_wall_side`: Wall side index (0-3) or 255 for no niche
 - Wall availability checked via `wall_door_count[wall_side]` array
 - `get_wall_side_from_exit()` (mapgen_utils.c): Determines wall side from door position
-- `place_secret_treasures()` (connection_system.c): Places percentage-based treasures (10%/25%/50% of non-secret rooms)
+- `place_niches()` (connection_system.c): Places percentage-based niches (10%/25%/50% of non-hidden rooms)
 
-**False Corridor System:**
-- `false_corridor_wall_side`: Wall side index (0-3) or 255 for no false corridor
-- `false_corridor_end_x, false_corridor_end_y`: Coordinates of corridor dead-end
-- Invalid wall_side (255) indicates no false corridor
-- `place_false_corridors()`: Places percentage-based false corridors (10%/25%/50% of available walls)
+**Decoy Corridor System:**
+- `decoy_wall_side`: Wall side index (0-3) or 255 for no decoy corridor
+- `decoy_end_x, decoy_end_y`: Coordinates of corridor dead-end
+- Invalid wall_side (255) indicates no decoy corridor
+- `place_decoy_corridors()`: Places percentage-based decoy corridors (10%/25%/50% of available walls)
 
 ## Algorithm Performance
 
@@ -679,14 +679,14 @@ typedef struct {
 
 ## Generation Pipeline
 
-0. **Building Rooms**: Grid-based placement with collision detection and immediate wall construction. Map clearing and runtime counter initialization happen before this phase.
-1. **Connecting Rooms**: MST algorithm execution with corridor walls built during creation (updates `total_connections`, `available_walls_count`)
-2. **Secret Areas**: Single-connection room conversion using `place_secret_rooms()` (updates `total_secret_rooms`, `available_walls_count`). Post-MST calculation (`calculate_post_mst_feature_counts()`) runs after this phase to compute feature counts from percentages.
-3. **Secret Treasures**: Hidden treasure chamber placement using `place_secret_treasures()` (updates `total_treasures`, `available_walls_count`)
-4. **False Corridors**: Dead-end corridor placement using `place_false_corridors()` (updates `total_false_corridors`)
-5. **Hidden Corridors**: Non-branching corridor concealment using `place_hidden_corridors()` (updates `total_hidden_corridors`)
+0. **Carving Chambers**: Grid-based placement with collision detection and immediate wall construction. Map clearing and runtime counter initialization happen before this phase.
+1. **Digging Corridors**: MST algorithm execution with corridor walls built during creation (updates `total_connections`, `available_walls_count`)
+2. **Hiding Rooms**: Single-connection room conversion using `place_hidden_rooms()` (updates `total_hidden_rooms`, `available_walls_count`). Post-MST calculation (`calculate_post_mst_feature_counts()`) runs after this phase to compute feature counts from percentages.
+3. **Carving Niches**: 1-tile hidden space placement using `place_niches()` (updates `total_niches`, `available_walls_count`)
+4. **Laying Traps**: Dead-end corridor placement using `place_decoy_corridors()` (updates `total_decoys`)
+5. **Concealing Doors**: Non-branching corridor concealment using `place_hidden_passages()` (count = `total_decoys` for balance)
 6. **Placing Stairs**: Distance-based optimal placement (maximum separation)
-7. **Complete**: Generation finished, all map data ready in memory
+7. **Generation Complete!**: All map data ready in memory
 
 ## Technical Architecture
 
@@ -696,11 +696,11 @@ typedef struct {
 |-----------|---------------|
 | **Core Generator** (`map_generation.c`) | Pipeline orchestration and master control |
 | **Room System** (`room_management.c`) | Placement algorithms with grid distribution |
-| **MST Connectivity** (`connection_system.c`) | Prim's algorithm, corridor generation, feature systems (secret rooms, treasures, false/hidden corridors) |
+| **MST Connectivity** (`connection_system.c`) | Prim's algorithm, corridor generation, feature systems (hidden rooms, niches, deception) |
 | **Utility Layer** (`mapgen_utils.c`) | Bit manipulation, math operations, validation, RNG |
 | **Progress System** (`mapgen_progress.c`) | Progress bar, phase display, console output (DEBUG only) |
 | **Display Engine** (`mapgen_display.c`) | Viewport management, camera, PETSCII conversion, delta rendering (DEBUG only) |
-| **Export System** (`map_export.c`) | Seed-based save/load system - 9 bytes (DEBUG only) |
+| **Export System** (`map_export.c`) | Seed-based save/load system - 3 bytes (DEBUG only) |
 
 ### Build System
 
@@ -728,10 +728,9 @@ unsigned char mapgen_generate_dungeon(void);
 // Production mode API - direct parameter generation
 unsigned char mapgen_generate_with_params(
     unsigned char map_size,        // 0=SMALL(50x50,9rooms), 1=MEDIUM(64x64,16rooms), 2=LARGE(78x78,20rooms)
-    unsigned char secret_rooms,    // 0=10%, 1=25%, 2=50%
-    unsigned char false_corridors, // 0=10%, 1=25%, 2=50%
-    unsigned char secret_treasures,// 0=10%, 1=25%, 2=50%
-    unsigned char hidden_corridors // 0=10%, 1=25%, 2=50%
+    unsigned char hidden_rooms,    // 0=10%, 1=25%, 2=50%
+    unsigned char niches,          // 0=10%, 1=25%, 2=50%
+    unsigned char deception        // 0=10%, 1=25%, 2=50% (controls both decoys and hidden passages)
 );
 // Returns: 0=success, 1=invalid params, 2=generation failed
 
@@ -743,7 +742,7 @@ unsigned char mapgen_get_map_size(void);  // Returns current map width
 
 ```c
 // Map save/load (DEBUG mode only, defined in map_export.h)
-void save_map_seed(const char* filename);                    // Save seed + config (7 bytes)
+void save_map_seed(const char* filename);                    // Save seed + config (3 bytes)
 unsigned char load_map_seed(const char* filename, MapConfig* config);  // Load seed + config
 ```
 
@@ -760,24 +759,22 @@ After successful generation, the following global data structures are available:
 
 ### Seed-Based Save Format (MAPBIN)
 
-The map export system uses **seed-based saving** instead of raw map data. Since maps are deterministically generated from a 16-bit seed, only the seed and configuration parameters need to be saved. This reduces file size from 800-2400+ bytes to just **9 bytes**.
+The map export system uses **seed-based saving** instead of raw map data. Since maps are deterministically generated from a 16-bit seed, only the seed and configuration parameters need to be saved. This reduces file size from 800-2400+ bytes to just **3 bytes**.
 
 **File Structure (Sequential File):**
 ```
 Byte 0-1:   Seed (16-bit, little-endian)
-Byte 2:     Map size preset (0=SMALL, 1=MEDIUM, 2=LARGE)
-Byte 3:     Room count preset (0=SMALL, 1=MEDIUM, 2=LARGE)
-Byte 4:     Room size preset (reserved for future use)
-Byte 5:     Secret rooms preset (0=10%, 1=25%, 2=50%)
-Byte 6:     False corridors preset
-Byte 7:     Secret treasures preset
-Byte 8:     Hidden corridors preset
+Byte 2:     Packed presets (2 bits each):
+            - Bits [1:0] = map_size (0=SMALL, 1=MEDIUM, 2=LARGE)
+            - Bits [3:2] = hidden_rooms (0=10%, 1=25%, 2=50%)
+            - Bits [5:4] = niches
+            - Bits [7:6] = deception
 ```
 
 **File Size:**
-- **9 bytes total** (sequential file format, no PRG header)
+- **3 bytes total** (sequential file format, no PRG header)
 - Compare to old format: 867-2403 bytes depending on map size
-- **~99.6% size reduction** for large maps
+- **~99.9% size reduction** for large maps
 
 ### Reproducible Generation
 
