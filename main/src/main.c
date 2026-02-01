@@ -64,10 +64,9 @@ int main(void) {
     mapgen_init(12345);
     mapgen_generate_with_params(
         1,  // MEDIUM map (64x64, 16 rooms)
-        1,  // 25% secret rooms
-        1,  // 25% false corridors
-        1,  // 25% treasures
-        1   // 25% hidden corridors
+        1,  // 25% hidden rooms
+        1,  // 25% niches
+        1   // 25% deception (decoys + hidden passages)
     );
     // After generation, data is available in memory:
     // - compact_map[] : 3-bit packed tile data

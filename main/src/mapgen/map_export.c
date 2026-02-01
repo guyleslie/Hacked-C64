@@ -23,13 +23,9 @@
 // =============================================================================
 // File format (sequential file, seed-based, reproducible):
 //   Byte 0-1:  Seed (16-bit, little-endian)
-//   Byte 2:    Map size preset (0=SMALL, 1=MEDIUM, 2=LARGE)
-//   Byte 3:    Secret rooms preset
-//   Byte 4:    False corridors preset
-//   Byte 5:    Secret treasures preset
-//   Byte 6:    Hidden corridors preset
+//   Byte 2:    Packed presets (2 bits each: map_size, hidden_rooms, niches, deception)
 //
-// Total: 7 bytes (no PRG header, sequential file format)
+// Total: 3 bytes
 // =============================================================================
 
 // Export buffer for seed-based save (7 bytes)
@@ -55,22 +51,17 @@ void save_map_seed(const char* filename) {
     seed_export_buffer[0] = (unsigned char)(seed & 0xFF);        // Low byte
     seed_export_buffer[1] = (unsigned char)((seed >> 8) & 0xFF); // High byte
 
-    // Use the stored preset value directly
-    unsigned char preset = current_params.preset;
+    // Pack 4 presets into 1 byte (2 bits each, values 0-2)
+    // Bits: [7:6]=deception, [5:4]=niches, [3:2]=hidden_rooms, [1:0]=map_size
+    seed_export_buffer[2] =
+        ((current_params.deception_count > 30 ? 2 : current_params.deception_count > 15 ? 1 : 0) << 6) |
+        ((current_params.niche_count > 30 ? 2 : current_params.niche_count > 15 ? 1 : 0) << 4) |
+        ((current_params.hidden_room_count > 3 ? 2 : current_params.hidden_room_count > 1 ? 1 : 0) << 2) |
+        (current_params.grid_size > 4 ? 2 : current_params.grid_size > 3 ? 1 : 0);
 
-    // Store config presets
-    seed_export_buffer[2] = preset;  // map_size
-    seed_export_buffer[3] = preset;  // secret_rooms
-    seed_export_buffer[4] = preset;  // false_corridors
-    seed_export_buffer[5] = preset;  // secret_treasures
-    seed_export_buffer[6] = preset;  // hidden_corridors
-
-    // Set the filename for file operations
     krnio_setnam(filename);
-
-    // Open file for writing on device 8 (floppy)
     if (krnio_open(2, 8, 1)) {
-        krnio_write(2, (const char*)seed_export_buffer, 7);
+        krnio_write(2, (const char*)seed_export_buffer, 3);
         krnio_close(2);
     }
 }
@@ -78,55 +69,41 @@ void save_map_seed(const char* filename) {
 /**
  * @brief Load map seed and configuration from disk
  *
- * Loads seed and configuration parameters from file, then sets up
- * the mapgen system to regenerate the exact same map.
- *
  * @param filename PETSCII filename (max 16 chars)
  * @param config Output configuration to populate
  * @return 1 on success, 0 on failure
  */
 unsigned char load_map_seed(const char* filename, MapConfig* config) {
-    unsigned int seed;
-    int bytes_read;
-
-    // Set the filename for file operations
     krnio_setnam(filename);
-
-    // Open file for reading on device 8 (floppy)
     if (!krnio_open(2, 8, 0)) {
-        return 0;  // Open failed
+        return 0;
     }
 
-    // Read 7 bytes of seed/config data
-    bytes_read = krnio_read(2, (char*)seed_export_buffer, 7);
+    int bytes_read = krnio_read(2, (char*)seed_export_buffer, 3);
     krnio_close(2);
 
-    // Check if we read enough data
-    if (bytes_read < 7) {
-        return 0;  // Read failed or incomplete
+    if (bytes_read < 3) {
+        return 0;
     }
 
     // Extract seed (little-endian)
-    seed = seed_export_buffer[0] | ((unsigned int)seed_export_buffer[1] << 8);
-
-    // Initialize mapgen with loaded seed
+    unsigned int seed = seed_export_buffer[0] | ((unsigned int)seed_export_buffer[1] << 8);
     mapgen_init(seed);
 
-    // Extract configuration presets
-    config->map_size = (PresetLevel)seed_export_buffer[2];
-    config->secret_rooms = (PresetLevel)seed_export_buffer[3];
-    config->false_corridors = (PresetLevel)seed_export_buffer[4];
-    config->secret_treasures = (PresetLevel)seed_export_buffer[5];
-    config->hidden_corridors = (PresetLevel)seed_export_buffer[6];
+    // Unpack presets from byte 2
+    unsigned char packed = seed_export_buffer[2];
+    config->map_size = (PresetLevel)(packed & 0x03);
+    config->hidden_rooms = (PresetLevel)((packed >> 2) & 0x03);
+    config->niches = (PresetLevel)((packed >> 4) & 0x03);
+    config->deception = (PresetLevel)((packed >> 6) & 0x03);
 
-    // Validate loaded values (must be 0-2)
+    // Clamp to valid range (0-2)
     if (config->map_size > LEVEL_LARGE) config->map_size = LEVEL_MEDIUM;
-    if (config->secret_rooms > LEVEL_LARGE) config->secret_rooms = LEVEL_MEDIUM;
-    if (config->false_corridors > LEVEL_LARGE) config->false_corridors = LEVEL_MEDIUM;
-    if (config->secret_treasures > LEVEL_LARGE) config->secret_treasures = LEVEL_MEDIUM;
-    if (config->hidden_corridors > LEVEL_LARGE) config->hidden_corridors = LEVEL_MEDIUM;
+    if (config->hidden_rooms > LEVEL_LARGE) config->hidden_rooms = LEVEL_MEDIUM;
+    if (config->niches > LEVEL_LARGE) config->niches = LEVEL_MEDIUM;
+    if (config->deception > LEVEL_LARGE) config->deception = LEVEL_MEDIUM;
 
-    return 1;  // Success
+    return 1;
 }
 
 #endif // DEBUG_MAPGEN
