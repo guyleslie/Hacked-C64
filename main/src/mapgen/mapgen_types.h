@@ -60,12 +60,12 @@ const unsigned char CHECK_FLOORS_ONLY = 2;
 const unsigned char CHECK_FLOORS_AND_DOORS = 3;
 
 // Room state flags
-#define ROOM_SECRET 0x01
-#define ROOM_HAS_TREASURE 0x02
-#define ROOM_HAS_FALSE_CORRIDOR 0x04
+#define ROOM_HIDDEN 0x01
+#define ROOM_HAS_NICHE 0x02
+#define ROOM_HAS_DECOY 0x04
 
-// Secret room system constants
-const unsigned char SECRET_ROOM_PERCENTAGE = 50;  // Percentage of single-connection rooms to mark as secret
+// Hidden room system constants
+const unsigned char HIDDEN_ROOM_PERCENTAGE = 50;  // Percentage of single-connection rooms to hide
 
 // Corridor and connection parameters
 const unsigned char MAX_PATH_LENGTH = 20;
@@ -108,14 +108,14 @@ typedef struct {
     // Door metadata (12 bytes vs 16 bytes)
     Door doors[4];                         // 12 bytes - packed door positions
 
-    // Secret treasure metadata (1 byte) - wall side only (coordinates calculated on-demand)
-    unsigned char treasure_wall_side;      // 1 byte - wall side (0-3) or 255=no treasure
+    // Niche metadata (1 byte) - wall side only (coordinates calculated on-demand)
+    unsigned char niche_wall_side;         // Wall side (0-3) or 255=no niche
 
-    // False corridor metadata (3 bytes) - wall side + endpoint coordinates
-    unsigned char false_corridor_wall_side; // 1 byte - wall side (0-3) or 255=no false corridor
-    unsigned char false_corridor_end_x;     // 1 byte - false corridor end X coordinate
-    unsigned char false_corridor_end_y;     // 1 byte - false corridor end Y coordinate
-} Room; // 48 bytes total (+2 bytes for wall_door_count optimization, -2 bytes from coordinate removal)
+    // Decoy corridor metadata (3 bytes) - wall side + endpoint coordinates
+    unsigned char decoy_wall_side;  // Wall side (0-3) or 255=no decoy
+    unsigned char decoy_end_x;      // Decoy endpoint X
+    unsigned char decoy_end_y;      // Decoy endpoint Y
+} Room; // 48 bytes total
 
 // Viewport structure
 typedef struct {

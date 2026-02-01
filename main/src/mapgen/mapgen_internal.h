@@ -18,17 +18,15 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
 // Room initialization
 void init_rooms(void);
 
-// Secret room management
-void place_secret_rooms(unsigned char room_count_target);
+// Hidden room management
+void place_hidden_rooms(unsigned char room_count_target);
 
-// Secret treasure management
-void place_secret_treasures(unsigned char treasure_count);
+// Niche management (1-tile hidden spaces in walls)
+void place_niches(unsigned char niche_count);
 
-// False corridor management
-void place_false_corridors(unsigned char corridor_count);
-
-// Hidden corridor management
-void place_hidden_corridors(unsigned char corridor_count);
+// Deception system - decoys (dead-ends) and hidden passages (secret doors)
+void place_decoy_corridors(unsigned char corridor_count);
+void place_hidden_passages(unsigned char passage_count);
 
 // =============================================================================
 // CONSOLIDATED GLOBAL VARIABLE DECLARATIONS
@@ -43,13 +41,12 @@ extern unsigned char rnd_state;
 // Generation parameters (defined in map_generation.c)
 extern MapParameters current_params;
 
-// Runtime feature counters for percentage-based generation (defined in map_generation.c)
-extern unsigned char total_connections;         // Total MST corridors created
-extern unsigned char total_secret_rooms;        // Secret rooms placed
-extern unsigned char total_treasures;           // Treasure chambers placed
-extern unsigned char total_false_corridors;     // False corridors placed
-extern unsigned char total_hidden_corridors;    // Hidden corridors placed
-extern unsigned char available_walls_count;     // Walls without doors (non-secret rooms)
+// Runtime feature counters (defined in map_generation.c)
+extern unsigned char total_connections;      // MST corridors created
+extern unsigned char total_hidden_rooms;     // Hidden rooms placed
+extern unsigned char total_niches;           // Wall niches placed
+extern unsigned char total_decoys;           // Decoy corridors placed
+extern unsigned char available_walls_count;  // Walls without doors
 
 // Zero page variables for MST performance
 extern __zeropage unsigned char mst_best_room1;
