@@ -47,6 +47,10 @@ static const unsigned char setting_types[4] = {0, 1, 1, 1};
 // Current seed value (0 = random)
 static unsigned int menu_seed = 0;
 
+static void wait_for_fire_release(void) {
+    while (!(cia1.pra & 0x10)) {}
+}
+
 // =============================================================================
 // DEBUG-ONLY CONFIGURATION FUNCTIONS
 // =============================================================================
@@ -62,13 +66,26 @@ void init_default_config(MapConfig *config) {
 }
 
 /**
- * @brief Print seed value at specified position (5 digits, right-aligned)
+ * @brief Print seed value or the RANDOM sentinel at the menu position
  */
 static void print_seed_value(unsigned char row, unsigned int seed) {
     unsigned int offset = row * 40 + 28;
     unsigned int temp = seed;
     unsigned char digits[5];
     unsigned char i;
+
+    // Seed zero is a command to sample a new hardware seed, not a repeatable
+    // numeric seed. Lowercase source codes render as normal uppercase glyphs
+    // in the mixed C64 screen charset; uppercase codes would be inverse video.
+    if (seed == 0) {
+        SCREEN_RAM[offset + 0] = 'r';
+        SCREEN_RAM[offset + 1] = 'a';
+        SCREEN_RAM[offset + 2] = 'n';
+        SCREEN_RAM[offset + 3] = 'd';
+        SCREEN_RAM[offset + 4] = 'o';
+        SCREEN_RAM[offset + 5] = 'm';
+        return;
+    }
 
     // Convert to digits (right to left)
     for (i = 0; i < 5; i++) {
@@ -87,32 +104,32 @@ static void print_seed_value(unsigned char row, unsigned int seed) {
 
 /**
  * @brief Input seed value from keyboard (numeric only, max 5 digits)
+ * @param first_digit Numeric key that started seed entry
  * @return Entered seed value (0-65535)
  */
-static unsigned int input_seed_value(void) {
+static unsigned int input_seed_value(unsigned char first_digit) {
     unsigned int offset = 13 * 40 + 28;
     unsigned char input_buf[6];  // 5 digits + null
-    unsigned char pos = 0;
+    unsigned char pos = 1;
     unsigned char key;
     unsigned long value;
     unsigned char i;
     unsigned char joy2;
 
-    // Wait for FIRE release first
-    while (!(cia1.pra & 0x10)) {}
-
-    // Clear input area and show cursor
+    // Clear input area, keep the key that activated entry, and show cursor.
     for (i = 0; i < 6; i++) {
         SCREEN_RAM[offset + i] = ' ';
     }
-    SCREEN_RAM[offset] = '_';  // Cursor
+    input_buf[0] = first_digit;
+    SCREEN_RAM[offset] = first_digit;
+    SCREEN_RAM[offset + 1] = '_';
 
     while (1) {
         // Check FIRE button to finish input
         joy2 = cia1.pra;
         if (!(joy2 & 0x10)) {
             // Wait for release to prevent immediate re-trigger
-            while (!(cia1.pra & 0x10)) {}
+            wait_for_fire_release();
             break;
         }
 
@@ -233,6 +250,7 @@ static void show_config_menu(MapConfig *config) {
     unsigned char cursor = 0;
     unsigned char done = 0;
     unsigned char old_cursor;
+    unsigned char key;
     unsigned char joy2, prev_joy2 = 0xFF;
 
     // Initial screen setup - draw once
@@ -260,12 +278,22 @@ static void show_config_menu(MapConfig *config) {
 
     // Instructions - centered
     print_at(10, 21, "joy2: navigation");
-    print_at(8, 23, "fire: start  seed 0=rnd");
+    print_at(7, 23, "seed: type  fire: ok/start");
 
     // Initial cursor (first menu item at row 5, column 6)
     SCREEN_RAM[5 * 40 + 6] = '>';
 
     while (!done) {
+        // On the seed row, the first numeric key enters seed-edit mode.
+        // FIRE is reserved for confirming once entry is active.
+        key = getchx();
+        if (cursor == 4 && key >= '0' && key <= '9') {
+            menu_seed = input_seed_value(key);
+            print_seed_value(13, menu_seed);
+            prev_joy2 = cia1.pra;
+            continue;
+        }
+
         // Read joystick 2 from CIA1 Port A
         joy2 = cia1.pra;
 
@@ -283,16 +311,9 @@ static void show_config_menu(MapConfig *config) {
                 cursor++;
                 update_cursor(old_cursor, cursor);
             }
-            // FIRE button - start generation or seed input
+            // Outside active seed entry, FIRE always starts generation.
             else if (!(joy2 & 0x10)) {
-                if (cursor == 4) {
-                    // Seed selected - enter numeric input mode
-                    menu_seed = input_seed_value();
-                    print_seed_value(13, menu_seed);
-                } else {
-                    // Start generation
-                    done = 1;
-                }
+                done = 1;
             }
 
             // Value adjustment - RIGHT (increase)
@@ -383,6 +404,7 @@ void mapgen_run_debug_mode(void) {
 
     // Show configuration menu
     show_config_menu(&config);
+    wait_for_fire_release();
 
     // Validate and compute parameters
     validate_and_adjust_config(&config, &params);
@@ -402,6 +424,7 @@ void mapgen_run_debug_mode(void) {
 
     // Generate complete level (includes all necessary resets)
     mapgen_generate_dungeon();
+    wait_for_fire_release();
 
     // Interactive loop using joystick 2
     while (1) {
@@ -419,6 +442,7 @@ void mapgen_run_debug_mode(void) {
                 mapgen_set_parameters(&params);
                 clrscr();
                 mapgen_generate_dungeon();
+                wait_for_fire_release();
             }
         }
 
@@ -434,8 +458,12 @@ void mapgen_run_debug_mode(void) {
 
         // Check FIRE button for configuration menu
         if (!(joy2 & 0x10)) {
+            // Consume the map-view press before opening the menu. Otherwise
+            // the same held press would immediately start another dungeon.
+            wait_for_fire_release();
             clrscr();
             show_config_menu(&config);
+            wait_for_fire_release();
             validate_and_adjust_config(&config, &params);
             mapgen_set_parameters(&params);
             // Apply seed setting
@@ -446,8 +474,9 @@ void mapgen_run_debug_mode(void) {
             }
             clrscr();
             mapgen_generate_dungeon();
-            // Wait for fire release
-            while (!(cia1.pra & 0x10)) {}
+            // Ignore FIRE held or pressed during the generation animation.
+            wait_for_fire_release();
+            continue;
         }
 
         // Check joystick directions (supports diagonal)
