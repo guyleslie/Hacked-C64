@@ -19,6 +19,7 @@ extern MapParameters current_params;
 static const unsigned char MAP_BORDER = 1;
 static const unsigned char BORDER_PADDING = 1;
 static const unsigned char PLACEMENT_ATTEMPTS = 15;
+static const unsigned char LAYOUT_ATTEMPTS = 16;
 
 // =============================================================================
 // ROOM VALIDATION FUNCTIONS 
@@ -32,8 +33,9 @@ static const unsigned char PLACEMENT_ATTEMPTS = 15;
  * @param h Room height in tiles
  * @return 1 if placement is valid, 0 if placement conflicts
  *
- * Uses inline bit-packing with Y offset calculated once per row for performance.
- * Requires y_bit_stride to be set via calculate_y_bit_stride().
+ * During this phase the map contains rooms only. Checking the candidate buffer
+ * against the stored room rectangles is therefore equivalent to scanning the
+ * packed tile map, but avoids hundreds of 3-bit tile reads per attempt.
  */
 unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char h) {
     // Calculate safety margin boundaries with minimum room distance
@@ -48,43 +50,19 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
         return 0;
     }
 
-    // Check if safety margin is clear
-    for (unsigned char iy = buffer_y1; iy <= buffer_y2; iy++) {
-        // Calculate Y bit offset once per row
-        unsigned short y_bit_offset = (unsigned short)iy * y_bit_stride;
+    // Existing occupied room rectangle includes its one-tile wall perimeter.
+    for (unsigned char i = 0; i < room_count; i++) {
+        Room *room = &room_list[i];
+        unsigned char room_x1 = room->x - 1;
+        unsigned char room_y1 = room->y - 1;
+        unsigned char room_x2 = room->x + room->w;
+        unsigned char room_y2 = room->y + room->h;
 
-        for (unsigned char ix = buffer_x1; ix <= buffer_x2; ix++) {
-            // Inline bit-packing logic for performance
-            
-            // Bounds check (only X needs checking, Y already validated in outer loop)
-            if (ix >= current_params.map_width) continue;
-
-            // Calculate bit offset WITHOUT Y multiplication (already in y_bit_offset)
-            // Formula: bit_offset = y_bit_offset + (x * 3)
-            // We use (x + x + x) instead of (x * 3) for better 6510 performance
-            unsigned short bit_offset = y_bit_offset + ix + ix + ix;
-            
-            // Get pointer to byte containing our tile data
-            unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
-            unsigned char bit_pos = bit_offset & 7;
-
-            // Extract 3-bit tile value from compact storage
-            unsigned char tile;
-            if (bit_pos <= 5) {
-                // Simple case: tile fits within single byte
-                tile = (*byte_ptr >> bit_pos) & TILE_MASK;
-            } else {
-                // Complex case: tile spans two bytes
-                unsigned char low_bits = 8 - bit_pos;
-                unsigned char first_part = *byte_ptr >> bit_pos;
-                unsigned char second_part = (*(byte_ptr + 1) & ((1 << (3 - low_bits)) - 1)) << low_bits;
-                tile = (first_part | second_part) & TILE_MASK;
-            }
-
-            // Check if position is occupied
-            if (tile != TILE_EMPTY) {
-                return 0; // Collision detected
-            }
+        // Inclusive rectangle intersection: a hit means the requested safety
+        // margin contains an existing floor or wall tile.
+        if (!(buffer_x2 < room_x1 || room_x2 < buffer_x1 ||
+              buffer_y2 < room_y1 || room_y2 < buffer_y1)) {
+            return 0;
         }
     }
     
@@ -157,6 +135,30 @@ unsigned char try_place_room_at_grid(unsigned char grid_index, unsigned char w, 
         }
 
         attempts++;
+    }
+
+    // The random samples above can miss a valid position or repeat the same
+    // invalid coordinate. Scan the exact same legal range from a random start
+    // before declaring that this room really does not fit.
+    const unsigned char start_x = rnd(range_x);
+    const unsigned char start_y = rnd(range_y);
+
+    for (unsigned char y_offset = 0; y_offset < range_y; y_offset++) {
+        unsigned char scan_y = start_y + y_offset;
+        if (scan_y >= range_y) scan_y -= range_y;
+        const unsigned char y = placement_min_y + scan_y;
+
+        for (unsigned char x_offset = 0; x_offset < range_x; x_offset++) {
+            unsigned char scan_x = start_x + x_offset;
+            if (scan_x >= range_x) scan_x -= range_x;
+            const unsigned char x = placement_min_x + scan_x;
+
+            if (can_place_room(x, y, w, h)) {
+                *result_x = x;
+                *result_y = y;
+                return 1;
+            }
+        }
     }
 
     return 0; // Failed to place
@@ -363,49 +365,69 @@ void create_rooms(void) {
     const unsigned char grid_size = current_params.grid_size;
     const unsigned char grid_total = grid_size * grid_size;
 
-    // Initialize room structures
-    init_rooms();
-
     // OPTIMIZATION: Pre-calculate Y bit stride before room placement
     // This must be called after map parameters are set
-    // Allows can_place_room() to use fast cached multiplication
+    // and is needed when the accepted rooms are written to compact_map.
     calculate_y_bit_stride();
 
-    // Initialize grid position array
-    for (unsigned char i = 0; i < grid_total; i++) {
-        grid_positions[i] = i;
-    }
+    // Retry the unchanged randomized layout when a complete room set cannot
+    // be fitted. RNG state intentionally continues between attempts, so a
+    // seed remains deterministic while receiving a different legal layout.
+    for (unsigned char layout_attempt = 0; layout_attempt < LAYOUT_ATTEMPTS; layout_attempt++) {
+        if (layout_attempt > 0) {
+            clear_map();
+        }
+        init_rooms();
+        placed_rooms = 0;
 
-    // Shuffle grid positions using Fisher-Yates algorithm
-    for (unsigned char i = grid_total - 1; i > 0; i--) {
-        unsigned char j = rnd(i + 1);
-        unsigned char temp = grid_positions[i];
-        grid_positions[i] = grid_positions[j];
-        grid_positions[j] = temp;
-    }
+        // Initialize grid position array
+        for (unsigned char i = 0; i < grid_total; i++) {
+            grid_positions[i] = i;
+        }
 
-    // Generate rooms at shuffled grid positions
-    for (unsigned char i = 0; i < grid_total && placed_rooms < current_params.max_rooms; i++) {
-        unsigned char w, h, x, y;
-        unsigned char min_size = current_params.min_room_size;
-        unsigned char max_size = current_params.max_room_size;
-        unsigned char size_range = max_size - min_size;
+        // Shuffle grid positions using Fisher-Yates algorithm
+        for (unsigned char i = grid_total - 1; i > 0; i--) {
+            unsigned char j = rnd(i + 1);
+            unsigned char temp = grid_positions[i];
+            grid_positions[i] = grid_positions[j];
+            grid_positions[j] = temp;
+        }
 
-        // Generate room size - both dimensions random from range
-        w = min_size + rnd(size_range + 1);
-        h = min_size + rnd(size_range + 1);
-        
-        // Attempt to place room at grid position
-        if (try_place_room_at_grid(grid_positions[i], w, h, &x, &y)) {
-            place_room(x, y, w, h);
-            placed_rooms++;
+        // Generate rooms at shuffled grid positions
+        for (unsigned char i = 0; i < grid_total && placed_rooms < current_params.max_rooms; i++) {
+            unsigned char w, h, x, y;
+            unsigned char min_size = current_params.min_room_size;
+            unsigned char max_size = current_params.max_room_size;
+            unsigned char size_range = max_size - min_size;
+
+            // Generate room size - both dimensions random from range
+            w = min_size + rnd(size_range + 1);
+            h = min_size + rnd(size_range + 1);
+
+            // Attempt the original random room size first. If it genuinely
+            // cannot fit, retry with the already-valid minimum room size.
+            unsigned char placed = try_place_room_at_grid(grid_positions[i], w, h, &x, &y);
+            if (!placed && (w != min_size || h != min_size)) {
+                w = min_size;
+                h = min_size;
+                placed = try_place_room_at_grid(grid_positions[i], w, h, &x, &y);
+            }
+
+            if (placed) {
+                place_room(x, y, w, h);
+                placed_rooms++;
 #ifdef DEBUG_MAPGEN
-            // Phase 0: Room placement progress
-            update_progress_step(0, placed_rooms, current_params.max_rooms);
+                // Phase 0: Room placement progress
+                update_progress_step(0, placed_rooms, current_params.max_rooms);
 #endif
+            }
+        }
+
+        if (placed_rooms >= current_params.max_rooms) {
+            break;
         }
     }
-    
+
     // Finalize room generation
     room_count = placed_rooms;
 }

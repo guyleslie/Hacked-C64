@@ -391,6 +391,13 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
         return 1;
     }
 
+    // Validate both metadata slots before drawing any floor, walls, or doors.
+    // A failed connection must not leave partial geometry on the map.
+    if (room1 >= room_count || room2 >= room_count || room1 == room2 ||
+        room_list[room1].connections >= 4 || room_list[room2].connections >= 4) {
+        return 0;
+    }
+
     // No safety check needed - MST guarantees: room1 != room2, both < room_count
     Room *r1 = &room_list[room1];
     Room *r2 = &room_list[room2];
@@ -479,6 +486,9 @@ void build_room_network(void) {
         // Find closest unconnected room pair
         for (unsigned char i = 0; i < room_count; i++) {
             if (!connected[i]) continue;
+            // Room stores at most four reciprocal connections. A saturated
+            // room remains in the network but cannot be the next MST parent.
+            if (room_list[i].connections >= 4) continue;
 
             for (unsigned char j = 0; j < room_count; j++) {
                 if (connected[j] || i == j) continue;

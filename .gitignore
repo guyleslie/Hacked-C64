@@ -10,5 +10,9 @@ build/
 oscar64/
 vice/
 
+# Python audit caches
+__pycache__/
+*.pyc
+
 # GitHub Workflows (removed)
 .github/

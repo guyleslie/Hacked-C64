@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include "mapgen_types.h"
 #include "mapgen_config.h"
+#include "mapgen_utils.h"
 #include "mapgen_progress.h"
 
 // External reference to generation parameters
@@ -23,6 +24,7 @@ extern MapParameters current_params;
 // =============================================================================
 
 // Progress bar PETSCII characters (quarter-block increments)
+static const unsigned char PROGRESS_EMPTY = 0x20;
 static const unsigned char PROGRESS_QUARTER = 0x65;
 static const unsigned char PROGRESS_HALF = 0x61;
 static const unsigned char PROGRESS_THREE_Q = 0xE7;
@@ -36,6 +38,33 @@ static unsigned char progress_steps = 0;
 // Phase boundary calculation (8 phases)
 static unsigned char phase_boundaries[8];
 static unsigned char phase_total_weight = 0;
+
+static void render_progress_bar(void) {
+    unsigned char pos = progress_steps >> 2;
+    unsigned char phase_char = progress_steps & 3;
+    volatile unsigned char * const screen_mem = (volatile unsigned char *)SCREEN_MEMORY_BASE;
+    unsigned short base_pos = progress_y * 40 + (progress_x + 1);
+
+    // Each cell has exactly five visible states:
+    // empty, quarter, half, three-quarter, and full.
+    for (unsigned char i = 0; i < 20; i++) {
+        unsigned char progress_char_val = PROGRESS_EMPTY;
+
+        if (i < pos) {
+            progress_char_val = PROGRESS_FULL;
+        } else if (i == pos) {
+            if (phase_char == 1) progress_char_val = PROGRESS_QUARTER;
+            else if (phase_char == 2) progress_char_val = PROGRESS_HALF;
+            else if (phase_char == 3) progress_char_val = PROGRESS_THREE_Q;
+        }
+
+        screen_mem[base_pos + i] = progress_char_val;
+    }
+}
+
+static unsigned char estimated_percentage_count(unsigned char total, unsigned char percentage) {
+    return ((unsigned short)total * percentage + 99) / 100;
+}
 
 // =============================================================================
 // CONSOLE OUTPUT
@@ -58,12 +87,29 @@ void print_text(const char* text) {
 
 void init_progress_weights(void) {
     unsigned char weights[8];
+    unsigned char estimated_visible_rooms = current_params.max_rooms;
+    unsigned char estimated_corridors = current_params.max_rooms - 1;
+
+    if (estimated_visible_rooms > current_params.hidden_room_count) {
+        estimated_visible_rooms -= current_params.hidden_room_count;
+    } else {
+        estimated_visible_rooms = 1;
+    }
+
+    if (estimated_corridors > current_params.hidden_room_count) {
+        estimated_corridors -= current_params.hidden_room_count;
+    } else {
+        estimated_corridors = 1;
+    }
+
     weights[0] = current_params.max_rooms;
     weights[1] = current_params.max_rooms - 1;
     weights[2] = current_params.hidden_room_count;
-    weights[3] = current_params.niche_count;
-    weights[4] = current_params.deception_count;  // Decoys
-    weights[5] = current_params.deception_count;  // Hidden passages (same count)
+    // niche_count and deception_count are preset percentages at this point,
+    // not generated object counts. Convert them to realistic work estimates.
+    weights[3] = estimated_percentage_count(estimated_visible_rooms, current_params.niche_count);
+    weights[4] = estimated_percentage_count(estimated_corridors, current_params.deception_count);
+    weights[5] = weights[4];  // Hidden passage target follows actual decoys.
     weights[6] = 2;
     weights[7] = 1;
 
@@ -84,10 +130,11 @@ void init_progress_bar_simple(const char* title) {
     clrscr();
     gotoxy(13, 10);
     print_text(title);
+    render_progress_bar();
 }
 
 void update_progress_step(unsigned char phase, unsigned char current, unsigned char total) {
-    if (total == 0) return;
+    if (phase >= 8 || total == 0) return;
 
     unsigned char phase_start = phase_boundaries[phase];
     unsigned char phase_end = (phase < 7) ? phase_boundaries[phase + 1] : 80;
@@ -100,26 +147,14 @@ void update_progress_step(unsigned char phase, unsigned char current, unsigned c
         phase_progress = ((unsigned short)current * phase_range) / total;
     }
 
-    progress_steps = phase_start + phase_progress;
-    if (progress_steps > 80) progress_steps = 80;
+    unsigned char new_progress_steps = phase_start + phase_progress;
+    if (new_progress_steps > 80) new_progress_steps = 80;
 
-    unsigned char pos = progress_steps >> 2;
-    unsigned char phase_char = progress_steps & 3;
-
-    volatile unsigned char * const screen_mem = (volatile unsigned char *)SCREEN_MEMORY_BASE;
-    unsigned short base_pos = progress_y * 40 + (progress_x + 1);
-
-    for (unsigned char i = 0; i < pos && i < 20; i++) {
-        screen_mem[base_pos + i] = PROGRESS_FULL;
-    }
-
-    if (pos < 20) {
-        unsigned char progress_char_val = PROGRESS_QUARTER;
-        if (phase_char == 1) progress_char_val = PROGRESS_HALF;
-        else if (phase_char == 2) progress_char_val = PROGRESS_THREE_Q;
-        else if (phase_char == 3) progress_char_val = PROGRESS_FULL;
-        screen_mem[base_pos + pos] = progress_char_val;
-    }
+    // A rejected room layout can restart phase 0 internally. Keep the visible
+    // bar monotonic instead of making it jump backwards during that retry.
+    if (new_progress_steps < progress_steps) return;
+    progress_steps = new_progress_steps;
+    render_progress_bar();
 }
 
 void finish_progress_bar(void) {
@@ -135,22 +170,65 @@ void finish_progress_bar(void) {
 // PHASE DISPLAY
 // =============================================================================
 
-static const char phase_strings[] =
-    "Carving Chambers\0"
-    "Digging Corridors\0"
-    "Hiding Rooms\0"
-    "Carving Niches\0"
-    "Laying Traps\0"
-    "Concealing Doors\0"
-    "Placing Stairs\0"
-    "Generation Complete!";
-
-static const unsigned char phase_offsets[8] = {0, 17, 35, 48, 63, 76, 93, 108};
+// Three dungeon-themed captions per generation phase. Selection is derived
+// from the stored map seed without advancing the generator RNG, so cosmetic
+// variety can never change the generated dungeon.
+static const char* const phase_strings[8][3] = {
+    {
+        "Carving Chambers",
+        "Carving Dusty Chambers",
+        "Carving Ancient Chambers"
+    },
+    {
+        "Digging Corridors",
+        "Digging Winding Corridors",
+        "Digging Crooked Corridors"
+    },
+    {
+        "Hiding Rooms",
+        "Hiding Forgotten Rooms",
+        "Hiding Suspicious Rooms"
+    },
+    {
+        "Carving Niches",
+        "Carving Secret Niches",
+        "Carving Treasure Niches"
+    },
+    {
+        "Laying False Passages",
+        "Laying Devious Dead Ends",
+        "Laying Misleading Paths"
+    },
+    {
+        "Concealing Doors",
+        "Concealing Secret Doors",
+        "Concealing Hidden Passages"
+    },
+    {
+        "Placing Stairs",
+        "Placing Distant Stairs",
+        "Placing Ancient Stairs"
+    },
+    {
+        "Generation Complete!",
+        "Dungeon Complete!",
+        "The Dungeon Awaits!"
+    }
+};
 
 void show_phase(unsigned char phase_id) {
     if (phase_id >= 8) return;
 
-    const char* text = phase_strings + phase_offsets[phase_id];
+    // Entering a new phase means all previous work is finished, even when a
+    // feature phase could create fewer optional objects than its target.
+    if (phase_boundaries[phase_id] > progress_steps) {
+        progress_steps = phase_boundaries[phase_id];
+        render_progress_bar();
+    }
+
+    unsigned int seed = mapgen_get_seed();
+    unsigned char variant = (unsigned char)((seed ^ ((unsigned int)phase_id * 73)) % 3);
+    const char* text = phase_strings[phase_id][variant];
     unsigned char text_len = 0;
     const char* p = text;
     while (*p++) text_len++;

@@ -58,15 +58,11 @@ void finish_progress_bar(void);
  * @brief Display phase name centered below progress bar
  * @param phase_id Phase index (0-7)
  *
- * Phase names:
- * 0: "Carving Chambers"
- * 1: "Digging Corridors"
- * 2: "Hiding Rooms"
- * 3: "Carving Niches"
- * 4: "Laying Traps"
- * 5: "Concealing Doors"
- * 6: "Placing Stairs"
- * 7: "Generation Complete!"
+ * Also advances the bar to the start boundary of the new phase, so optional
+ * feature shortfalls cannot leave the visible progress behind its caption.
+ *
+ * Each phase has several short dungeon-themed captions selected from the map
+ * seed without consuming generator RNG state.
  */
 void show_phase(unsigned char phase_id);
 
