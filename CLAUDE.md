@@ -1,0 +1,182 @@
+# CLAUDE.md
+
+Commodore 64 dungeon crawler game. OSCAR64 cross-compiler, C language.
+
+This file is a concise orientation guide. The current source code and Git history are authoritative for exact implementation details.
+
+## Source Structure
+
+```
+main/src/
+├── main.c                      # Entry point, includes all modules
+└── mapgen/                     # Map generation (only implemented module)
+    ├── mapgen_api.h            # Public API
+    ├── mapgen_internal.h       # Internal declarations and shared state
+    ├── mapgen_types.h          # Data structures (Room, Door, PackedConnection)
+    ├── mapgen_config.c/.h      # Configuration, presets
+    ├── mapgen_utils.c/.h       # Utilities, RNG, tile operations
+    ├── map_generation.c        # 8-phase generation pipeline
+    ├── room_management.c       # Room placement
+    ├── connection_system.c     # Corridors, features (hidden rooms, niches, deception)
+    ├── tmea_types.h            # TMEA v4 types, item/monster enums
+    ├── tmea_core.c/.h          # Tile metadata & entity pools
+    ├── tmea_data.c/.h          # Lookup tables (items, monsters)
+    ├── mapgen_progress.c/.h    # Progress bar (DEBUG only)
+    ├── mapgen_display.c/.h     # Viewport rendering (DEBUG only)
+    ├── mapgen_debug.c/.h       # Interactive menu (DEBUG only)
+    └── map_export.c/.h         # Seed save/load (DEBUG only)
+```
+
+## Code Conventions
+
+**Types:**
+- Prefer `unsigned char` for coordinates, counters, and tiles; use `signed char` for signed deltas
+- Use 16-bit types only when the range requires them (seeds, addresses, packed-map offsets)
+- No `malloc`/`free` - static allocation only
+
+**Naming:**
+- `snake_case` for functions: `place_walls_around_room()`
+- Public map generator API uses the `mapgen_` prefix; internal helpers use descriptive `snake_case`
+
+**OSCAR64 Pattern:**
+All `.c` files included in `main.c`:
+```c
+#include "mapgen/tmea_core.c"      // Must be first
+#include "mapgen/tmea_data.c"      // Lookup tables
+#include "mapgen/mapgen_config.c"
+#include "mapgen/mapgen_utils.c"
+#include "mapgen/map_generation.c"
+#include "mapgen/room_management.c"
+#include "mapgen/connection_system.c"
+
+#ifdef DEBUG_MAPGEN
+#include "mapgen/mapgen_progress.c"
+#include "mapgen/mapgen_display.c"
+#include "mapgen/map_export.c"
+#include "mapgen/mapgen_debug.c"
+#endif
+```
+
+## C64 Constraints
+
+- **No dynamic allocation** - use static arrays with max size
+- **8-bit preferred** - 16-bit operations are slower
+- **3-bit tile encoding** - `compact_map[]` array, use `get_compact_tile()`/`set_compact_tile()`
+- **Max 20 rooms** - `room_list[20]`, 48 bytes each
+- **TMEA v4: ~700 bytes RAM** - metadata, entity pools (6 monsters, 48 items), and combat state; unused parts may be optimized out
+- **TMEA v4 lookup: ~350 bytes ROM** - const item/monster definition tables when fully retained
+- **`__zeropage`** - reserve for genuinely hot variables; zero page space is limited
+
+## Feature Terminology
+
+| Term | Description |
+|------|-------------|
+| **Hidden Room** | Room accessible only through secret door (single-connection room) |
+| **Niche** | 1-tile hidden space in wall behind secret door |
+| **Decoy Corridor** | Dead-end passage that misleads the player |
+| **Hidden Passage** | Real corridor with one secret door (count = decoy count) |
+| **Deception** | Unified system: decoys + hidden passages (single preset) |
+
+## Key Patterns
+
+**Tile access:**
+```c
+unsigned char tile = get_compact_tile(x, y);
+set_compact_tile(x, y, TILE_FLOOR);
+```
+
+**Room iteration:**
+```c
+for (unsigned char i = 0; i < room_count; i++) {
+    Room* room = &room_list[i];
+}
+```
+
+**Feature creation pattern:**
+```c
+static unsigned char create_feature(...);  // Internal
+void place_features(unsigned char count);  // Public
+```
+
+**Candidate selection (swap & pop):**
+```c
+while (placed < target && cand_count > 0) {
+    unsigned char idx = rnd(cand_count);
+    if (create_feature(candidates[idx])) placed++;
+    // Remove candidate (swap with last)
+    cand_count--;
+    candidates[idx] = candidates[cand_count];
+}
+```
+
+**TMEA metadata:**
+```c
+add_secret_door_metadata(x, y);
+unsigned char is_secret = is_door_secret(x, y);
+```
+
+**TMEA entities:**
+```c
+TinyObj* obj = spawn_object(x, y, ITEM_LONG_SWORD);
+if (obj) {
+    obj->data = ITEM_MOD_PLUS_1;  // +1 sword
+}
+
+TinyMon* mon = spawn_monster(x, y, MON_SKELETON, 10);
+if (mon) {
+    mon->state = MSTATE_PATROL;
+}
+```
+
+**TMEA lookup tables:**
+```c
+const WeaponDef* def = get_weapon_def(ITEM_GET_SUBTYPE(ITEM_LONG_SWORD));
+if (def) {
+    unsigned char damage = def->damage;
+}
+
+const MonsterDef* mdef = get_monster_def(MON_GHOST);
+if (mdef && (mdef->def_flags & MDEF_LIFE_DRAIN)) { /* ... */ }
+```
+
+## Configuration
+
+**MapConfig (4 settings, 3 preset levels each):**
+```c
+typedef struct {
+    PresetLevel map_size;      // SMALL/MEDIUM/LARGE
+    PresetLevel hidden_rooms;  // 10%/25%/50%
+    PresetLevel niches;        // 10%/25%/50%
+    PresetLevel deception;     // 10%/25%/50% (controls both decoys and hidden passages)
+} MapConfig;
+```
+
+**MapParameters (computed values):**
+```c
+typedef struct {
+    unsigned char map_width, map_height;
+    unsigned char grid_size, max_rooms;
+    unsigned char min_room_size, max_room_size;
+    unsigned char hidden_room_count;  // Actual count
+    unsigned char niche_count;        // Ratio (calculated post-MST)
+    unsigned char deception_count;    // Ratio (calculated post-MST)
+} MapParameters;
+```
+
+## Room State Flags
+
+```c
+#define ROOM_HIDDEN 0x01      // Hidden room (secret door entrance)
+#define ROOM_HAS_NICHE 0x02   // Room has wall niche
+#define ROOM_HAS_DECOY 0x04   // Room has decoy corridor
+```
+
+## Documentation
+
+| Topic | File |
+|-------|------|
+| Game architecture | `docs/game-architecture-plan.md` |
+| Technical spec | `docs/project-specification.md` |
+| TMEA system | `docs/TMEA.md` |
+| DEBUG/RELEASE modes | `docs/mapgen-debug-production-split.md` |
+| OSCAR64/C64 reference | `docs/oscar64-c64-development-reference.md` |
