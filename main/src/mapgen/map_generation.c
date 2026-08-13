@@ -207,9 +207,9 @@ unsigned char generate_level(void) {
     // Initialize camera for debug preview mode
     initialize_camera();
 
-    // VIC-II raster-based delay (more reliable on C64)
-    // Wait for multiple frame cycles for visible delay
-    for (unsigned char frames = 0; frames < 150; frames++) {  // ~3 seconds at 50Hz PAL
+    // Keep the completion text briefly visible without adding a three-second
+    // pause after generation. 25 PAL frames is roughly half a second.
+    for (unsigned char frames = 0; frames < 25; frames++) {
         // Wait for raster line 0 (top of screen)
         while (*(volatile unsigned char*)0xD012 != 0) {
             // Wait for raster to reach top

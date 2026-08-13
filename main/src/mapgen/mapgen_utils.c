@@ -25,13 +25,34 @@ static unsigned char rng_seeded = 0;
 static unsigned int rng_seed_16 = 1;
 
 unsigned short y_bit_stride = 0;
+#ifndef MAPGEN_LEGACY_ROW_OFFSETS
+static unsigned char y_bit_offset_lo[MAX_MAP_SIZE];
+static unsigned char y_bit_offset_hi[MAX_MAP_SIZE];
+#endif
 
 void calculate_y_bit_stride(void) {
     y_bit_stride = (unsigned short)current_params.map_width * 3;
+
+#ifndef MAPGEN_LEGACY_ROW_OFFSETS
+    // Cache every packed-map row start once per generation. Tile access is a
+    // hot path on the 6510; two indexed loads are much cheaper than the generic
+    // 16-by-8-bit multiplication previously performed for every read/write.
+    unsigned short bit_offset = 0;
+    for (unsigned char y = 0; y < current_params.map_height; y++) {
+        y_bit_offset_lo[y] = (unsigned char)(bit_offset & 0xFF);
+        y_bit_offset_hi[y] = (unsigned char)(bit_offset >> 8);
+        bit_offset += y_bit_stride;
+    }
+#endif
 }
 
 static inline unsigned short get_y_bit_offset_fast(unsigned char y) {
+#ifdef MAPGEN_LEGACY_ROW_OFFSETS
     return (unsigned short)y * y_bit_stride;
+#else
+    return (unsigned short)y_bit_offset_lo[y] |
+           ((unsigned short)y_bit_offset_hi[y] << 8);
+#endif
 }
 
 unsigned int get_random_seed(void) {
@@ -90,6 +111,36 @@ void set_compact_tile(unsigned char x, unsigned char y, unsigned char tile) {
         *byte_ptr = (*byte_ptr & ~mask1) | ((tile & ((1 << low_bits) - 1)) << bit_pos);
         unsigned char mask2 = (1 << high_bits) - 1;
         *(byte_ptr + 1) = (*(byte_ptr + 1) & ~mask2) | (tile >> low_bits);
+    }
+}
+
+// Corridor walling performs this operation very frequently. Combining the
+// empty check and wall write avoids calculating the same packed-map address
+// twice. TILE_WALL is binary 001, so an empty tile only needs its first packed
+// bit set; split-byte tiles are checked across both bytes before that write.
+static void set_wall_if_empty(unsigned char x, unsigned char y) {
+    if (x >= current_params.map_width || y >= current_params.map_height) return;
+
+    __assume(x < 80);
+    __assume(y < 80);
+
+    unsigned short bit_offset = get_y_bit_offset_fast(y) + x + x + x;
+    unsigned char *byte_ptr = &compact_map[bit_offset >> 3];
+    unsigned char bit_pos = bit_offset & 7;
+
+    if (bit_pos <= 5) {
+        unsigned char tile_mask = TILE_MASK << bit_pos;
+        if ((*byte_ptr & tile_mask) == 0) {
+            *byte_ptr |= 1 << bit_pos;
+        }
+    } else {
+        unsigned char low_bits = 8 - bit_pos;
+        unsigned char first_mask = ((1 << low_bits) - 1) << bit_pos;
+        unsigned char second_mask = (1 << (3 - low_bits)) - 1;
+        if (((*byte_ptr & first_mask) == 0) &&
+            ((*(byte_ptr + 1) & second_mask) == 0)) {
+            *byte_ptr |= 1 << bit_pos;
+        }
     }
 }
 
@@ -339,9 +390,7 @@ void place_walls_around_corridor_tile(unsigned char x, unsigned char y) {
             if (dx == 0 && dy == 0) continue;
             unsigned char wall_x = x + dx;
             unsigned char wall_y = y + dy;
-            if (get_compact_tile(wall_x, wall_y) == TILE_EMPTY) {
-                set_compact_tile(wall_x, wall_y, TILE_WALL);
-            }
+            set_wall_if_empty(wall_x, wall_y);
         }
     }
 }
@@ -361,17 +410,13 @@ void place_wall_straight_corridor(unsigned char x1, unsigned char y1,
 
         for (unsigned char x = start_x; x <= end_x; x++) {
             // Wall above
-            if (get_compact_tile(x, y1 - 1) == TILE_EMPTY)
-                set_compact_tile(x, y1 - 1, TILE_WALL);
+            set_wall_if_empty(x, y1 - 1);
             // Wall below
-            if (get_compact_tile(x, y1 + 1) == TILE_EMPTY)
-                set_compact_tile(x, y1 + 1, TILE_WALL);
+            set_wall_if_empty(x, y1 + 1);
         }
         // End caps
-        if (get_compact_tile(start_x - 1, y1) == TILE_EMPTY)
-            set_compact_tile(start_x - 1, y1, TILE_WALL);
-        if (get_compact_tile(end_x + 1, y1) == TILE_EMPTY)
-            set_compact_tile(end_x + 1, y1, TILE_WALL);
+        set_wall_if_empty(start_x - 1, y1);
+        set_wall_if_empty(end_x + 1, y1);
     } else {
         // Vertical segment
         unsigned char start_y = (y1 < y2) ? y1 : y2;
@@ -379,17 +424,13 @@ void place_wall_straight_corridor(unsigned char x1, unsigned char y1,
 
         for (unsigned char y = start_y; y <= end_y; y++) {
             // Wall left
-            if (get_compact_tile(x1 - 1, y) == TILE_EMPTY)
-                set_compact_tile(x1 - 1, y, TILE_WALL);
+            set_wall_if_empty(x1 - 1, y);
             // Wall right
-            if (get_compact_tile(x1 + 1, y) == TILE_EMPTY)
-                set_compact_tile(x1 + 1, y, TILE_WALL);
+            set_wall_if_empty(x1 + 1, y);
         }
         // End caps
-        if (get_compact_tile(x1, start_y - 1) == TILE_EMPTY)
-            set_compact_tile(x1, start_y - 1, TILE_WALL);
-        if (get_compact_tile(x1, end_y + 1) == TILE_EMPTY)
-            set_compact_tile(x1, end_y + 1, TILE_WALL);
+        set_wall_if_empty(x1, start_y - 1);
+        set_wall_if_empty(x1, end_y + 1);
     }
 }
 
@@ -403,9 +444,7 @@ void place_wall_corridor_junction(unsigned char jx, unsigned char jy) {
         for (signed char dx = -1; dx <= 1; dx++) {
             unsigned char wx = jx + dx;
             unsigned char wy = jy + dy;
-            if (get_compact_tile(wx, wy) == TILE_EMPTY) {
-                set_compact_tile(wx, wy, TILE_WALL);
-            }
+            set_wall_if_empty(wx, wy);
         }
     }
 }

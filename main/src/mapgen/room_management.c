@@ -21,6 +21,16 @@ static const unsigned char BORDER_PADDING = 1;
 static const unsigned char PLACEMENT_ATTEMPTS = 15;
 static const unsigned char LAYOUT_ATTEMPTS = 16;
 
+#ifndef MAPGEN_LEGACY_ROOM_BOUNDS
+// The Room structure is optimized for the rest of generation, but repeatedly
+// indexing its 32-byte records is expensive on a 6510. These four small arrays
+// cache the occupied wall rectangle used by every placement test.
+static unsigned char room_wall_x1[MAX_ROOMS];
+static unsigned char room_wall_y1[MAX_ROOMS];
+static unsigned char room_wall_x2[MAX_ROOMS];
+static unsigned char room_wall_y2[MAX_ROOMS];
+#endif
+
 // =============================================================================
 // ROOM VALIDATION FUNCTIONS 
 // =============================================================================
@@ -52,11 +62,18 @@ unsigned char can_place_room(unsigned char x, unsigned char y, unsigned char w, 
 
     // Existing occupied room rectangle includes its one-tile wall perimeter.
     for (unsigned char i = 0; i < room_count; i++) {
+#ifdef MAPGEN_LEGACY_ROOM_BOUNDS
         Room *room = &room_list[i];
         unsigned char room_x1 = room->x - 1;
         unsigned char room_y1 = room->y - 1;
         unsigned char room_x2 = room->x + room->w;
         unsigned char room_y2 = room->y + room->h;
+#else
+        unsigned char room_x1 = room_wall_x1[i];
+        unsigned char room_y1 = room_wall_y1[i];
+        unsigned char room_x2 = room_wall_x2[i];
+        unsigned char room_y2 = room_wall_y2[i];
+#endif
 
         // Inclusive rectangle intersection: a hit means the requested safety
         // margin contains an existing floor or wall tile.
@@ -190,6 +207,13 @@ void place_room(unsigned char x, unsigned char y, unsigned char w, unsigned char
         room_list[room_count].decoy_wall_side = 255; // 255 = no false corridor
         room_list[room_count].decoy_end_x = 255;
         room_list[room_count].decoy_end_y = 255;
+
+#ifndef MAPGEN_LEGACY_ROOM_BOUNDS
+        room_wall_x1[room_count] = x - 1;
+        room_wall_y1[room_count] = y - 1;
+        room_wall_x2[room_count] = x + w;
+        room_wall_y2[room_count] = y + h;
+#endif
 
         room_count++;
     }
