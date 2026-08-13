@@ -7,8 +7,6 @@
 #include <c64/vic.h>
 #include <c64/cia.h>
 #include <conio.h>
-#include <string.h>
-#include <stdlib.h>
 // Project headers
 #include "mapgen_types.h"         // For Room, MAX_ROOMS, map constants
 #include "mapgen_utils.h"         // For viewport utilities, tile access, helper functions
@@ -66,21 +64,21 @@ void reset_viewport_state(void) {
 }
 
 /**
- * @brief Reset display buffer and dirty flags
- * Clears screen buffer and marks for full redraw
+ * @brief Reset transient display state
  */
 void reset_display_state(void) {
-    memset(screen_buffer, 32, VIEW_H * VIEW_W);
-    screen_dirty = 1;
-    last_scroll_direction = 0;
+    // Rendering reads compact_map directly. The old 1000-byte shadow screen
+    // was updated on every move but never read, so it needed no reset either.
 }
 
 // =============================================================================
 // DIRECT SCREEN ACCESS
 // =============================================================================
 
-// C64 screen memory pointer
-volatile unsigned char * const screen_memory = (volatile unsigned char *)SCREEN_MEMORY_BASE;
+// C64 screen memory pointer. OSCAR64 recommends a constant, non-volatile
+// pointer for video memory so absolute-address and loop optimizations remain
+// available; volatile is intended for hardware registers and IRQ-shared data.
+unsigned char * const screen_memory = (unsigned char *)SCREEN_MEMORY_BASE;
 
 // =============================================================================
 // GLOBAL VARIABLES - CAMERA AND VIEWPORT
@@ -92,20 +90,6 @@ unsigned char camera_center_y = 36;  // 72/2 = 36 (map center for 72x72)
 
 // Current viewport position (top-left corner)
 Viewport view = {0, 0};
-
-// =============================================================================
-// GLOBAL VARIABLES - DISPLAY
-// =============================================================================
-
-// Cache of previous screen contents for delta updates
-unsigned char screen_buffer[VIEW_H][VIEW_W];
-
-// Flag indicating screen needs refresh
-unsigned char screen_dirty = 1;
-
-// Tracks last scroll direction for optimization
-// Values: 0=none, 1=up, 2=down, 3=left, 4=right
-unsigned char last_scroll_direction = 0;
 
 // =============================================================================
 // CAMERA SYSTEM
@@ -128,11 +112,6 @@ void initialize_camera(void) {
 
 // Update viewport based on camera center position with boundary checking
 void update_camera(void) {
-    unsigned char old_x = view.x;
-    unsigned char old_y = view.y;
-    unsigned char old_camera_x = camera_center_x;
-    unsigned char old_camera_y = camera_center_y;
-    
     unsigned char half_w = VIEW_W / 2;
     unsigned char half_h = VIEW_H / 2;
     
@@ -162,10 +141,6 @@ void update_camera(void) {
     camera_center_x = view.x + half_w;
     camera_center_y = view.y + half_h;
     
-    // Mark screen dirty if viewport changed
-    if ((old_x != view.x) || (old_y != view.y)) {
-        screen_dirty = 1;
-    }
 }
 
 
@@ -190,215 +165,244 @@ void update_full_screen(void) {
             // Get tile from map and convert to PETSCII
             tile = get_map_tile(view.x + x, view.y + screen_y);
             
-            // Update both screen memory and buffer
+            // Update screen memory directly
             screen_memory[screen_pos + x] = tile;
-            screen_buffer[screen_y][x] = tile;
         }
     }
 }
 
 // Main map rendering function
 void render_map_viewport(unsigned char force_refresh) {
-    // Handle force refresh
     if (force_refresh) {
         clrscr();
-        screen_dirty = 1;
-        last_scroll_direction = 0;
     }
-    
-    // Early exit if screen is clean
-    if (!screen_dirty) {
-        return;
-    }
-    
-    // Store scroll direction before potential reset
-    unsigned char current_scroll_direction = last_scroll_direction;
-    
-    // Choose rendering method based on scroll direction
-    if (current_scroll_direction != 0) {
-        // Use scroll for single-tile movements
-        update_partial_screen(current_scroll_direction);
-    } else {
-        // Full screen update for initial display or force refresh
-        update_full_screen();
-    }
-    
-    // Clear dirty flag
-    screen_dirty = 0;
-    last_scroll_direction = 0;
+
+    update_full_screen();
 }
     
 // ============================================================================
 // CAMERA MOVEMENT SYSTEM
 // ============================================================================
 
-// Move camera in specified direction
-void move_camera_direction(unsigned char direction) {
+// Move both axes atomically. A diagonal joystick state must cause one viewport
+// change and one render, not two complete character scrolls.
+void move_camera(signed char dx, signed char dy) {
     unsigned char old_view_x = view.x;
     unsigned char old_view_y = view.y;
-    unsigned char new_camera_x = camera_center_x;
-    unsigned char new_camera_y = camera_center_y;
-    unsigned char moved = 0;
-    
-    // Direct camera movement - update_camera() clamps to boundaries
-    switch (direction) {
-        case MOVE_UP:
-            new_camera_y--;
-            moved = 1;
-            break;
+    unsigned char max_view_x = (current_params.map_width > VIEW_W) ?
+                               current_params.map_width - VIEW_W : 0;
+    unsigned char max_view_y = (current_params.map_height > VIEW_H) ?
+                               current_params.map_height - VIEW_H : 0;
 
-        case MOVE_DOWN:
-            new_camera_y++;
-            moved = 1;
-            break;
-
-        case MOVE_LEFT:
-            new_camera_x--;
-            moved = 1;
-            break;
-
-        case MOVE_RIGHT:
-            new_camera_x++;
-            moved = 1;
-            break;
+    if (dx < 0) {
+        if (view.x > 0) view.x--;
+    } else if (dx > 0) {
+        if (view.x < max_view_x) view.x++;
     }
 
-    // Update camera position and viewport if moved
-    if (moved) {
-        // Store previous camera positions for scroll detection
-        unsigned char prev_camera_x = camera_center_x;
-        unsigned char prev_camera_y = camera_center_y;
-        
-        camera_center_x = new_camera_x;
-        camera_center_y = new_camera_y;
-        update_camera();
-        
-        // Determine scroll direction ONLY if viewport actually changed
-        // This prevents full screen updates at map boundaries
-        if (view.x != old_view_x || view.y != old_view_y) {
-            // Viewport changed - set scroll direction for optimized rendering
-            if (view.y < old_view_y) {
-                last_scroll_direction = 1; // Up scroll
-            } else if (view.y > old_view_y) {
-                last_scroll_direction = 2; // Down scroll
-            } else if (view.x < old_view_x) {
-                last_scroll_direction = 3; // Left scroll
-            } else if (view.x > old_view_x) {
-                last_scroll_direction = 4; // Right scroll
-            } else {
-                last_scroll_direction = 0; // No scroll
-            }
-        } else {
-            // Viewport didn't change (at boundary) - no scroll optimization
-            // This prevents slow full screen updates when hitting map edges
-            last_scroll_direction = 0;
-        }
-        
-        // Mark screen as dirty for redraw
-        screen_dirty = 1;
-        
-        // Update display after movement
-        render_map_viewport(0);
+    if (dy < 0) {
+        if (view.y > 0) view.y--;
+    } else if (dy > 0) {
+        if (view.y < max_view_y) view.y++;
     }
+
+    // At a map boundary a blocked input performs no screen work at all. If
+    // only one component of a diagonal is blocked, the other still scrolls.
+    if (view.x == old_view_x && view.y == old_view_y) return;
+
+    camera_center_x = view.x + VIEW_W / 2;
+    camera_center_y = view.y + VIEW_H / 2;
+
+    update_partial_screen((signed char)view.x - (signed char)old_view_x,
+                          (signed char)view.y - (signed char)old_view_y);
 }
 
 // =============================================================================
 // SCROLL SYSTEM 
 // =============================================================================
-// Shifts only affected rows or columns in screen memory and buffer
-// based on scroll direction, with edge and boundary checks.
 
-void update_partial_screen(unsigned char scroll_dir) {
-    unsigned short screen_offset;
+// The build as a whole is size-oriented. These routines are the frame-critical
+// exception, so compile them for speed and use OSCAR64's recommended vertical
+// loop unrolling. Splitting the screen halves follows the official tutorials
+// and keeps the copies ahead of the raster beam.
+#pragma optimize(push, speed)
+
+static void scroll_screen_left(void) {
     unsigned char x, y;
 
-    // Validate scroll direction parameter
-    if (scroll_dir == 0 || scroll_dir > 4) {
-        update_full_screen();
+    for (x = 0; x < VIEW_W - 1; x++) {
+        #pragma unroll(full)
+        for (y = 0; y < 12; y++)
+            screen_memory[40 * y + x] = screen_memory[40 * y + x + 1];
+    }
+    for (x = 0; x < VIEW_W - 1; x++) {
+        #pragma unroll(full)
+        for (y = 12; y < VIEW_H; y++)
+            screen_memory[40 * y + x] = screen_memory[40 * y + x + 1];
+    }
+}
+
+static void scroll_screen_right(void) {
+    unsigned char x, y;
+
+    for (x = VIEW_W - 1; x > 0; x--) {
+        #pragma unroll(full)
+        for (y = 0; y < 12; y++)
+            screen_memory[40 * y + x] = screen_memory[40 * y + x - 1];
+    }
+    for (x = VIEW_W - 1; x > 0; x--) {
+        #pragma unroll(full)
+        for (y = 12; y < VIEW_H; y++)
+            screen_memory[40 * y + x] = screen_memory[40 * y + x - 1];
+    }
+}
+
+static void scroll_screen_up(void) {
+    unsigned char x, y;
+
+    for (x = 0; x < VIEW_W; x++) {
+        #pragma unroll(full)
+        for (y = 0; y < 12; y++)
+            screen_memory[40 * y + x] = screen_memory[40 * (y + 1) + x];
+    }
+    for (x = 0; x < VIEW_W; x++) {
+        #pragma unroll(full)
+        for (y = 12; y < VIEW_H - 1; y++)
+            screen_memory[40 * y + x] = screen_memory[40 * (y + 1) + x];
+    }
+}
+
+static void scroll_screen_down(void) {
+    unsigned char x, y;
+    unsigned char middle_row[VIEW_W];
+
+    for (x = 0; x < VIEW_W; x++)
+        middle_row[x] = screen_memory[40 * 12 + x];
+
+    for (x = 0; x < VIEW_W; x++) {
+        #pragma unroll(full)
+        for (y = 12; y > 0; y--)
+            screen_memory[40 * y + x] = screen_memory[40 * (y - 1) + x];
+    }
+    for (x = 0; x < VIEW_W; x++) {
+        #pragma unroll(full)
+        for (y = VIEW_H - 1; y > 13; y--)
+            screen_memory[40 * y + x] = screen_memory[40 * (y - 1) + x];
+    }
+
+    for (x = 0; x < VIEW_W; x++)
+        screen_memory[40 * 13 + x] = middle_row[x];
+}
+
+static void scroll_screen_left_up(void) {
+    unsigned char x, y;
+
+    for (x = 0; x < VIEW_W - 1; x++) {
+        #pragma unroll(full)
+        for (y = 0; y < VIEW_H - 1; y++)
+            screen_memory[40 * y + x] = screen_memory[40 * (y + 1) + x + 1];
+    }
+}
+
+static void scroll_screen_right_up(void) {
+    unsigned char x, y;
+
+    for (x = VIEW_W - 1; x > 0; x--) {
+        #pragma unroll(full)
+        for (y = 0; y < VIEW_H - 1; y++)
+            screen_memory[40 * y + x] = screen_memory[40 * (y + 1) + x - 1];
+    }
+}
+
+static void scroll_screen_left_down(void) {
+    unsigned char x, y;
+
+    for (x = 0; x < VIEW_W - 1; x++) {
+        #pragma unroll(full)
+        for (y = VIEW_H - 1; y > 0; y--)
+            screen_memory[40 * y + x] = screen_memory[40 * (y - 1) + x + 1];
+    }
+}
+
+static void scroll_screen_right_down(void) {
+    unsigned char x, y;
+
+    for (x = VIEW_W - 1; x > 0; x--) {
+        #pragma unroll(full)
+        for (y = VIEW_H - 1; y > 0; y--)
+            screen_memory[40 * y + x] = screen_memory[40 * (y - 1) + x - 1];
+    }
+}
+
+static void fill_view_row(unsigned char screen_y) {
+    unsigned char x;
+    unsigned short row = (unsigned short)screen_y * 40;
+
+    for (x = 0; x < VIEW_W; x++)
+        screen_memory[row + x] = get_map_tile(view.x + x, view.y + screen_y);
+}
+
+static void fill_view_column(unsigned char screen_x,
+                             unsigned char first_y,
+                             unsigned char end_y) {
+    unsigned char y;
+
+    for (y = first_y; y < end_y; y++)
+        screen_memory[40 * y + screen_x] =
+            get_map_tile(view.x + screen_x, view.y + y);
+}
+
+// Shift the visible map once for any cardinal or diagonal one-tile move. A
+// diagonal copies the shared 39x24 area directly instead of performing two
+// complete scrolls, then fills only its newly exposed row and column.
+void update_partial_screen(signed char dx, signed char dy) {
+    if ((dx == 0 && dy == 0) || dx < -1 || dx > 1 || dy < -1 || dy > 1) {
         return;
     }
 
-    // Edge case checks removed - partial scroll works fine at boundaries!
-    // The get_map_tile() bounds checking handles out-of-bounds safely
-    // This eliminates slow full screen updates on the last scroll before boundary
+    // Start below the visible screen. This also paces a held joystick to the
+    // video frames and gives every direction the same raster starting point.
+    vic_waitBottom();
 
-    // Always use single line/column scroll for precise movement
-    unsigned char max_y = VIEW_H - 1;
-    unsigned char max_x = VIEW_W - 1;
-    
-    switch(scroll_dir) {          
-        
-        case 1: 
-        // Scroll UP - move content down by one line only
-        // Shift screen content down by 1 line
-        for (y = max_y; y >= 1; y--) {
-            // Shift this line in screen memory
-            for (x = 0; x < VIEW_W; x++) {
-                screen_memory[y * 40 + x] = screen_memory[(y - 1) * 40 + x];
-            }
-            // Shift this line in buffer (integrated processing)
-            memmove(&screen_buffer[y][0], &screen_buffer[y - 1][0], VIEW_W);
+    if (dy == 0) {
+        if (dx > 0) {
+            scroll_screen_left();
+            fill_view_column(VIEW_W - 1, 0, VIEW_H);
+        } else {
+            scroll_screen_right();
+            fill_view_column(0, 0, VIEW_H);
         }
-        // Fill top line with new content
-        for (x = 0; x < VIEW_W; x++) {
-            unsigned char tile = get_map_tile(view.x + x, view.y);
-            screen_memory[0 * 40 + x] = tile;
-            screen_buffer[0][x] = tile;
+        return;
+    }
+
+    if (dx == 0) {
+        if (dy > 0) {
+            scroll_screen_up();
+            fill_view_row(VIEW_H - 1);
+        } else {
+            scroll_screen_down();
+            fill_view_row(0);
         }
-        break;
-        
-        case 2: 
-        // Scroll DOWN - move content up by one line only
-        // Shift screen content up by 1 line  
-        for (y = 0; y < max_y; y++) {
-            // Shift this line in screen memory
-            for (x = 0; x < VIEW_W; x++) {
-                screen_memory[y * 40 + x] = screen_memory[(y + 1) * 40 + x];
-            }
-            // Shift this line in buffer (integrated processing)
-            memmove(&screen_buffer[y][0], &screen_buffer[y + 1][0], VIEW_W);
-        }
-        // Fill bottom line with new content
-        screen_offset = max_y * 40;
-        for (x = 0; x < VIEW_W; x++) {
-            unsigned char tile = get_map_tile(view.x + x, view.y + max_y);
-            screen_memory[screen_offset + x] = tile;
-            screen_buffer[max_y][x] = tile;
-        }
-        break;
-            
-        case 3:
-        // Scroll LEFT - move content right by one column only
-        // Shift screen content right by 1 column
-        for (y = 0; y < VIEW_H; y++) {
-            for (x = max_x; x >= 1; x--) {
-                screen_memory[y * 40 + x] = screen_memory[y * 40 + x - 1];
-            }
-            // Shift buffer content
-            memmove(&screen_buffer[y][1], &screen_buffer[y][0], max_x);
-            // Fill leftmost column
-            unsigned char tile = get_map_tile(view.x, view.y + y);
-            screen_memory[y * 40] = tile;
-            screen_buffer[y][0] = tile;
-        }
-        break;        
-        
-        case 4: 
-        // Scroll RIGHT - move content left by one column only
-        // Shift screen content left by 1 column
-        for (y = 0; y < VIEW_H; y++) {
-            for (x = 0; x < max_x; x++) {
-                screen_memory[y * 40 + x] = screen_memory[y * 40 + x + 1];
-            }
-            // Shift buffer content
-            memmove(&screen_buffer[y][0], &screen_buffer[y][1], max_x);
-            // Fill rightmost column
-            unsigned char tile = get_map_tile(view.x + max_x, view.y + y);
-            screen_memory[y * 40 + max_x] = tile;
-            screen_buffer[y][max_x] = tile;
-        }
-        break;
+        return;
+    }
+
+    if (dx > 0) {
+        if (dy > 0) scroll_screen_left_up();
+        else scroll_screen_left_down();
+    } else {
+        if (dy > 0) scroll_screen_right_up();
+        else scroll_screen_right_down();
+    }
+
+    if (dy > 0) {
+        fill_view_row(VIEW_H - 1);
+        fill_view_column(dx > 0 ? VIEW_W - 1 : 0, 0, VIEW_H - 1);
+    } else {
+        fill_view_row(0);
+        fill_view_column(dx > 0 ? VIEW_W - 1 : 0, 1, VIEW_H);
     }
 }
+
+#pragma optimize(pop)
 #endif // DEBUG_MAPGEN
 

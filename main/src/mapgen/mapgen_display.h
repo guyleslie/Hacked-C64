@@ -4,12 +4,6 @@
 #include "mapgen_types.h"
 
 #ifdef DEBUG_MAPGEN
-// Camera movement directions
-const unsigned char MOVE_UP = 1;
-const unsigned char MOVE_DOWN = 2;
-const unsigned char MOVE_LEFT = 3;
-const unsigned char MOVE_RIGHT = 4;
-
 // =============================================================================
 // PETSCII TILE CONVERSION
 // =============================================================================
@@ -44,9 +38,9 @@ void reset_display_state(void);
 
 void initialize_camera(void);
 void update_camera(void);
-void move_camera_direction(unsigned char direction);
+void move_camera(signed char dx, signed char dy);
 void render_map_viewport(unsigned char force_refresh);
-void update_partial_screen(unsigned char scroll_dir);
+void update_partial_screen(signed char dx, signed char dy);
 void update_full_screen(void);
 #endif // DEBUG_MAPGEN
 

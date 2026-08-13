@@ -396,6 +396,7 @@ static void show_config_menu(MapConfig *config) {
  */
 void mapgen_run_debug_mode(void) {
     unsigned char key;
+    unsigned char movement_frame = 0;
     MapConfig config;
     MapParameters params;
 
@@ -428,6 +429,11 @@ void mapgen_run_debug_mode(void) {
 
     // Interactive loop using joystick 2
     while (1) {
+        // Sample navigation once per video frame. Combined with the toggle
+        // below this allows one map step every two frames (25 Hz on PAL),
+        // while a newly pressed direction still reacts immediately.
+        vic_waitFrame();
+
         // Check for keyboard commands
         key = getchx();
         if (key == 'Q' || key == 'q') {
@@ -479,18 +485,26 @@ void mapgen_run_debug_mode(void) {
             continue;
         }
 
-        // Check joystick directions (supports diagonal)
-        if (!(joy2 & 0x01)) {  // UP
-            move_camera_direction(MOVE_UP);
-        }
-        if (!(joy2 & 0x02)) {  // DOWN
-            move_camera_direction(MOVE_DOWN);
-        }
-        if (!(joy2 & 0x04)) {  // LEFT
-            move_camera_direction(MOVE_LEFT);
-        }
-        if (!(joy2 & 0x08)) {  // RIGHT
-            move_camera_direction(MOVE_RIGHT);
+        // Convert the complete joystick state into one atomic camera move.
+        // Opposite directions cancel; a diagonal updates both axes but renders
+        // only once.
+        signed char dx = 0;
+        signed char dy = 0;
+
+        if (!(joy2 & 0x01) && (joy2 & 0x02)) dy = -1;
+        else if (!(joy2 & 0x02) && (joy2 & 0x01)) dy = 1;
+
+        if (!(joy2 & 0x04) && (joy2 & 0x08)) dx = -1;
+        else if (!(joy2 & 0x08) && (joy2 & 0x04)) dx = 1;
+
+        if (dx != 0 || dy != 0) {
+            if (movement_frame == 0) {
+                move_camera(dx, dy);
+            }
+            movement_frame ^= 1;
+        } else {
+            // Do not delay the first step of the next joystick press.
+            movement_frame = 0;
         }
     }
 }

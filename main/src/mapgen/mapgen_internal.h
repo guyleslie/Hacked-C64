@@ -56,9 +56,6 @@ extern __zeropage unsigned char mst_best_distance;
 // Display and camera system (defined in main.c)
 extern unsigned char camera_center_x, camera_center_y;
 extern Viewport view;
-extern unsigned char screen_buffer[VIEW_H][VIEW_W];
-extern unsigned char screen_dirty;
-extern unsigned char last_scroll_direction;
 
 // Connection functions (optimized)
 unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned char is_secret);
