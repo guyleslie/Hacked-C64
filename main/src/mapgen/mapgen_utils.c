@@ -221,12 +221,14 @@ unsigned char get_max_connection_distance(void) {
 }
 
 static const unsigned char tile_type_masks[8] = {
-    0x01, 0x02, 0x04, 0x08, 0x00, 0x00, 0x00, 0x00
+    0x01, 0x02, 0x04, 0x08, 0x04, 0x04, 0x00, 0x0C
 };
 
 inline unsigned char check_tile_has_types(unsigned char x, unsigned char y, unsigned char type_flags) {
     unsigned char tile = get_compact_tile(x, y);
-    return (tile <= 3) ? (tile_type_masks[tile] & type_flags) != 0 : 0;
+    // Stairs are floor-like. TILE_MARKER can hide either floor or door
+    // metadata, so collision checks conservatively treat it as walkable.
+    return (tile_type_masks[tile] & type_flags) != 0;
 }
 
 unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y,
@@ -235,37 +237,37 @@ unsigned char check_adjacent_tile_types(unsigned char x, unsigned char y,
 
     if (y > 0) {
         adjacent_tile_temp = get_compact_tile(x, y-1);
-        if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+        if (tile_type_masks[adjacent_tile_temp] & type_flags) return 1;
     }
     if (y < current_params.map_height - 1) {
         adjacent_tile_temp = get_compact_tile(x, y+1);
-        if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+        if (tile_type_masks[adjacent_tile_temp] & type_flags) return 1;
     }
     if (x < current_params.map_width - 1) {
         adjacent_tile_temp = get_compact_tile(x+1, y);
-        if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+        if (tile_type_masks[adjacent_tile_temp] & type_flags) return 1;
     }
     if (x > 0) {
         adjacent_tile_temp = get_compact_tile(x-1, y);
-        if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+        if (tile_type_masks[adjacent_tile_temp] & type_flags) return 1;
     }
 
     if (include_diagonals) {
         if (x > 0 && y > 0) {
             adjacent_tile_temp = get_compact_tile(x-1, y-1);
-            if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+            if (tile_type_masks[adjacent_tile_temp] & type_flags) return 1;
         }
         if (x < current_params.map_width - 1 && y > 0) {
             adjacent_tile_temp = get_compact_tile(x+1, y-1);
-            if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+            if (tile_type_masks[adjacent_tile_temp] & type_flags) return 1;
         }
         if (x > 0 && y < current_params.map_height - 1) {
             adjacent_tile_temp = get_compact_tile(x-1, y+1);
-            if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+            if (tile_type_masks[adjacent_tile_temp] & type_flags) return 1;
         }
         if (x < current_params.map_width - 1 && y < current_params.map_height - 1) {
             adjacent_tile_temp = get_compact_tile(x+1, y+1);
-            if (adjacent_tile_temp <= 3 && (tile_type_masks[adjacent_tile_temp] & type_flags)) return 1;
+            if (tile_type_masks[adjacent_tile_temp] & type_flags) return 1;
         }
     }
     return 0;

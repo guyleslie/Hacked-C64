@@ -414,30 +414,42 @@ The decoy corridor system creates Nethack-style misleading dead-end passages:
    - Top wall: `available = door_y - 2`
    - Bottom wall: `available = map_height - door_y - 3`
 4. **Early Exit**: If `available < 4`, skip this wall
-5. **Choose Length**: Random from `[4, min(available, 15)]` (bias toward longer)
-6. **Calculate Endpoint**: Safe calculation, guaranteed no unsigned wrap
-7. **Add Shape Variety**: If `corridor_len >= 6`, randomly add L/Z shape offset
-8. **Validate Path**: `process_corridor_path(CHECK)` catches room/corridor collisions
-9. **Validate Endpoint**: `check_adjacent_tile_types()` ensures endpoint isolation
-10. **Fallback**: If shaped fails, try minimum straight (4 tiles) with same validation
-11. **Draw**: `process_corridor_path(DRAW)` + `place_walls_around_corridor_tile()` for dead-end + place door + update metadata
+5. **Choose Shape Order**: Pick a random first type, then try straight/L/Z once
+   each in rotating order (maximum three type attempts)
+6. **Choose Length**: Straight uses `[4, min(available, 15)]`; L/Z use
+   `[6, min(available, 15)]`
+7. **Calculate Endpoint**: Safe outward calculation, guaranteed no unsigned wrap
+8. **Apply Shape Offset**: L/Z retain their selected type and try the randomly
+   selected bend direction, then its mirror when necessary
+9. **Validate Path**: `process_corridor_path(CHECK)` permits only empty/wall
+   tiles, rejecting rooms, corridors, doors, stairs, niches, and metadata markers
+10. **Validate Endpoint**: `check_adjacent_tile_types()` ensures endpoint isolation
+11. **Fallback**: If all three types fail, try the original minimum straight
+   corridor (4 tiles) with the same validation
+12. **Draw**: `process_corridor_path(DRAW)` +
+   `place_walls_around_corridor_tile()` for dead-end + place door + update metadata
 
 **Shape Generation:**
-- **Straight (shape=0)**: Full length in primary direction only
-- **L-shaped (shape=1)**: Primary direction + perpendicular offset (1/3 of length)
-- **Z-shaped (shape=2)**: Primary direction + smaller perpendicular offset (1/4 of length)
+- **Straight (type=0)**: Full length in primary direction only
+- **L-shaped (type=1)**: Primary direction + perpendicular offset (1/3 of length)
+- **Z-shaped (type=2)**: Primary direction + smaller perpendicular offset (1/4 of length)
+- The selected type is passed directly to the shared breakpoint walker; it is
+  not inferred again from endpoint distances
 
 **False Corridor Criteria:**
 - Minimum 4 tiles of available space required
 - Only places on walls with no doors, treasure entrances, or decoy corridor metadata
 - Excludes hidden rooms (rooms with `ROOM_HIDDEN` flag)
-- Endpoint must not be adjacent to any walkable tile (FLOOR/DOOR)
-- Falls back to minimum straight if shaped corridor validation fails
+- Endpoint must not be adjacent to any walkable tile, including metadata-marked
+  secret doors or floor features
+- Falls back to minimum straight only after the bounded three-type search fails
 
 **Key Guarantees:**
 - No unsigned wrap - available space calculated before length selection
 - Isolated endpoints - `check_adjacent_tile_types()` prevents adjacency to walkables
-- Shape variety - L/Z shapes when length permits
+- No walkable crossings - only empty and wall tiles may be carved
+- Shape variety - straight/L/Z get a randomized first chance without changing
+  the wall-center origin rule
 - Consistent with room connections - uses same `process_corridor_path()` logic
 
 **Runtime Tracking:**

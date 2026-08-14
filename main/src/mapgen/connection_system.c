@@ -36,13 +36,11 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y, unsigned char
     }
 
     if (check_level >= 2) {
-        unsigned char room_idx;
-        if (point_in_any_room(x, y, &room_idx)) {
-            return 0;
-        }
-
+        // A corridor may only carve empty space or replace a wall. This single
+        // packed-map lookup also rejects room floors, doors, stairs, niches,
+        // and TILE_MARKER metadata tiles without scanning every room.
         unsigned char tile = get_compact_tile(x, y);
-        if (tile == TILE_FLOOR || tile == TILE_DOOR) {
+        if (tile != TILE_EMPTY && tile != TILE_WALL) {
             return 0;
         }
     }
@@ -51,28 +49,6 @@ unsigned char can_place_corridor(unsigned char x, unsigned char y, unsigned char
 }
 
 // can_connect_rooms_safely() removed - MST algorithm guarantees valid indices
-
-// Determine corridor type based on geometry (shared by normal and false corridors)
-static unsigned char determine_corridor_type(unsigned char start_x, unsigned char start_y,
-                                             unsigned char end_x, unsigned char end_y) {
-    // Straight corridor if aligned on one axis
-    if (start_x == end_x || start_y == end_y) {
-        return 0;
-    }
-
-    // Calculate distances
-    unsigned char dx = (end_x > start_x) ? end_x - start_x : start_x - end_x;
-    unsigned char dy = (end_y > start_y) ? end_y - start_y : start_y - end_y;
-
-    // L-shaped corridor viable if both distances are significant
-    // This matches the logic from calculate_l_exits which uses dx > dy comparison
-    if (dx > 2 && dy > 2) {
-        return 1; // L-shaped
-    }
-
-    // Default to Z-shaped for complex cases
-    return 2;
-}
 
 static void compute_corridor_breakpoints(unsigned char start_x, unsigned char start_y,
                                          unsigned char end_x, unsigned char end_y,
@@ -708,6 +684,8 @@ void place_hidden_passages(unsigned char passage_count) {
 // DECOY CORRIDOR SYSTEM (dead-end corridors that mislead the player)
 // =============================================================================
 
+#define DECOY_ROUTE_ATTEMPTS 3
+
 // Create a decoy corridor - dead-end that looks like a real passage
 static unsigned char create_decoy_corridor(unsigned char room_idx, unsigned char wall_side) {
     Room *room = &room_list[room_idx];
@@ -744,51 +722,91 @@ static unsigned char create_decoy_corridor(unsigned char room_idx, unsigned char
     // Need minimum 4 tiles for a meaningful corridor
     if (available < 4) return 0;
 
-    // Choose length within available space (bias toward longer)
+    // Keep the existing 4-15 tile length rule.
     unsigned char max_len = (available > 15) ? 15 : available;
-    unsigned char corridor_len = 4 + rnd(max_len - 3);
-
-    // Calculate straight endpoint (guaranteed no wrap now)
+    unsigned char corridor_len = 4;
     unsigned char endpoint_x = door_x;
     unsigned char endpoint_y = door_y;
-    if (wall_side & 2) // vertical (TOP/BOTTOM)
-        endpoint_y = (wall_side & 1) ? door_y + corridor_len : door_y - corridor_len;
-    else // horizontal (LEFT/RIGHT)
-        endpoint_x = (wall_side & 1) ? door_x + corridor_len : door_x - corridor_len;
+    unsigned char corridor_type = rnd(3);
+    unsigned char route_found = 0;
 
-    // Add shape variety (L/Z) if length permits
-    unsigned char shape = (corridor_len >= 6) ? rnd(3) : 0;
-    if (shape > 0) {
-        signed char offset = (shape == 1) ? (signed char)(corridor_len / 3) : (signed char)(corridor_len / 4);
-        if (offset < 2) offset = 2;
-        if (rnd(2)) offset = -offset;
+    // Try each shape once, starting at a random type. The room wall and its
+    // center door never change; only the path beyond that door varies.
+    for (unsigned char attempt = 0; attempt < DECOY_ROUTE_ATTEMPTS; attempt++) {
+        unsigned char min_len = (corridor_type == 0) ? 4 : 6;
 
-        if (!(wall_side & 2)) {
-            // Horizontal corridor (LEFT/RIGHT) - add vertical offset
-            signed char new_y = (signed char)endpoint_y + offset;
-            if (new_y >= 3 && new_y < (signed char)(current_params.map_height - 3)) {
-                endpoint_y = (unsigned char)new_y;
+        if (max_len >= min_len) {
+            corridor_len = min_len + rnd(max_len - min_len + 1);
+            endpoint_x = door_x;
+            endpoint_y = door_y;
+
+            if (wall_side & 2)
+                endpoint_y = (wall_side & 1) ? door_y + corridor_len : door_y - corridor_len;
+            else
+                endpoint_x = (wall_side & 1) ? door_x + corridor_len : door_x - corridor_len;
+
+            if (corridor_type == 0) {
+                if (process_corridor_path(door_x, door_y, endpoint_x, endpoint_y,
+                                          wall_side, corridor_type,
+                                          CORRIDOR_MODE_CHECK, TILE_FLOOR) &&
+                    !check_adjacent_tile_types(endpoint_x, endpoint_y,
+                                               TILE_CHECK_FLOOR | TILE_CHECK_DOOR, 1)) {
+                    route_found = 1;
+                }
             } else {
-                shape = 0;  // Can't fit, use straight
+                unsigned char straight_end_x = endpoint_x;
+                unsigned char straight_end_y = endpoint_y;
+                signed char offset = (corridor_type == 1)
+                    ? (signed char)(corridor_len / 3)
+                    : (signed char)(corridor_len / 4);
+                if (offset < 2) offset = 2;
+                if (rnd(2)) offset = -offset;
+
+                // Try the selected bend direction, then its mirror. Both use
+                // the same length and shape, so this adds variety without
+                // changing the corridor's origin or geometric rules.
+                for (unsigned char side_try = 0; side_try < 2 && !route_found; side_try++) {
+                    endpoint_x = straight_end_x;
+                    endpoint_y = straight_end_y;
+
+                    if (!(wall_side & 2)) {
+                        signed char new_y = (signed char)endpoint_y + offset;
+                        if (new_y >= 3 && new_y < (signed char)(current_params.map_height - 3)) {
+                            endpoint_y = (unsigned char)new_y;
+                        } else {
+                            offset = -offset;
+                            continue;
+                        }
+                    } else {
+                        signed char new_x = (signed char)endpoint_x + offset;
+                        if (new_x >= 3 && new_x < (signed char)(current_params.map_width - 3)) {
+                            endpoint_x = (unsigned char)new_x;
+                        } else {
+                            offset = -offset;
+                            continue;
+                        }
+                    }
+
+                    if (process_corridor_path(door_x, door_y, endpoint_x, endpoint_y,
+                                              wall_side, corridor_type,
+                                              CORRIDOR_MODE_CHECK, TILE_FLOOR) &&
+                        !check_adjacent_tile_types(endpoint_x, endpoint_y,
+                                                   TILE_CHECK_FLOOR | TILE_CHECK_DOOR, 1)) {
+                        route_found = 1;
+                    }
+                    offset = -offset;
+                }
             }
-        } else {
-            // Vertical corridor - add horizontal offset
-            signed char new_x = (signed char)endpoint_x + offset;
-            if (new_x >= 3 && new_x < (signed char)(current_params.map_width - 3)) {
-                endpoint_x = (unsigned char)new_x;
-            } else {
-                shape = 0;
-            }
+
+            if (route_found) break;
         }
+
+        corridor_type++;
+        if (corridor_type >= 3) corridor_type = 0;
     }
 
-    // Validate path (catches room collisions and MST corridor crossings)
-    // Also check endpoint is not adjacent to existing walkable tiles (0x0C = FLOOR|DOOR)
-    unsigned char corridor_type = determine_corridor_type(door_x, door_y, endpoint_x, endpoint_y);
-    if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
-                               CORRIDOR_MODE_CHECK, TILE_FLOOR) ||
-        check_adjacent_tile_types(endpoint_x, endpoint_y, 0x0C, 1)) {
-        // Shaped/long failed or endpoint too close to walkable - try minimum straight
+    // Preserve the existing minimum-straight fallback after all varied paths.
+    if (!route_found) {
         corridor_len = 4;
         endpoint_x = door_x;
         endpoint_y = door_y;
@@ -798,10 +816,12 @@ static unsigned char create_decoy_corridor(unsigned char room_idx, unsigned char
             endpoint_x = (wall_side & 1) ? door_x + corridor_len : door_x - corridor_len;
         corridor_type = 0;
 
-        if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y, wall_side, corridor_type,
+        if (!process_corridor_path(door_x, door_y, endpoint_x, endpoint_y,
+                                   wall_side, corridor_type,
                                    CORRIDOR_MODE_CHECK, TILE_FLOOR) ||
-            check_adjacent_tile_types(endpoint_x, endpoint_y, 0x0C, 1)) {
-            return 0;  // Even minimum straight doesn't work or endpoint invalid
+            check_adjacent_tile_types(endpoint_x, endpoint_y,
+                                      TILE_CHECK_FLOOR | TILE_CHECK_DOOR, 1)) {
+            return 0;
         }
     }
 

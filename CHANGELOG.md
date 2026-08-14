@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## [Unreleased] - 2026-08-14
+
+### Safer and More Varied Decoy Corridors
+
+- Preserved the existing placement rules: entrances remain at the center of an
+  eligible wall, paths always start outward, lengths remain 4-15 tiles, and
+  shaped paths still require at least 6 tiles.
+- Fixed shape selection so the randomly selected straight/L/Z type is used
+  directly instead of being incorrectly reclassified from its endpoint.
+- Added a bounded three-type search in random order; L/Z candidates also try
+  the mirrored bend direction before moving to the next type.
+- Corridor checks now allow only `TILE_EMPTY` and `TILE_WALL`, rejecting room
+  floors, corridors, doors, stairs, niches, and `TILE_MARKER` metadata tiles.
+- Removed the per-tile scan of every room and the redundant corridor-type
+  inference function.
+- Measured across the eight-map VICE benchmark suite:
+  - Cycles: 25,425,535 -> 25,176,318 (-249,217; -0.98%)
+  - RELEASE size: 8,600 -> 8,482 bytes (-118 bytes)
+- A 72-map OSCAR64/VICE regression run produced a 42% straight, 29% L-shaped,
+  and 28% Z-shaped decoy distribution (integer percentages).
+
+---
+
 ## [Unreleased] - 2026-02-01
 
 ### TMEA v4: Combat-Ready Data Structures
