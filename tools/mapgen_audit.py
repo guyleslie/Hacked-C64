@@ -119,6 +119,9 @@ class AuditEvents:
     corridor_hits_wall: int = 0
     corridor_hits_third_room: int = 0
     corridor_parallel_touches: int = 0
+    corridor_shape_alignments: int = 0
+    corridor_l_reroutes: int = 0
+    corridor_route_failures: int = 0
     same_wall_reuses: int = 0
     same_wall_different_point: int = 0
 
@@ -374,7 +377,116 @@ class DungeonModel:
             return (room.x + room.w, room.center_y) if target_x > room.center_x else (room.x - 1, room.center_y)
         return (room.center_x, room.y + room.h) if target_y > room.center_y else (room.center_x, room.y - 1)
 
-    def route(self, room1: int, room2: int) -> tuple[int, tuple[int, int], tuple[int, int], list[list[tuple[int, int]]]]:
+    def segments_from_breakpoints(
+        self,
+        start: tuple[int, int],
+        end: tuple[int, int],
+        breakpoints: Sequence[tuple[int, int]],
+    ) -> list[list[tuple[int, int]]]:
+        segments: list[list[tuple[int, int]]] = []
+        current = start
+        for endpoint in [*breakpoints, end]:
+            segments.append(self.line_points(current, endpoint))
+            current = endpoint
+        return segments
+
+    @staticmethod
+    def route_points(segments: Sequence[Sequence[tuple[int, int]]]) -> list[tuple[int, int]]:
+        points: list[tuple[int, int]] = []
+        for segment in segments:
+            for point in segment:
+                if not points or point != points[-1]:
+                    points.append(point)
+        return points
+
+    def double_width_edges(self, segments: Sequence[Sequence[tuple[int, int]]]) -> int:
+        walkable = (Tile.FLOOR, Tile.DOOR)
+        count = 0
+        points = self.route_points(segments)
+        for first, second in zip(points, points[1:]):
+            if self.get_tile(*first) in walkable and self.get_tile(*second) in walkable:
+                continue
+            x1, y1 = first
+            x2, y2 = second
+            if x1 != x2:
+                sides = (((x1, y1 - 1), (x2, y2 - 1)), ((x1, y1 + 1), (x2, y2 + 1)))
+            else:
+                sides = (((x1 - 1, y1), (x2 - 1, y2)), ((x1 + 1, y1), (x2 + 1, y2)))
+            count += sum(self.get_tile(*a) in walkable and self.get_tile(*b) in walkable for a, b in sides)
+        return count
+
+    def corridor_plan_touches_other_room(
+        self,
+        room1: int,
+        room2: int,
+        segments: Sequence[Sequence[tuple[int, int]]],
+    ) -> bool:
+        for index, room in enumerate(self.rooms):
+            if index in (room1, room2):
+                continue
+            left, right = room.x - 1, room.x + room.w
+            top, bottom = room.y - 1, room.y + room.h
+            for segment in segments:
+                x1, y1 = segment[0]
+                x2, y2 = segment[-1]
+                if y1 == y2:
+                    if top <= y1 <= bottom and min(x1, x2) <= right and max(x1, x2) >= left:
+                        return True
+                elif left <= x1 <= right and min(y1, y2) <= bottom and max(y1, y2) >= top:
+                    return True
+        return False
+
+    def valid_aligned_join(self, segments: Sequence[Sequence[tuple[int, int]]]) -> bool:
+        left_shared_prefix = False
+        for point in self.route_points(segments):
+            tile = self.get_tile(*point)
+            if tile in (Tile.EMPTY, Tile.WALL):
+                left_shared_prefix = True
+            elif left_shared_prefix or tile not in (Tile.FLOOR, Tile.DOOR):
+                return False
+        return self.double_width_edges(segments) == 0
+
+    @staticmethod
+    def z_breakpoints(
+        exit1: tuple[int, int],
+        exit2: tuple[int, int],
+        first_side: int,
+        variant: int,
+    ) -> list[tuple[int, int]]:
+        axis = 0 if first_side < 2 else 1
+        start = exit1[axis]
+        end = exit2[axis]
+        distance = abs(end - start)
+        third = distance // 3
+        offset = (third, distance // 2, distance - third)[variant]
+        if offset == 0 or offset >= distance:
+            offset = distance // 2
+        split = start + offset if start <= end else start - offset
+        if first_side < 2:
+            return [(split, exit1[1]), (split, exit2[1])]
+        return [(exit1[0], split), (exit2[0], split)]
+
+    def existing_first_bend(self, start: tuple[int, int], wall_side: int) -> int | None:
+        x, y = start
+        dx, dy = ((-1, 0), (1, 0), (0, -1), (0, 1))[wall_side]
+        walkable = (Tile.FLOOR, Tile.DOOR)
+        for _ in range(self.spec.width):
+            x += dx
+            y += dy
+            if not (0 <= x < self.spec.width and 0 <= y < self.spec.width):
+                return None
+            if self.get_tile(x, y) not in walkable:
+                return None
+            if wall_side < 2:
+                if self.get_tile(x, y - 1) in walkable or self.get_tile(x, y + 1) in walkable:
+                    return x
+            elif self.get_tile(x - 1, y) in walkable or self.get_tile(x + 1, y) in walkable:
+                return y
+        return None
+
+    def route(
+        self, room1: int, room2: int
+    ) -> tuple[int, tuple[int, int], tuple[int, int], list[list[tuple[int, int]]]] | None:
         first = self.rooms[room1]
         second = self.rooms[room2]
 
@@ -427,11 +539,70 @@ class DungeonModel:
             middle_y = (exit1[1] + exit2[1]) // 2
             breakpoints = [(exit1[0], middle_y), (exit2[0], middle_y)]
 
-        segments: list[list[tuple[int, int]]] = []
-        current = exit1
-        for endpoint in [*breakpoints, exit2]:
-            segments.append(self.line_points(current, endpoint))
-            current = endpoint
+        segments = self.segments_from_breakpoints(exit1, exit2, breakpoints)
+
+        if corridor_type == 1 and self.corridor_plan_touches_other_room(room1, room2, segments):
+            if dx > dy:
+                exit1 = (
+                    first.center_x,
+                    first.y + first.h if second.center_y > first.center_y else first.y - 1,
+                )
+                exit2 = (
+                    second.x - 1 if second.center_x > first.center_x else second.x + second.w,
+                    second.center_y,
+                )
+            else:
+                exit1 = (
+                    first.x + first.w if second.center_x > first.center_x else first.x - 1,
+                    first.center_y,
+                )
+                exit2 = (
+                    second.center_x,
+                    second.y - 1 if second.center_y > first.center_y else second.y + second.h,
+                )
+            first_side = self.wall_side(first, exit1)
+            breakpoints = [(exit2[0], exit1[1])] if first_side < 2 else [(exit1[0], exit2[1])]
+            alternate = self.segments_from_breakpoints(exit1, exit2, breakpoints)
+            same_door = any((door.x, door.y) == exit1 for door in first.doors)
+            valid = (
+                self.valid_aligned_join(alternate)
+                if same_door
+                else not self.corridor_plan_touches_other_room(room1, room2, alternate)
+            )
+            if not valid:
+                self.events.corridor_route_failures += 1
+                return None
+            segments = alternate
+            self.events.corridor_l_reroutes += 1
+
+        elif corridor_type == 2:
+            same_door = [door for door in first.doors if (door.x, door.y) == exit1]
+            if same_door:
+                if self.double_width_edges(segments):
+                    aligned = False
+                    for door in same_door:
+                        if door.corridor_type == 0:
+                            continue
+                        split = self.existing_first_bend(exit1, door.wall_side)
+                        if split is None:
+                            continue
+                        if first_side < 2:
+                            candidate = [(split, exit1[1]), (split, exit2[1])]
+                        else:
+                            candidate = [(exit1[0], split), (exit2[0], split)]
+                        candidate_segments = self.segments_from_breakpoints(exit1, exit2, candidate)
+                        if self.valid_aligned_join(candidate_segments):
+                            segments = candidate_segments
+                            self.events.corridor_shape_alignments += 1
+                            aligned = True
+                            break
+                    if not aligned:
+                        self.events.corridor_route_failures += 1
+                        return None
+            else:
+                variant = self.rng.rnd(3)
+                candidate = self.z_breakpoints(exit1, exit2, first_side, variant)
+                segments = self.segments_from_breakpoints(exit1, exit2, candidate)
         return corridor_type, exit1, exit2, segments
 
     def inspect_route(
@@ -442,11 +613,7 @@ class DungeonModel:
         exit2: tuple[int, int],
         segments: Sequence[Sequence[tuple[int, int]]],
     ) -> None:
-        points: list[tuple[int, int]] = []
-        for segment in segments:
-            for point in segment:
-                if not points or point != points[-1]:
-                    points.append(point)
+        points = self.route_points(segments)
 
         for point in points:
             if point in (exit1, exit2):
@@ -461,14 +628,7 @@ class DungeonModel:
                     self.events.corridor_hits_third_room += 1
                     break
 
-        for segment in segments:
-            horizontal = segment[0][1] == segment[-1][1]
-            for x, y in segment:
-                if self.get_tile(x, y) in (Tile.FLOOR, Tile.DOOR):
-                    continue
-                neighbors = ((x, y - 1), (x, y + 1)) if horizontal else ((x - 1, y), (x + 1, y))
-                if any(self.get_tile(*neighbor) in (Tile.FLOOR, Tile.DOOR) for neighbor in neighbors):
-                    self.events.corridor_parallel_touches += 1
+        self.events.corridor_parallel_touches += self.double_width_edges(segments)
 
     def wall_segment(self, segment: Sequence[tuple[int, int]]) -> None:
         x1, y1 = segment[0]
@@ -514,7 +674,10 @@ class DungeonModel:
         if first.connections >= MAX_ROOM_CONNECTIONS or second.connections >= MAX_ROOM_CONNECTIONS:
             return False
 
-        corridor_type, exit1, exit2, segments = self.route(room1, room2)
+        route = self.route(room1, room2)
+        if route is None:
+            return False
+        corridor_type, exit1, exit2, segments = route
         if self.audit_level == "full":
             self.inspect_route(room1, room2, exit1, exit2, segments)
 
@@ -704,6 +867,24 @@ def self_test() -> None:
     guarded = run_seed(MAP_SPECS["small"], 1, "guarded", "full")
     assert guarded.rooms >= first.rooms
     assert guarded.connections <= max(0, guarded.rooms - 1)
+
+    # A later join must observe the randomized route actually drawn on the
+    # map, rather than reconstructing the old midpoint-only Z shape.
+    bend_model = DungeonModel(MAP_SPECS["small"], 1, "current", "full")
+    for point in bend_model.line_points((10, 10), (14, 10)):
+        bend_model.set_tile(*point, Tile.FLOOR)
+    for point in bend_model.line_points((14, 10), (14, 16)):
+        bend_model.set_tile(*point, Tile.FLOOR)
+    assert bend_model.existing_first_bend((10, 10), 1) == 14
+
+    # Regression seeds for the two measured normal-corridor edge cases.
+    aligned = run_seed(MAP_SPECS["small"], 31, "current", "full")
+    assert aligned.events.corridor_shape_alignments > 0
+    assert aligned.events.corridor_parallel_touches == 0
+    rerouted_l = run_seed(MAP_SPECS["large"], 680, "guarded", "full")
+    assert rerouted_l.events.corridor_l_reroutes > 0
+    assert rerouted_l.events.corridor_parallel_touches == 0
+    assert rerouted_l.events.corridor_route_failures == 0
 
     # The optimized room-rectangle collision test must remain identical to the
     # original tile scan for every sampled coordinate and room size.

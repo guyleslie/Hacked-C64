@@ -143,20 +143,17 @@ static unsigned char build_corridor_line(unsigned char start_x, unsigned char st
     return 1;
 }
 
-static unsigned char process_corridor_path(unsigned char start_x, unsigned char start_y,
+static unsigned char process_corridor_plan(unsigned char start_x, unsigned char start_y,
                                            unsigned char end_x, unsigned char end_y,
-                                           unsigned char wall_side, unsigned char corridor_type,
+                                           const CorridorBreakpoints *breakpoints,
                                            unsigned char mode, unsigned char tile_type) {
-    CorridorBreakpoints breakpoints;
     unsigned char current_x = start_x;
     unsigned char current_y = start_y;
 
-    compute_corridor_breakpoints(start_x, start_y, end_x, end_y, wall_side, corridor_type, &breakpoints);
-
     // Loop only over valid breakpoints - count is accurate, no sentinel check needed
-    for (unsigned char i = 0; i < breakpoints.count; i++) {
-        unsigned char next_x = breakpoints.x[i];
-        unsigned char next_y = breakpoints.y[i];
+    for (unsigned char i = 0; i < breakpoints->count; i++) {
+        unsigned char next_x = breakpoints->x[i];
+        unsigned char next_y = breakpoints->y[i];
 
         if (!build_corridor_line(current_x, current_y, next_x, next_y, mode, tile_type)) {
             return 0;
@@ -184,12 +181,293 @@ static unsigned char process_corridor_path(unsigned char start_x, unsigned char 
     return 1;
 }
 
-void draw_corridor_from_door(unsigned char exit1_x, unsigned char exit1_y,
-                            unsigned char wall1_side, unsigned char exit2_x, unsigned char exit2_y,
-                            unsigned char corridor_type, unsigned char is_secret) {
+static unsigned char process_corridor_path(unsigned char start_x, unsigned char start_y,
+                                           unsigned char end_x, unsigned char end_y,
+                                           unsigned char wall_side, unsigned char corridor_type,
+                                           unsigned char mode, unsigned char tile_type) {
+    CorridorBreakpoints breakpoints;
+    compute_corridor_breakpoints(start_x, start_y, end_x, end_y,
+                                 wall_side, corridor_type, &breakpoints);
+    return process_corridor_plan(start_x, start_y, end_x, end_y,
+                                 &breakpoints, mode, tile_type);
+}
+
+static unsigned char tile_is_walkable(unsigned char x, unsigned char y) {
+    unsigned char tile = get_compact_tile(x, y);
+    return tile == TILE_FLOOR || tile == TILE_DOOR;
+}
+
+// Detect whether one segment would add the missing edge of a 2x2 walkable
+// block beside an existing corridor. Fully shared edges remain legal.
+static unsigned char corridor_line_creates_double_width(unsigned char start_x, unsigned char start_y,
+                                                        unsigned char end_x, unsigned char end_y) {
+    if (start_y == end_y) {
+        unsigned char first = (start_x < end_x) ? start_x : end_x;
+        unsigned char last = (start_x < end_x) ? end_x : start_x;
+        for (unsigned char x = first; x < last; x++) {
+            if (tile_is_walkable(x, start_y) && tile_is_walkable(x + 1, start_y)) continue;
+            if (start_y > 0 && tile_is_walkable(x, start_y - 1) &&
+                tile_is_walkable(x + 1, start_y - 1)) return 1;
+            if (start_y + 1 < current_params.map_height &&
+                tile_is_walkable(x, start_y + 1) &&
+                tile_is_walkable(x + 1, start_y + 1)) return 1;
+        }
+    } else {
+        unsigned char first = (start_y < end_y) ? start_y : end_y;
+        unsigned char last = (start_y < end_y) ? end_y : start_y;
+        for (unsigned char y = first; y < last; y++) {
+            if (tile_is_walkable(start_x, y) && tile_is_walkable(start_x, y + 1)) continue;
+            if (start_x > 0 && tile_is_walkable(start_x - 1, y) &&
+                tile_is_walkable(start_x - 1, y + 1)) return 1;
+            if (start_x + 1 < current_params.map_width &&
+                tile_is_walkable(start_x + 1, y) &&
+                tile_is_walkable(start_x + 1, y + 1)) return 1;
+        }
+    }
+    return 0;
+}
+
+static unsigned char corridor_plan_creates_double_width(unsigned char start_x, unsigned char start_y,
+                                                        unsigned char end_x, unsigned char end_y,
+                                                        const CorridorBreakpoints *breakpoints) {
+    unsigned char current_x = start_x;
+    unsigned char current_y = start_y;
+    for (unsigned char i = 0; i < breakpoints->count; i++) {
+        if (corridor_line_creates_double_width(current_x, current_y,
+                                               breakpoints->x[i], breakpoints->y[i])) return 1;
+        current_x = breakpoints->x[i];
+        current_y = breakpoints->y[i];
+    }
+    return corridor_line_creates_double_width(current_x, current_y, end_x, end_y);
+}
+
+static unsigned char corridor_segment_touches_room(unsigned char start_x, unsigned char start_y,
+                                                   unsigned char end_x, unsigned char end_y,
+                                                   const Room *room) {
+    unsigned char left = room->x - 1;
+    unsigned char right = room->x + room->w;
+    unsigned char top = room->y - 1;
+    unsigned char bottom = room->y + room->h;
+
+    if (start_y == end_y) {
+        if (start_y < top || start_y > bottom) return 0;
+        unsigned char first = (start_x < end_x) ? start_x : end_x;
+        unsigned char last = (start_x < end_x) ? end_x : start_x;
+        return first <= right && last >= left;
+    }
+
+    if (start_x < left || start_x > right) return 0;
+    unsigned char first = (start_y < end_y) ? start_y : end_y;
+    unsigned char last = (start_y < end_y) ? end_y : start_y;
+    return first <= bottom && last >= top;
+}
+
+// Room placement is rectangular, so the common-case safety check needs only
+// a few byte comparisons per room instead of packed-map reads per path tile.
+static unsigned char corridor_plan_touches_other_room(unsigned char room1, unsigned char room2,
+                                                      unsigned char start_x, unsigned char start_y,
+                                                      unsigned char end_x, unsigned char end_y,
+                                                      const CorridorBreakpoints *breakpoints) {
+    for (unsigned char room_idx = 0; room_idx < room_count; room_idx++) {
+        if (room_idx == room1 || room_idx == room2) continue;
+        Room *room = &room_list[room_idx];
+        unsigned char current_x = start_x;
+        unsigned char current_y = start_y;
+
+        for (unsigned char i = 0; i < breakpoints->count; i++) {
+            if (corridor_segment_touches_room(current_x, current_y,
+                                              breakpoints->x[i], breakpoints->y[i], room)) return 1;
+            current_x = breakpoints->x[i];
+            current_y = breakpoints->y[i];
+        }
+        if (corridor_segment_touches_room(current_x, current_y, end_x, end_y, room)) return 1;
+    }
+    return 0;
+}
+
+static unsigned char room_has_door_at(unsigned char room_idx,
+                                      unsigned char door_x, unsigned char door_y) {
+    Room *room = &room_list[room_idx];
+    for (unsigned char i = 0; i < room->connections; i++) {
+        if (room->doors[i].x == door_x && room->doors[i].y == door_y) return 1;
+    }
+    return 0;
+}
+
+// The aligned route may reuse a contiguous prefix from the shared door. After
+// the first new tile it may not cross or re-enter any existing walkable tile.
+static unsigned char validate_join_line(unsigned char start_x, unsigned char start_y,
+                                        unsigned char end_x, unsigned char end_y,
+                                        unsigned char *left_shared_prefix) {
+    unsigned char x = start_x;
+    unsigned char y = start_y;
+
+    while (1) {
+        unsigned char tile = get_compact_tile(x, y);
+        if (tile == TILE_EMPTY || tile == TILE_WALL) {
+            *left_shared_prefix = 1;
+        } else if (*left_shared_prefix || (tile != TILE_FLOOR && tile != TILE_DOOR)) {
+            return 0;
+        }
+
+        if (x == end_x && y == end_y) break;
+        step_towards_target(&x, &y, end_x, end_y);
+    }
+
+    return 1;
+}
+
+static unsigned char validate_aligned_join_plan(unsigned char start_x, unsigned char start_y,
+                                                unsigned char end_x, unsigned char end_y,
+                                                const CorridorBreakpoints *breakpoints) {
+    unsigned char current_x = start_x;
+    unsigned char current_y = start_y;
+    unsigned char left_shared_prefix = 0;
+
+    for (unsigned char i = 0; i < breakpoints->count; i++) {
+        if (!validate_join_line(current_x, current_y,
+                                breakpoints->x[i], breakpoints->y[i],
+                                &left_shared_prefix)) {
+            return 0;
+        }
+        current_x = breakpoints->x[i];
+        current_y = breakpoints->y[i];
+    }
+
+    if (!validate_join_line(current_x, current_y, end_x, end_y,
+                            &left_shared_prefix)) {
+        return 0;
+    }
+
+    return !corridor_plan_creates_double_width(start_x, start_y, end_x, end_y, breakpoints);
+}
+
+static void set_z_split(unsigned char start_x, unsigned char start_y,
+                        unsigned char end_x, unsigned char end_y,
+                        unsigned char wall_side, unsigned char variant,
+                        CorridorBreakpoints *out) {
+    unsigned char start;
+    unsigned char end;
+
+    out->count = 2;
+    if ((wall_side & 0x02) == 0) {
+        start = start_x;
+        end = end_x;
+    } else {
+        start = start_y;
+        end = end_y;
+    }
+
+    unsigned char distance = abs_diff_inline(start, end);
+    unsigned char third = distance / 3;
+    unsigned char offset;
+    if (variant == 0) offset = third;
+    else if (variant == 1) offset = distance / 2;
+    else offset = distance - third;
+
+    // Very short Z corridors cannot have three distinct useful splits.
+    if (offset == 0 || offset >= distance) offset = distance / 2;
+    unsigned char split = (start <= end) ? start + offset : start - offset;
+
+    if ((wall_side & 0x02) == 0) {
+        out->x[0] = split; out->y[0] = start_y;
+        out->x[1] = split; out->y[1] = end_y;
+    } else {
+        out->x[0] = start_x; out->y[0] = split;
+        out->x[1] = end_x; out->y[1] = split;
+    }
+}
+
+static void choose_fresh_z_plan(unsigned char start_x, unsigned char start_y,
+                                unsigned char end_x, unsigned char end_y,
+                                unsigned char wall_side,
+                                CorridorBreakpoints *out) {
+    // Room/grid geometry already keeps a fresh Z between its facing doors.
+    // Only choose its spine here; no packed-map or all-room scan is needed.
+    set_z_split(start_x, start_y, end_x, end_y, wall_side, rnd(3), out);
+}
+
+// Follow the already drawn corridor outward from a shared center-door and
+// return its real first bend. This reads the actual shape, so randomized Z
+// splits do not need extra room metadata and cannot be mistaken for a midpoint.
+static unsigned char find_existing_first_bend(unsigned char start_x, unsigned char start_y,
+                                              unsigned char wall_side, unsigned char *split) {
+    unsigned char x = start_x;
+    unsigned char y = start_y;
+
+    while (1) {
+        if (wall_side == 0) {
+            if (x == 0) return 0;
+            x--;
+        } else if (wall_side == 1) {
+            if (x + 1 >= current_params.map_width) return 0;
+            x++;
+        } else if (wall_side == 2) {
+            if (y == 0) return 0;
+            y--;
+        } else {
+            if (y + 1 >= current_params.map_height) return 0;
+            y++;
+        }
+
+        if (!tile_is_walkable(x, y)) return 0;
+
+        if ((wall_side & 0x02) == 0) {
+            if ((y > 0 && tile_is_walkable(x, y - 1)) ||
+                (y + 1 < current_params.map_height && tile_is_walkable(x, y + 1))) {
+                *split = x;
+                return 1;
+            }
+        } else {
+            if ((x > 0 && tile_is_walkable(x - 1, y)) ||
+                (x + 1 < current_params.map_width && tile_is_walkable(x + 1, y))) {
+                *split = y;
+                return 1;
+            }
+        }
+    }
+}
+
+static unsigned char align_z_to_existing_shape(unsigned char room_idx,
+                                               unsigned char start_x, unsigned char start_y,
+                                               unsigned char end_x, unsigned char end_y,
+                                               unsigned char wall_side,
+                                               CorridorBreakpoints *out) {
+    Room *room = &room_list[room_idx];
+
+    // Prefer the first bend of an already stored route from this exact door.
+    // At most four tiny metadata entries are inspected.
+    for (unsigned char i = 0; i < room->connections; i++) {
+        if (room->doors[i].x != start_x || room->doors[i].y != start_y) continue;
+        if (room->conn_data[i].corridor_type == 0) continue;
+
+        unsigned char split;
+        if (!find_existing_first_bend(start_x, start_y,
+                                      room->doors[i].wall_side, &split)) continue;
+
+        out->count = 2;
+        if ((wall_side & 0x02) == 0) {
+            out->x[0] = split; out->y[0] = start_y;
+            out->x[1] = split; out->y[1] = end_y;
+        } else {
+            out->x[0] = start_x; out->y[0] = split;
+            out->x[1] = end_x; out->y[1] = split;
+        }
+
+        if (validate_aligned_join_plan(start_x, start_y, end_x, end_y, out)) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static void draw_corridor_from_door(unsigned char exit1_x, unsigned char exit1_y,
+                                    unsigned char exit2_x, unsigned char exit2_y,
+                                    const CorridorBreakpoints *breakpoints) {
     // Always draw corridor as TILE_FLOOR (doors placed separately with metadata)
-    process_corridor_path(exit1_x, exit1_y, exit2_x, exit2_y, wall1_side, corridor_type,
-                          CORRIDOR_MODE_DRAW, TILE_FLOOR);
+    process_corridor_plan(exit1_x, exit1_y, exit2_x, exit2_y,
+                          breakpoints, CORRIDOR_MODE_DRAW, TILE_FLOOR);
 }
 
 // =============================================================================
@@ -402,8 +680,60 @@ unsigned char connect_rooms(unsigned char room1, unsigned char room2, unsigned c
     // Draw corridor
     unsigned char wall1 = get_wall_side_from_exit(room1, exit1_x, exit1_y);
     unsigned char wall2 = get_wall_side_from_exit(room2, exit2_x, exit2_y);
+    CorridorBreakpoints route_breakpoints;
+    compute_corridor_breakpoints(exit1_x, exit1_y, exit2_x, exit2_y,
+                                 wall1, corridor_type, &route_breakpoints);
 
-    draw_corridor_from_door(exit1_x, exit1_y, wall1, exit2_x, exit2_y, corridor_type, is_secret);
+    unsigned char same_door = room_has_door_at(room1, exit1_x, exit1_y);
+    if (corridor_type == 1 &&
+        corridor_plan_touches_other_room(room1, room2,
+                                         exit1_x, exit1_y,
+                                         exit2_x, exit2_y, &route_breakpoints)) {
+        // An L has one fixed bend for a given pair of doors. Only when that
+        // route would touch another room's wall/floor footprint, try the other
+        // legal center-door L orientation by calculating it in reverse.
+        unsigned char alt_exit1_x, alt_exit1_y, alt_exit2_x, alt_exit2_y;
+        calculate_l_exits(room2, room1,
+                          &alt_exit2_x, &alt_exit2_y,
+                          &alt_exit1_x, &alt_exit1_y);
+        unsigned char alt_wall1 = get_wall_side_from_exit(room1, alt_exit1_x, alt_exit1_y);
+        unsigned char alt_wall2 = get_wall_side_from_exit(room2, alt_exit2_x, alt_exit2_y);
+        CorridorBreakpoints alternate;
+        compute_corridor_breakpoints(alt_exit1_x, alt_exit1_y,
+                                     alt_exit2_x, alt_exit2_y,
+                                     alt_wall1, corridor_type, &alternate);
+
+        unsigned char alt_same_door = room_has_door_at(room1, alt_exit1_x, alt_exit1_y);
+        unsigned char alt_valid = alt_same_door
+            ? validate_aligned_join_plan(alt_exit1_x, alt_exit1_y,
+                                         alt_exit2_x, alt_exit2_y, &alternate)
+            : !corridor_plan_touches_other_room(room1, room2,
+                                                alt_exit1_x, alt_exit1_y,
+                                                alt_exit2_x, alt_exit2_y, &alternate);
+        if (!alt_valid) return 0;
+
+        exit1_x = alt_exit1_x; exit1_y = alt_exit1_y;
+        exit2_x = alt_exit2_x; exit2_y = alt_exit2_y;
+        wall1 = alt_wall1; wall2 = alt_wall2;
+        route_breakpoints = alternate;
+    } else if (corridor_type == 2) {
+        if (same_door) {
+            // Keep the existing midpoint route when it already joins cleanly.
+            // Only move its spine when it would add a two-tile-wide block.
+            if (corridor_plan_creates_double_width(exit1_x, exit1_y,
+                                                   exit2_x, exit2_y, &route_breakpoints) &&
+                !align_z_to_existing_shape(room1, exit1_x, exit1_y,
+                                           exit2_x, exit2_y, wall1,
+                                           &route_breakpoints)) {
+                return 0;
+            }
+        } else {
+            choose_fresh_z_plan(exit1_x, exit1_y, exit2_x, exit2_y,
+                                wall1, &route_breakpoints);
+        }
+    }
+
+    draw_corridor_from_door(exit1_x, exit1_y, exit2_x, exit2_y, &route_breakpoints);
 
     // Place doors (always TILE_DOOR, metadata marks secret doors)
     place_door(exit1_x, exit1_y);

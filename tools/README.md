@@ -47,6 +47,7 @@ python tools/mapgen_audit.py --profile guarded --audit-level fast --size all --s
 - existing walkable tiles and walls touched by a new corridor;
 - third-party room interiors crossed by a corridor;
 - side-adjacent corridor runs that may create a two-tile-wide bulge;
+- shape-aligned Z joins and rare alternate-orientation L reroutes;
 - reuse of a room wall at the same or a different physical door coordinate;
 - deterministic 16-bit map checksum.
 
@@ -62,6 +63,13 @@ Use `--audit-level fast` for large room/network seed sweeps. It does not draw
 normal corridors and therefore omits corridor-tile events. Use
 `--audit-level full` for smaller ranges or individual seeds when crossings,
 walls, junctions, and possible two-tile-wide bulges must be inspected.
+
+Normal Z corridors use bounded one-third, midpoint, and two-third spine
+positions. When a shared-door Z would form a 2x2 walkable block beside an
+existing shape, the audit mirrors the production code by aligning its spine to
+the first bend actually drawn on the map. An L uses its original orientation
+unless its route would touch a third room's wall/floor footprint; only then is
+the other legal center-door L orientation tested.
 
 ## C64/VICE cycle benchmark
 
