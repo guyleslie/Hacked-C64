@@ -110,8 +110,17 @@ static unsigned char select_wall_tile(unsigned char x, unsigned char y) {
     return TS_WALL_H;
 }
 
+// Which artwork a door uses is game data, not geometry. Replace the body when
+// door kinds are modelled; the orientation is derived either way.
+unsigned char tiles_door_kind(unsigned char map_x, unsigned char map_y) {
+    (void)map_x;
+    (void)map_y;
+    return TS_GRATE_V;
+}
+
 // A door inherits the orientation of the wall run it sits in.
 static unsigned char select_door_tile(unsigned char x, unsigned char y) {
+    if (tiles_door_kind(x, y) == TS_DOOR_WOOD) return TS_DOOR_WOOD;
     if (wall_connects(x, y - 1) || wall_connects(x, y + 1)) return TS_GRATE_V;
     return TS_GRATE_H;
 }

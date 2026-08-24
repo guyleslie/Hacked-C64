@@ -129,6 +129,46 @@ so redrawing the reference map will flag a rule that no longer matches.
 Adding T and cross pieces to the tileset would remove the reduction step; the
 rule is then a plain sixteen-entry lookup.
 
+## Reproducing the reference map
+
+The acceptance test for the renderer is whether the tile selection rule can put
+back the map that was drawn by hand, given only what the map generator
+produces: walkable cells, walls, and the positions of doors, stairs and items.
+Door artwork kind (wooden door versus iron grating) is game data and is fed in,
+not derived.
+
+```powershell
+python tools/tileset_build.py main/assets/tileset.ctm --self-test
+python tools/tileset_build.py main/assets/tileset.ctm --grid-tiles 1,19 --repro-preview build/map-repro.png
+```
+
+**167 of the 169 cells match.** The two that do not are the same spot:
+
+```
+  (8,11) drawn tile  5, rule gives  6
+  (9,11) drawn tile 15, rule gives  1
+```
+
+This is not a rule that needs more tuning. Cell `(9,11)` and cell `(9,3)` have
+**identical role neighbourhoods** - a walkable cell with walls left and right,
+walkable above and below - and are drawn differently:
+
+| cell | drawn as | what it implies |
+|---|---|---|
+| `(9,3)` | plain floor `1` | the wall stops at the gap; the flanking corner turns away from it |
+| `(9,11)` | rim tile `15` | the wall runs over the gap; the flanking corner turns into it |
+
+No geometric rule can produce both, so one convention has to be picked. The
+renderer currently follows the `(9,3)` convention, which is the one used
+everywhere else in the map. Choosing the `(9,11)` convention instead means
+treating a pinched walkable cell as part of the wall line for joining purposes,
+and emitting tile 14 or 15 for it - but only where the flanking walls continue
+the run, otherwise every one-tile-wide corridor turns into a rim.
+
+The rim tiles `14` and `15` appear once each in the reference map, which is too
+little to derive a rule from. Drawing more examples of the intended case is the
+way to settle it.
+
 ## Files
 
 | File | Role |

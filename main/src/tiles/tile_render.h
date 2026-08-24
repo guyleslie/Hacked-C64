@@ -89,6 +89,17 @@ unsigned char tiles_select(unsigned char map_x, unsigned char map_y);
 unsigned char tiles_variant_at(unsigned char map_x, unsigned char map_y);
 
 /**
+ * @brief Door artwork hook
+ * Replace the body when door kinds are modelled. Returning TS_DOOR_WOOD picks
+ * the wooden door; anything else leaves the iron grating, whose orientation is
+ * derived from the wall run.
+ * @param map_x Map X coordinate
+ * @param map_y Map Y coordinate
+ * @return TS_DOOR_WOOD or TS_GRATE_V
+ */
+unsigned char tiles_door_kind(unsigned char map_x, unsigned char map_y);
+
+/**
  * @brief Draw the whole viewport starting at a map coordinate
  * @param origin_x Map X coordinate of the top-left visible tile
  * @param origin_y Map Y coordinate of the top-left visible tile

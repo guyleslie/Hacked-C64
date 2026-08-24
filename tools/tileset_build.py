@@ -271,6 +271,136 @@ def analyse_map(ctm, wall_tiles, wall_like):
 
 
 # -----------------------------------------------------------------------------
+# Map reproduction
+# -----------------------------------------------------------------------------
+
+# Cell roles the game engine knows about, independent of any artwork.
+ROLE_EMPTY, ROLE_FLOOR, ROLE_WALL, ROLE_DOOR = 0, 1, 2, 3
+ROLE_STAIR_A, ROLE_STAIR_B, ROLE_ITEM = 4, 5, 6
+ROLE_NAMES = ("empty", "floor", "WALL", "DOOR", "stairA", "stairB", "item")
+
+# Which tileset tile stands for which role in the reference artwork. The hand
+# drawn fog copies collapse onto their lit originals first, because fog is a
+# generated layer and not a separate map cell.
+FOG_DUPLICATES = {2: 1, 11: 10, 16: 14, 17: 15}
+TILE_ROLE = {
+    0: ROLE_EMPTY, 1: ROLE_FLOOR, 19: ROLE_ITEM,
+    9: ROLE_STAIR_A, 10: ROLE_STAIR_B,
+    3: ROLE_WALL, 4: ROLE_WALL, 5: ROLE_WALL,
+    6: ROLE_WALL, 7: ROLE_WALL, 8: ROLE_WALL,
+    12: ROLE_DOOR, 13: ROLE_DOOR, 18: ROLE_DOOR,
+    # Wall rim tiles must be derived from geometry, so they enter as floor.
+    14: ROLE_FLOOR, 15: ROLE_FLOOR,
+}
+
+TILE_WALL_H, TILE_WALL_V = 3, 4
+TILE_WALL_RD, TILE_WALL_LD, TILE_WALL_RU, TILE_WALL_LU = 5, 6, 7, 8
+TILE_GRATE_V, TILE_GRATE_H, TILE_DOOR_WOOD = 12, 13, 18
+
+
+def map_roles(ctm):
+    """Reduce the drawn map to engine roles, plus the door artwork kinds."""
+    grid = [[FOG_DUPLICATES.get(v, v) for v in row] for row in ctm.map]
+    roles = [[TILE_ROLE[v] for v in row] for row in grid]
+    wooden = {(x, y)
+              for y in range(ctm.map_h) for x in range(ctm.map_w)
+              if grid[y][x] == TILE_DOOR_WOOD}
+    return grid, roles, wooden
+
+
+def reproduce_map(ctm):
+    """Re-derive the drawn map from roles alone.
+
+    This is the acceptance test for the renderer: given only what the map
+    generator produces - walkable cells, walls, door and stair positions - the
+    tile selection rule has to put back the tiles that were drawn by hand.
+
+    Returns (drawn, predicted, mismatches).
+    """
+    if not ctm.map:
+        return None, None, []
+    grid, roles, wooden = map_roles(ctm)
+    w, h = ctm.map_w, ctm.map_h
+
+    def role(x, y):
+        if x < 0 or y < 0 or x >= w or y >= h:
+            return ROLE_EMPTY
+        return roles[y][x]
+
+    def wall_like(x, y):
+        return role(x, y) in (ROLE_WALL, ROLE_DOOR)
+
+    def select_wall(x, y):
+        down, up = wall_like(x, y + 1), wall_like(x, y - 1)
+        left, right = wall_like(x - 1, y), wall_like(x + 1, y)
+        if down:
+            return TILE_WALL_RD if right else (TILE_WALL_LD if left else TILE_WALL_V)
+        if up:
+            return TILE_WALL_RU if right else (TILE_WALL_LU if left else TILE_WALL_V)
+        return TILE_WALL_H
+
+    def select(x, y):
+        current = role(x, y)
+        if current == ROLE_EMPTY:
+            return 0
+        if current == ROLE_WALL:
+            return select_wall(x, y)
+        if current == ROLE_DOOR:
+            if (x, y) in wooden:
+                return TILE_DOOR_WOOD
+            if wall_like(x, y - 1) or wall_like(x, y + 1):
+                return TILE_GRATE_V
+            return TILE_GRATE_H
+        if current == ROLE_STAIR_A:
+            return 9
+        if current == ROLE_STAIR_B:
+            return 10
+        if current == ROLE_ITEM:
+            return 19
+        return 1
+
+    predicted = [[select(x, y) for x in range(w)] for y in range(h)]
+    mismatches = [(x, y, grid[y][x], predicted[y][x])
+                  for y in range(h) for x in range(w)
+                  if predicted[y][x] != grid[y][x]]
+    return grid, predicted, mismatches
+
+
+def report_reproduction(ctm):
+    drawn, predicted, mismatches = reproduce_map(ctm)
+    if drawn is None:
+        print("no map block in the CTM file, reproduction not checked")
+        return
+    total = ctm.map_w * ctm.map_h
+    print("map reproduction: %d of %d cells match (%.1f%%)"
+          % (total - len(mismatches), total, 100.0 * (total - len(mismatches)) / total))
+
+    def roles_around(x, y):
+        _, roles, _ = map_roles(ctm)
+        out = []
+        for dy in (-1, 0, 1):
+            line = []
+            for dx in (-1, 0, 1):
+                nx, ny = x + dx, y + dy
+                inside = 0 <= nx < ctm.map_w and 0 <= ny < ctm.map_h
+                line.append(ROLE_NAMES[roles[ny][nx] if inside else ROLE_EMPTY])
+            out.append(" ".join("%-6s" % name for name in line))
+        return out
+
+    for x, y, want, got in mismatches:
+        print("  (%2d,%2d) drawn tile %2d, rule gives %2d" % (x, y, want, got))
+        for line in roles_around(x, y):
+            print("          %s" % line)
+
+    print()
+    print("  drawn" + " " * (ctm.map_w * 3 - 4) + "  rule")
+    for y in range(ctm.map_h):
+        left = " ".join("%2d" % v if v else " ." for v in drawn[y])
+        right = " ".join("%2d" % v if v else " ." for v in predicted[y])
+        print("  %s   %s%s" % (left, right, "" if left == right else "   <-"))
+
+
+# -----------------------------------------------------------------------------
 # Variant generation
 # -----------------------------------------------------------------------------
 
@@ -563,6 +693,30 @@ def render_preview(ctm, pool, tables, path, columns=5, scale=5):
     canvas.write_png(path)
 
 
+def render_map_comparison(ctm, pool, tables, path, scale=2):
+    """Draw the map as authored next to the map the tile rule produces."""
+    drawn, predicted, _ = reproduce_map(ctm)
+    if drawn is None:
+        return False
+    table = tables[0][1]                      # lit variant
+    tile_w, tile_h = ctm.tile_w * 8, ctm.tile_h * 8
+    block_w = ctm.map_w * tile_w
+    gap = 16
+    canvas = Canvas(block_w * 2 + gap, ctm.map_h * tile_h, scale)
+
+    for index, grid in enumerate((drawn, predicted)):
+        ox = index * (block_w + gap)
+        for y in range(ctm.map_h):
+            for x in range(ctm.map_w):
+                for cell, char_index in enumerate(table[grid[y][x]]):
+                    rows, attr = pool.entries[char_index]
+                    draw_char(canvas, rows, attr, ctm.bg0, ctm.bg1, ctm.bg2,
+                              ox + x * tile_w + (cell % ctm.tile_w) * 8,
+                              y * tile_h + (cell // ctm.tile_w) * 8)
+    canvas.write_png(path)
+    return True
+
+
 # -----------------------------------------------------------------------------
 # Self test
 # -----------------------------------------------------------------------------
@@ -724,6 +878,9 @@ def main(argv=None):
     parser.add_argument("--out-dir", default=None,
                         help="write tileset_data.c/.h into this directory")
     parser.add_argument("--preview", default=None, help="write a PNG preview")
+    parser.add_argument("--repro-preview", default=None,
+                        help="write a PNG of the authored map next to the map "
+                             "the tile selection rule produces")
     parser.add_argument("--self-test", action="store_true",
                         help="verify the layer masks against the reference artwork")
     args = parser.parse_args(argv)
@@ -742,6 +899,8 @@ def main(argv=None):
         print("self-test: %s" % ("FAILED" if failures else "ok"))
         report_wall_rule(ctm, parse_indices(args.wall_tiles, ()),
                          parse_indices(args.wall_like, ()))
+        print()
+        report_reproduction(ctm)
         return 1 if failures else 0
 
     all_tiles = range(len(ctm.tiles))
@@ -771,8 +930,16 @@ def main(argv=None):
         render_preview(ctm, pool, tables, args.preview)
         print("wrote %s" % args.preview)
 
+    if args.repro_preview:
+        if render_map_comparison(ctm, pool, tables, args.repro_preview):
+            print("wrote %s" % args.repro_preview)
+        else:
+            print("no map block in the CTM file, nothing to compare")
+
     report_wall_rule(ctm, parse_indices(args.wall_tiles, ()),
                      parse_indices(args.wall_like, ()))
+    print()
+    report_reproduction(ctm)
     return 0
 
 
