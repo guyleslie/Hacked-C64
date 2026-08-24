@@ -191,6 +191,9 @@ not tried again:
 | `tools/tileset_build.py` | Parses the CTM, stamps the layers, emits C tables |
 | `main/src/tiles/tileset_data.c/.h` | Generated - do not edit by hand |
 | `main/src/tiles/tile_render.c/.h` | VIC setup, tile blit, tile selection, viewport |
+| `main/src/tiles/tile_viewer.c/.h` | Camera, joystick input, redraw loop |
+| `main/src/tileviewer.c` | Entry point for the viewer PRG |
+| `build-tileviewer.bat` | Builds the viewer |
 | `main/src/mapgen/tmea_core.c/.h` | `is_door_open()` query used by door selection |
 
 ## Workflow
@@ -216,10 +219,52 @@ Tiles 2, 11, 16 and 17 in the current CTM are hand drawn fog copies of tiles 1,
 10, 14 and 15. The fog variant is generated now, so they can be deleted from
 the tileset.
 
+## Tile viewer PRG
+
+`build-tileviewer.bat` produces a standalone program that generates a dungeon
+and scrolls it on screen with the tile renderer, replacing the
+one-character-per-cell PETSCII preview. The viewport shows 10x8 map cells
+instead of 40x25, so scrolling is how the map gets inspected.
+
+| control | action |
+|---|---|
+| joystick 2 | scroll one map cell per two frames |
+| FIRE | generate a new dungeon with a fresh seed |
+| Q | quit and restore the kernal display |
+
+What the map generator produces is drawn like this:
+
+| map cell | drawn as |
+|---|---|
+| door | iron grating, orientation from the wall run |
+| secret door | plain wall - `tiles_select()` asks TMEA and joins it into the wall |
+| deception door (hidden passage, niche) | plain wall, same path |
+| stairs up / down | the two staircase tiles |
+| wall | joined wall shape |
+| floor | plain floor with the generated frame |
+
+All the hidden-feature doors go through `add_secret_door_metadata()` in the
+generator, so a single `is_door_secret()` check covers hidden rooms, hidden
+passages and niches alike. Nothing about them is visible.
+
+### Memory layout
+
+The viewer copies the character set to `$3800`, the last 2 KB slot of VIC bank
+0, leaving `$0801-$37FF` for code and data. **Nothing in the code can check
+that the linker respected it.** If the build outgrows the space, move the VIC
+to bank 1 through CIA2 port A and put the screen at `$4400` and the character
+set at `$4800`; bank 1 has no character ROM shadow, so all of it is usable.
+
+Scrolling redraws the whole viewport, 720 screen bytes plus 720 colour bytes.
+That is a few milliseconds and fine for step scrolling. Shifting screen memory
+and filling only the new edge is the optimisation if it ever needs to be
+smoother.
+
 ## Wiring it into the build
 
-`main/src/tiles/` is not included from `main/src/main.c` yet. Following the
-OSCAR64 single-file model, add:
+The viewer PRG has its own entry point and builds on its own. To bring the tile
+renderer into the main program as well, following the OSCAR64 single-file
+model, add to `main/src/main.c`:
 
 ```c
 #include "tiles/tileset_data.c"

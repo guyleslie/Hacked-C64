@@ -16,13 +16,17 @@ extern MapParameters current_params;
 // VIC-II
 // =============================================================================
 
-// Character set base. Must be a 2 KB aligned address inside the current VIC
-// bank; 0x3000 sits below the default screen at 0x0400 in bank 0.
-#define TILE_CHARSET_BASE   0x3000
+// Character set base. Must be a 2 KB aligned address inside VIC bank 0, and it
+// must sit above everything the linker places, because nothing here can check
+// that. 0x3800 is the last 2 KB slot of the bank, leaving 0x0801-0x37FF (just
+// over 12 KB) for code and data. If a build outgrows that, move the VIC to
+// bank 1 and put the screen and character set at 0x4400 and 0x4800.
+#define TILE_CHARSET_BASE   0x3800
 
 #define VIC_CTRL1           (*(unsigned char *)0xD011)
 #define VIC_CTRL2           (*(unsigned char *)0xD016)
 #define VIC_MEMORY          (*(unsigned char *)0xD018)
+#define VIC_BORDER          (*(unsigned char *)0xD020)
 #define VIC_BG0             (*(unsigned char *)0xD021)
 #define VIC_BG1             (*(unsigned char *)0xD022)
 #define VIC_BG2             (*(unsigned char *)0xD023)
@@ -48,6 +52,16 @@ void tiles_init(void) {
     VIC_BG0 = TILESET_COLOR_BG0;
     VIC_BG1 = TILESET_COLOR_BG1;
     VIC_BG2 = TILESET_COLOR_BG2;
+    VIC_BORDER = 0;
+}
+
+void tiles_shutdown(void) {
+    // Back to the kernal defaults: screen 0x0400, character ROM at 0x1000,
+    // single colour text.
+    VIC_MEMORY = 0x15;
+    VIC_CTRL2 &= ~0x10;
+    VIC_BG0 = 6;
+    VIC_BORDER = 14;
 }
 
 // =============================================================================

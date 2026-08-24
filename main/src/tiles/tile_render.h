@@ -63,6 +63,13 @@
 void tiles_init(void);
 
 /**
+ * @brief Restore the kernal display defaults
+ * Call before returning to anything that prints text, otherwise the tileset
+ * glyphs are still in place and characters come out as map artwork.
+ */
+void tiles_shutdown(void);
+
+/**
  * @brief Draw one tileset tile at a character position
  * @param tile Tileset tile index
  * @param variant TILE_VARIANT_LIT or TILE_VARIANT_FOG
