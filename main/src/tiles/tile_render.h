@@ -39,11 +39,14 @@
 #define TS_STAIR_B      10  // Staircase, the other direction
 #define TS_GRATE_V      12  // Iron grating in an up-down wall
 #define TS_GRATE_H      13  // Iron grating in a left-right wall
-#define TS_WALL_FLOOR_V 14  // Wall edge with floor to its right
-#define TS_WALL_FLOOR_H 15  // Wall edge with floor below it
+#define TS_DOOR_OPEN_V  14  // Open door in an up-down wall
+#define TS_DOOR_OPEN_H  15  // Open door in a left-right wall
 #define TS_DOOR_WOOD    18  // Wooden door
 #define TS_FLOOR_ITEM   19  // Floor carrying a pickup, demo artwork
 
+// An open door still shows the wall's top rim; only the closed leaf is gone.
+// A cell with no door has no rim at all, so plain floor is used there.
+//
 // Tiles 2, 11, 16 and 17 are hand drawn fog copies of tiles 1, 10, 14 and 15.
 // The fog variant is generated now, so they are redundant and can be deleted
 // from the CTM file.
@@ -89,15 +92,14 @@ unsigned char tiles_select(unsigned char map_x, unsigned char map_y);
 unsigned char tiles_variant_at(unsigned char map_x, unsigned char map_y);
 
 /**
- * @brief Door artwork hook
- * Replace the body when door kinds are modelled. Returning TS_DOOR_WOOD picks
- * the wooden door; anything else leaves the iron grating, whose orientation is
- * derived from the wall run.
+ * @brief Whether a closed door is drawn as a wooden door or an iron grating
+ * Replace the body when door kinds are modelled; the orientation is derived
+ * from the wall run either way.
  * @param map_x Map X coordinate
  * @param map_y Map Y coordinate
- * @return TS_DOOR_WOOD or TS_GRATE_V
+ * @return 1 for a wooden door, 0 for an iron grating
  */
-unsigned char tiles_door_kind(unsigned char map_x, unsigned char map_y);
+unsigned char tiles_door_is_wooden(unsigned char map_x, unsigned char map_y);
 
 /**
  * @brief Draw the whole viewport starting at a map coordinate

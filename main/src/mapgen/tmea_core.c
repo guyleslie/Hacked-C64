@@ -584,6 +584,20 @@ unsigned char is_door_locked(unsigned char x, unsigned char y) {
     return (flags & TMFLAG_DOOR_LOCKED) != 0;
 }
 
+unsigned char is_door_open(unsigned char x, unsigned char y) {
+    unsigned char flags, data;
+
+    if (!get_tile_metadata(x, y, &flags, &data)) {
+        return 0; // No metadata = closed
+    }
+
+    if (!is_meta_type(flags, TMTYPE_DOOR)) {
+        return 0;
+    }
+
+    return (flags & TMFLAG_DOOR_OPEN) != 0;
+}
+
 unsigned char is_door_trapped(unsigned char x, unsigned char y) {
     unsigned char flags, data;
 

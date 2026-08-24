@@ -129,45 +129,59 @@ so redrawing the reference map will flag a rule that no longer matches.
 Adding T and cross pieces to the tileset would remove the reduction step; the
 rule is then a plain sixteen-entry lookup.
 
+## Doors and the wall rim
+
+The wall's grey top rim belongs to the wall, and the view looks down from the
+upper right, so the rim is what a wall shows towards the walkable side.
+
+The rule, in one line: **the rim appears only where there is a door.**
+
+| cell | drawn as |
+|---|---|
+| closed door in an up-down wall | iron grating `12`, or wooden door `18` |
+| closed door in a left-right wall | iron grating `13`, or wooden door `18` |
+| **open** door in an up-down wall | `14` - rim kept, leaf gone, walkable below |
+| **open** door in a left-right wall | `15` - rim kept, leaf gone, walkable below |
+| walkable cell with no door | plain floor `1`, no rim |
+
+Opening a door takes away the leaf but not the wall it sits in, which is why an
+open door has its own artwork rather than turning into plain floor. A gap in a
+wall that is not a door gets no rim at all.
+
+The white corner dots are not drawn by the renderer. They are part of the
+corner tile artwork and appear wherever two top rims meet, so picking the right
+corner tile puts them in the right place automatically.
+
+Door state comes from TMEA: `is_door_open()` was added alongside the existing
+`is_door_secret()` and `is_door_locked()` queries. Whether a closed door is
+wooden or an iron grating is still open game data, behind
+`tiles_door_is_wooden()`.
+
 ## Reproducing the reference map
 
 The acceptance test for the renderer is whether the tile selection rule can put
 back the map that was drawn by hand, given only what the map generator
-produces: walkable cells, walls, and the positions of doors, stairs and items.
-Door artwork kind (wooden door versus iron grating) is game data and is fed in,
-not derived.
+produces: walkable cells, walls, and the positions and states of doors, stairs
+and items. Nothing about the artwork is fed in beyond that.
 
 ```powershell
 python tools/tileset_build.py main/assets/tileset.ctm --self-test
 python tools/tileset_build.py main/assets/tileset.ctm --grid-tiles 1,19 --repro-preview build/map-repro.png
 ```
 
-**167 of the 169 cells match.** The two that do not are the same spot:
+**All 169 cells match.** The check runs on every `--self-test`, so redrawing
+the reference map will flag a selection rule that no longer matches it.
 
-```
-  (8,11) drawn tile  5, rule gives  6
-  (9,11) drawn tile 15, rule gives  1
-```
+Two rules were tried and rejected on the way, both recorded here so they are
+not tried again:
 
-This is not a rule that needs more tuning. Cell `(9,11)` and cell `(9,3)` have
-**identical role neighbourhoods** - a walkable cell with walls left and right,
-walkable above and below - and are drawn differently:
-
-| cell | drawn as | what it implies |
-|---|---|---|
-| `(9,3)` | plain floor `1` | the wall stops at the gap; the flanking corner turns away from it |
-| `(9,11)` | rim tile `15` | the wall runs over the gap; the flanking corner turns into it |
-
-No geometric rule can produce both, so one convention has to be picked. The
-renderer currently follows the `(9,3)` convention, which is the one used
-everywhere else in the map. Choosing the `(9,11)` convention instead means
-treating a pinched walkable cell as part of the wall line for joining purposes,
-and emitting tile 14 or 15 for it - but only where the flanking walls continue
-the run, otherwise every one-tile-wide corridor turns into a rim.
-
-The rim tiles `14` and `15` appear once each in the reference map, which is too
-little to derive a rule from. Drawing more examples of the intended case is the
-way to settle it.
+- *a walkable cell next to a wall gets a rim* - the reference map draws plain
+  floor next to walls almost everywhere, so this was wrong by 34 cells.
+- *a walkable cell pinched between two walls is a passage and gets a rim* -
+  that condition also holds for every cell of a one-tile-wide corridor, and it
+  fires at six places in the reference map where only one is drawn with a rim.
+  The one that is drawn with a rim is an open door, which is what the rule
+  above captures.
 
 ## Files
 
@@ -177,6 +191,7 @@ way to settle it.
 | `tools/tileset_build.py` | Parses the CTM, stamps the layers, emits C tables |
 | `main/src/tiles/tileset_data.c/.h` | Generated - do not edit by hand |
 | `main/src/tiles/tile_render.c/.h` | VIC setup, tile blit, tile selection, viewport |
+| `main/src/mapgen/tmea_core.c/.h` | `is_door_open()` query used by door selection |
 
 ## Workflow
 

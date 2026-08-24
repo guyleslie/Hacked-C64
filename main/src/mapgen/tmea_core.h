@@ -227,6 +227,17 @@ unsigned char is_door_secret(unsigned char x, unsigned char y);
 unsigned char is_door_locked(unsigned char x, unsigned char y);
 
 /**
+ * @brief Check if door is open
+ *
+ * @param x Global X coordinate
+ * @param y Global Y coordinate
+ * @return 1 if door is open, 0 otherwise
+ *
+ * Performance: ~260-440 cycles
+ */
+unsigned char is_door_open(unsigned char x, unsigned char y);
+
+/**
  * @brief Check if door is trapped
  *
  * @param x Global X coordinate

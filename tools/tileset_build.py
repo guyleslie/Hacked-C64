@@ -288,24 +288,29 @@ TILE_ROLE = {
     9: ROLE_STAIR_A, 10: ROLE_STAIR_B,
     3: ROLE_WALL, 4: ROLE_WALL, 5: ROLE_WALL,
     6: ROLE_WALL, 7: ROLE_WALL, 8: ROLE_WALL,
-    12: ROLE_DOOR, 13: ROLE_DOOR, 18: ROLE_DOOR,
-    # Wall rim tiles must be derived from geometry, so they enter as floor.
-    14: ROLE_FLOOR, 15: ROLE_FLOOR,
+    # Tiles 14 and 15 are open doors: the leaf is gone but the wall's top rim
+    # stays, which is why they are not plain floor. A cell with no door has no
+    # rim at all.
+    12: ROLE_DOOR, 13: ROLE_DOOR, 18: ROLE_DOOR, 14: ROLE_DOOR, 15: ROLE_DOOR,
 }
 
 TILE_WALL_H, TILE_WALL_V = 3, 4
 TILE_WALL_RD, TILE_WALL_LD, TILE_WALL_RU, TILE_WALL_LU = 5, 6, 7, 8
 TILE_GRATE_V, TILE_GRATE_H, TILE_DOOR_WOOD = 12, 13, 18
+TILE_DOOR_OPEN_V, TILE_DOOR_OPEN_H = 14, 15
 
 
 def map_roles(ctm):
-    """Reduce the drawn map to engine roles, plus the door artwork kinds."""
+    """Reduce the drawn map to engine roles, plus the door state game data."""
     grid = [[FOG_DUPLICATES.get(v, v) for v in row] for row in ctm.map]
     roles = [[TILE_ROLE[v] for v in row] for row in grid]
     wooden = {(x, y)
               for y in range(ctm.map_h) for x in range(ctm.map_w)
               if grid[y][x] == TILE_DOOR_WOOD}
-    return grid, roles, wooden
+    opened = {(x, y)
+              for y in range(ctm.map_h) for x in range(ctm.map_w)
+              if grid[y][x] in (TILE_DOOR_OPEN_V, TILE_DOOR_OPEN_H)}
+    return grid, roles, wooden, opened
 
 
 def reproduce_map(ctm):
@@ -319,7 +324,7 @@ def reproduce_map(ctm):
     """
     if not ctm.map:
         return None, None, []
-    grid, roles, wooden = map_roles(ctm)
+    grid, roles, wooden, opened = map_roles(ctm)
     w, h = ctm.map_w, ctm.map_h
 
     def role(x, y):
@@ -346,11 +351,12 @@ def reproduce_map(ctm):
         if current == ROLE_WALL:
             return select_wall(x, y)
         if current == ROLE_DOOR:
+            vertical = wall_like(x, y - 1) or wall_like(x, y + 1)
+            if (x, y) in opened:
+                return TILE_DOOR_OPEN_V if vertical else TILE_DOOR_OPEN_H
             if (x, y) in wooden:
                 return TILE_DOOR_WOOD
-            if wall_like(x, y - 1) or wall_like(x, y + 1):
-                return TILE_GRATE_V
-            return TILE_GRATE_H
+            return TILE_GRATE_V if vertical else TILE_GRATE_H
         if current == ROLE_STAIR_A:
             return 9
         if current == ROLE_STAIR_B:
@@ -376,7 +382,7 @@ def report_reproduction(ctm):
           % (total - len(mismatches), total, 100.0 * (total - len(mismatches)) / total))
 
     def roles_around(x, y):
-        _, roles, _ = map_roles(ctm)
+        roles = map_roles(ctm)[1]
         out = []
         for dy in (-1, 0, 1):
             line = []
