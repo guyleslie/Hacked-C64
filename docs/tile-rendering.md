@@ -221,6 +221,14 @@ the tileset.
 
 ## Tile viewer PRG
 
+The build scripts find the compiler in this order: the `OSCAR64_HOME`
+environment variable, a copy inside the repository at `oscar64\`, then
+`E:\Apps\oscar64`. Set `OSCAR64_HOME` for anything else:
+
+```powershell
+set OSCAR64_HOME=E:\Apps\oscar64
+```
+
 `build-tileviewer.bat` produces a standalone program that generates a dungeon
 and scrolls it on screen with the tile renderer, replacing the
 one-character-per-cell PETSCII preview. The viewport shows 10x8 map cells
