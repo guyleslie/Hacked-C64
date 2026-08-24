@@ -255,18 +255,72 @@ All the hidden-feature doors go through `add_secret_door_metadata()` in the
 generator, so a single `is_door_secret()` check covers hidden rooms, hidden
 passages and niches alike. Nothing about them is visible.
 
+### Scrolling
+
+The camera moves one pixel at a time. Seven of every eight pixels are a single
+VIC register write and nothing else; the eighth crosses a character boundary.
+
+Screen memory is never shifted. This follows the OSCAR64 samples, and here
+there is a second reason: the tileset uses seven different colour RAM values,
+so a shift would have to move colour RAM too, doubling it to 2,000 bytes per
+step. Re-expanding from the tile map costs about the same and needs no
+direction-specific code.
+
+The numbers decide the structure:
+
+| | cycles |
+|---|---|
+| PAL frame | 19,656 |
+| vertical blank | 7,056 |
+| full re-expand of 40x25 | ~19,300 |
+
+A full re-expand does not fit in the blank - only nine of the twenty five rows
+do - and it cannot stay ahead of the raster beam either. Done in one go it
+would always tear. So:
+
+- **The screen is double buffered** at `$C800` and `$CC00`. The next character
+  position is expanded into the hidden buffer four rows per frame, about 3,100
+  cycles, and crossing the boundary is one `$d018` write.
+- **Colour RAM is shadowed** in ordinary RAM, because it cannot be double
+  buffered. The flip copies 1,000 bytes across, about 5,000 cycles, which fits
+  in the blank next to the flip itself.
+- **38 column and 24 row mode** hides the partially scrolled edge behind the
+  border. `VIC_CTRL2_MCM` has to be preserved when writing the fine scroll or
+  the whole screen drops back to hires.
+- **A tile cache** of 14x9 entries holds the visible tiles. Only the newly
+  exposed row or column is selected when the view crosses a tile, which keeps
+  `tiles_select()` - the expensive part, several `get_compact_tile()` calls per
+  wall - out of the scrolling path entirely.
+- **Cell-major tables** `tileset_cell_char[cell][entry]` and
+  `tileset_cell_color[cell][entry]` make each lookup a single indexed load. The
+  fog variant is folded into the entry index, so fog costs nothing extra.
+
+Both axes share one phase counter. A diagonal would otherwise let one axis
+reach the character boundary before the other, and the flip would advance an
+axis that was not ready.
+
+The viewer must be built with `-n`. Without native code generation OSCAR64
+emits bytecode and the expansion is nowhere near frame rate.
+
 ### Memory layout
 
-The viewer copies the character set to `$3800`, the last 2 KB slot of VIC bank
-0, leaving `$0801-$37FF` for code and data. **Nothing in the code can check
-that the linker respected it.** If the build outgrows the space, move the VIC
-to bank 1 through CIA2 port A and put the screen at `$4400` and the character
-set at `$4800`; bank 1 has no character ROM shadow, so all of it is usable.
+The VIC runs in bank 3, where `$C000-$CFFF` is plain RAM - no `$01` bank
+switching, and no character ROM shadow:
 
-Scrolling redraws the whole viewport, 720 screen bytes plus 720 colour bytes.
-That is a few milliseconds and fine for step scrolling. Shifting screen memory
-and filling only the new edge is the optimisation if it ever needs to be
-smoother.
+```
+$C000-$C7FF   character set
+$C800-$CBFF   screen buffer 0
+$CC00-$CFFF   screen buffer 1
+```
+
+`main/src/tileviewer.c` caps the code and data region at `$C000` so the linker
+cannot land there:
+
+```c
+#pragma region( main, 0x0a00, 0xc000, , , {code, data, bss, heap, stack} )
+```
+
+Colour RAM stays at `$D800` regardless of the VIC bank.
 
 ## Wiring it into the build
 

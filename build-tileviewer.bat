@@ -30,9 +30,11 @@ echo.
 echo  Scrollable 3x3 tile preview of a generated dungeon.
 echo  Joystick 2 scrolls, FIRE generates a new map, Q quits.
 echo.
-echo  NOTE: the character set is copied to $3800 at runtime, so code and data
-echo        must stay below that. If the linker reports an overlap, move the
-echo        VIC to bank 1 - see docs/tile-rendering.md.
+echo  Graphics live in VIC bank 3: character set $C000, screens $C800/$CC00.
+echo  tileviewer.c caps the code and data region at $C000 to keep them apart.
+echo.
+echo  Built with -O2 -n. Native code generation is required here: without it
+echo  the scroll is bytecode and nowhere near frame rate.
 echo.
 
 if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
@@ -41,7 +43,7 @@ del /Q "%BUILD_DIR%\*-tileviewer.*" 2>nul
 echo Compiling...
 echo.
 
-"%OSCAR64_DIR%\bin\oscar64.exe" -o="%OUTPUT%" -Os -Oo -Oi -Op -Oz -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci -i="%OSCAR64_DIR%\include" -i="%OSCAR64_DIR%\include\c64" -i="%SCRIPT_DIR%main\src\mapgen" -i="%SCRIPT_DIR%main\src\tiles" "%SCRIPT_DIR%main\src\tileviewer.c"
+"%OSCAR64_DIR%\bin\oscar64.exe" -o="%OUTPUT%" -O2 -n -tf=prg -tm=c64 -dNOLONG -dNOFLOAT -psci -i="%OSCAR64_DIR%\include" -i="%OSCAR64_DIR%\include\c64" -i="%SCRIPT_DIR%main\src\mapgen" -i="%SCRIPT_DIR%main\src\tiles" "%SCRIPT_DIR%main\src\tileviewer.c"
 set "BUILD_ERROR=%ERRORLEVEL%"
 
 echo.

@@ -525,8 +525,20 @@ HEADER_TEMPLATE = """\
 #define TILESET_COLOR_BG2    {bg2}   // $d023
 
 extern const unsigned char tileset_charset[TILESET_CHAR_COUNT * 8];
-extern const unsigned char tileset_char_color[TILESET_CHAR_COUNT];
-extern const unsigned char tileset_tile_chars[TILE_VARIANT_COUNT][TILESET_TILE_COUNT][TILESET_TILE_CELLS];
+
+// Combined tile index: variant * TILESET_TILE_COUNT + tile.
+#define TILESET_ENTRY(variant, tile)  ((variant) * TILESET_TILE_COUNT + (tile))
+#define TILESET_ENTRY_COUNT           (TILE_VARIANT_COUNT * TILESET_TILE_COUNT)
+
+// Cell-major tables: [cell within the tile][combined tile index].
+//
+// The renderer walks one cell position across many tiles, so keeping the cell
+// outermost makes the combined index the array index and every lookup a single
+// absolute-indexed load. The variant is folded into that index so fog of war
+// costs nothing extra, and the colour is folded in as a parallel table so the
+// inner loop never goes through a second lookup to find a character's colour.
+extern const unsigned char tileset_cell_char[TILESET_TILE_CELLS][TILESET_ENTRY_COUNT];
+extern const unsigned char tileset_cell_color[TILESET_TILE_CELLS][TILESET_ENTRY_COUNT];
 
 #endif // TILESET_DATA_H
 """
@@ -567,24 +579,23 @@ def emit_c(ctm, pool, tables, source_name):
             "".join("0x%02x, " % b for b in rows), index))
     out.append("};")
     out.append("")
-    out.append("// Colour RAM nibble per character. Values < 8 are hires characters.")
-    out.append("const unsigned char tileset_char_color[TILESET_CHAR_COUNT] = {")
-    for start in range(0, char_count, 12):
-        chunk = pool.entries[start:start + 12]
-        out.append("    " + " ".join("%d," % attr for _, attr in chunk))
-    out.append("};")
-    out.append("")
-    out.append("// Character indices per tile, one block per visual variant.")
-    out.append("const unsigned char tileset_tile_chars[TILE_VARIANT_COUNT]"
-               "[TILESET_TILE_COUNT][TILESET_TILE_CELLS] = {")
-    for variant_name, table in tables:
-        out.append("    { // TILE_VARIANT_%s" % variant_name)
-        for tile_index, row in enumerate(table):
-            out.append("        { %s },  // tile %d" % (
-                ", ".join("%3d" % c for c in row), tile_index))
-        out.append("    },")
-    out.append("};")
-    out.append("")
+    cells = ctm.cells_per_tile
+
+    for name, pick in (("tileset_cell_char", lambda ch: ch),
+                       ("tileset_cell_color", lambda ch: pool.entries[ch][1])):
+        out.append("// Indexed by TILESET_ENTRY(variant, tile); variants run in order.")
+        out.append("const unsigned char %s[TILESET_TILE_CELLS]"
+                   "[TILESET_ENTRY_COUNT] = {" % name)
+        for cell in range(cells):
+            out.append("    { // cell %d (col %d, row %d)"
+                       % (cell, cell % ctm.tile_w, cell // ctm.tile_w))
+            for variant_name, table in tables:
+                values = ", ".join("%3d" % pick(table[t][cell])
+                                   for t in range(len(table)))
+                out.append("        %s,   // TILE_VARIANT_%s" % (values, variant_name))
+            out.append("    },")
+        out.append("};")
+        out.append("")
     return header, "\n".join(out)
 
 

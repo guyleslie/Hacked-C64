@@ -25,7 +25,19 @@
 #define TILESET_COLOR_BG2    9   // $d023
 
 extern const unsigned char tileset_charset[TILESET_CHAR_COUNT * 8];
-extern const unsigned char tileset_char_color[TILESET_CHAR_COUNT];
-extern const unsigned char tileset_tile_chars[TILE_VARIANT_COUNT][TILESET_TILE_COUNT][TILESET_TILE_CELLS];
+
+// Combined tile index: variant * TILESET_TILE_COUNT + tile.
+#define TILESET_ENTRY(variant, tile)  ((variant) * TILESET_TILE_COUNT + (tile))
+#define TILESET_ENTRY_COUNT           (TILE_VARIANT_COUNT * TILESET_TILE_COUNT)
+
+// Cell-major tables: [cell within the tile][combined tile index].
+//
+// The renderer walks one cell position across many tiles, so keeping the cell
+// outermost makes the combined index the array index and every lookup a single
+// absolute-indexed load. The variant is folded into that index so fog of war
+// costs nothing extra, and the colour is folded in as a parallel table so the
+// inner loop never goes through a second lookup to find a character's colour.
+extern const unsigned char tileset_cell_char[TILESET_TILE_CELLS][TILESET_ENTRY_COUNT];
+extern const unsigned char tileset_cell_color[TILESET_TILE_CELLS][TILESET_ENTRY_COUNT];
 
 #endif // TILESET_DATA_H
