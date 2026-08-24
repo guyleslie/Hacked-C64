@@ -1,4 +1,6 @@
-# Map generator audit tool
+# Tools
+
+## Map generator audit tool
 
 `mapgen_audit.py` is a dependency-free, deterministic host-side model of the
 room placement, normal MST room network, and straight/L/Z corridor drawing in
@@ -104,3 +106,31 @@ powershell -ExecutionPolicy Bypass -File tools/run_mapgen_benchmark.ps1 -Mode ch
 
 Use the checksum before and after an optimization to verify that map geometry,
 feature placement, and deterministic RNG results did not change.
+
+
+## Tileset builder
+
+`tileset_build.py` turns the CharPad tileset in `main/assets/tileset.ctm` into
+the C tables in `main/src/tiles/`. It also generates the two overlay layers -
+the black frame around walkable tiles and the fog of war checkerboard - so
+neither has to be drawn by hand. See `docs/tile-rendering.md` for the model.
+
+Verify the layer masks and the wall joining rule against the reference artwork
+and the map drawn in the CTM file:
+
+```powershell
+python tools/tileset_build.py main/assets/tileset.ctm --self-test
+```
+
+Regenerate the C tables and a preview image:
+
+```powershell
+python tools/tileset_build.py main/assets/tileset.ctm --grid-tiles 1,19 --out-dir main/src/tiles --preview build/tileset-preview.png
+```
+
+The preview renders every tile in both variants, left block lit and right block
+fogged, so a palette or mask change can be inspected without an emulator.
+
+The tool reports characters it cannot stamp, and characters where a stamp
+shows background colour 0 rather than black. Both are artwork problems, not
+tool failures; the report names the character to fix in CharPad.
