@@ -3,10 +3,9 @@
 // =============================================================================
 // See tile_viewer.h and docs/tile-rendering.md.
 //
-// The camera moves a pixel at a time. Seven of every eight pixels cost nothing
-// but a VIC register write; the eighth crosses a character boundary, and by
-// then the back buffer already holds that position because it has been expanded
-// a few rows per frame in the meantime.
+// Regular movement shifts screen RAM and Color RAM in place, racing safely
+// behind the raster beam. Only the newly exposed row or column is generated
+// from the 3x3 tile cache; double buffering is reserved for a full map reset.
 
 #include <c64/vic.h>
 #include <c64/joystick.h>
@@ -21,51 +20,41 @@
 
 extern MapParameters current_params;
 
-// Pixels per frame. The fine scroll makes every one of them a real step, so
-// this is the scroll speed rather than a step size. At two pixels a character
-// boundary arrives every fourth frame, which leaves the back buffer three
-// frames of expanding plus the frame of the flip.
-#define SCROLL_SPEED    2
-
 // =============================================================================
 // CAMERA
 // =============================================================================
 
-// One scrolling axis, split the way the hardware wants it: a pixel offset the
-// VIC applies for free, a character offset inside the tile, and the tile.
+// The view is always aligned to a character between camera transactions.
+// sub selects one of the three character columns/rows inside a map tile.
 typedef struct {
-    unsigned char fine;     // 0-7, goes straight into the VIC
-    unsigned char sub;      // 0-2, character column or row inside the tile
-    unsigned char tile;     // map coordinate of the first visible tile
-    unsigned char limit;    // largest tile value that still fills the view
+    unsigned char sub;
+    unsigned char tile;
+    unsigned char limit_sub;
+    unsigned char limit_tile;
 } ScrollAxis;
 
 static ScrollAxis axis_x;
 static ScrollAxis axis_y;
+static unsigned char fine_x;
+static unsigned char fine_y;
 
-// The character position the back buffer is being built for, and how much of
-// it is done. Tracked separately from the axes because it runs one character
-// ahead of what is on screen.
-static unsigned char target_sub_x, target_sub_y;
-static unsigned char target_tile_x, target_tile_y;
-static unsigned char built_rows;
+// Used only to resolve a diagonal joystick position into one cardinal axis.
+static signed char last_dx, last_dy;
 
-// Direction the current target was derived from, so a change of direction can
-// be noticed and the target rebuilt.
-static signed char target_dx, target_dy;
+// Set the exact last character-aligned camera position. The VIC runs in 38x24
+// mode while the backing screen is 40x25, so the positive edge hides the final
+// character lane. One out-of-map lane at the end moves the real map edge into
+// that last lane; the two final fine-scroll phases below expose its remaining
+// four VIC pixels. tiles_select() renders the extra lane as black.
+static void axis_set_limit(ScrollAxis * a, unsigned char map_size,
+                           unsigned char backing_chars) {
+    unsigned char map_chars = map_size * TILESET_TILE_W;
+    unsigned char visible_span = backing_chars - 1;
+    unsigned char limit_chars = 0;
 
-// Pixels advanced inside the current character, counted along the direction of
-// travel and shared by both axes. Sharing it is what keeps a diagonal from
-// letting one axis reach the character boundary before the other, which would
-// make the flip advance an axis that was not ready. A direction change resets
-// it, so the axes are always in step while a direction is held.
-static unsigned char phase;
-
-// Largest first-visible tile that still fills the screen.
-static unsigned char axis_limit(unsigned char map_size, unsigned char chars) {
-    unsigned char tiles = (chars + TILESET_TILE_W - 1) / TILESET_TILE_W;
-    if (map_size <= tiles) return 0;
-    return map_size - tiles;
+    if (map_chars > visible_span) limit_chars = map_chars - visible_span;
+    a->limit_tile = limit_chars / TILESET_TILE_W;
+    a->limit_sub = limit_chars % TILESET_TILE_W;
 }
 
 // Advance a character position by one character, clamped to the map. Returns 1
@@ -76,11 +65,12 @@ static unsigned char char_step(const ScrollAxis * a, signed char dir,
     *sub = a->sub;
 
     if (dir > 0) {
+        if (*tile > a->limit_tile ||
+            (*tile == a->limit_tile && *sub >= a->limit_sub)) return 0;
         if (*sub + 1 < TILESET_TILE_W) {
             (*sub)++;
             return 1;
         }
-        if (*tile >= a->limit) return 0;
         *sub = 0;
         (*tile)++;
         return 1;
@@ -100,52 +90,27 @@ static unsigned char char_step(const ScrollAxis * a, signed char dir,
     return 0;
 }
 
-// The VIC offset for an axis. The register counts pixels the camera has
-// advanced, so a leftward or upward axis runs the phase backwards.
-static unsigned char axis_offset(signed char dir, unsigned char stored) {
-    if (dir > 0) return phase;
-    if (dir < 0) return 7 - phase;
-    return stored;
+// Wait for the start of the next lower-border interval. Calling waitTop first
+// matters when rendering happened to finish after raster line 255: it prevents
+// an immediate late flip whose Color RAM writes could run into the next frame.
+static void wait_vblank_start(void) {
+    vic_waitTop();
+    vic_waitBottom();
 }
 
-// Point the tile cache and the expansion at a new target character position.
-static void target_set(signed char dx, signed char dy) {
-    target_dx = dx;
-    target_dy = dy;
-    phase = 0;
-
-    if (!char_step(&axis_x, dx, &target_tile_x, &target_sub_x)) {
-        target_tile_x = axis_x.tile;
-        target_sub_x = axis_x.sub;
-        target_dx = 0;
-    }
-    if (!char_step(&axis_y, dy, &target_tile_y, &target_sub_y)) {
-        target_tile_y = axis_y.tile;
-        target_sub_y = axis_y.sub;
-        target_dy = 0;
-    }
-
-    // Nothing on screen depends on the cache, only the expansion does, so
-    // moving it to the target early is free. Addressing it absolutely means a
-    // second direction change before the flip does not shift it twice.
-    tiles_cache_move_to(target_tile_x, target_tile_y);
-    built_rows = 0;
-}
-
-static void build_slice(unsigned char rows) {
-    unsigned char to = built_rows + rows;
-    if (to > TILE_SCREEN_ROWS) to = TILE_SCREEN_ROWS;
-    if (built_rows < to) {
-        tiles_expand(target_sub_x, target_sub_y, built_rows, to);
-        built_rows = to;
-    }
+// Apply an edge-only two-pixel phase without touching screen or Color RAM.
+// Keeping both offsets here also preserves one axis when the other one moves.
+static void camera_apply_fine(void) {
+    wait_vblank_start();
+    tiles_fine_scroll(fine_x, fine_y);
+    vic_waitTop();
 }
 
 static void camera_reset(void) {
     unsigned char cx, cy;
 
-    axis_x.limit = axis_limit(current_params.map_width, TILE_SCREEN_COLS);
-    axis_y.limit = axis_limit(current_params.map_height, TILE_SCREEN_ROWS);
+    axis_set_limit(&axis_x, current_params.map_width, TILE_SCREEN_COLS);
+    axis_set_limit(&axis_y, current_params.map_height, TILE_SCREEN_ROWS);
 
     if (room_count > 0) {
         cx = room_list[0].center_x;
@@ -155,49 +120,144 @@ static void camera_reset(void) {
         cy = current_params.map_height / 2;
     }
 
-    axis_x.fine = 0;
     axis_x.sub = 0;
     axis_x.tile = (cx > 6) ? cx - 6 : 0;
-    if (axis_x.tile > axis_x.limit) axis_x.tile = axis_x.limit;
+    if (axis_x.tile > axis_x.limit_tile) {
+        axis_x.tile = axis_x.limit_tile;
+        axis_x.sub = axis_x.limit_sub;
+    }
 
-    axis_y.fine = 0;
     axis_y.sub = 0;
     axis_y.tile = (cy > 4) ? cy - 4 : 0;
-    if (axis_y.tile > axis_y.limit) axis_y.tile = axis_y.limit;
+    if (axis_y.tile > axis_y.limit_tile) {
+        axis_y.tile = axis_y.limit_tile;
+        axis_y.sub = axis_y.limit_sub;
+    }
 
     tiles_cache_fill(axis_x.tile, axis_y.tile);
-    tiles_fine_scroll(0, 0);
+    fine_x = 4;
+    fine_y = 4;
+    tiles_fine_scroll(fine_x, fine_y);
 
-    // Draw the same picture into both buffers so the first flip has something
-    // sensible to show.
+    // Draw the same aligned position into both buffers. Only a complete hidden
+    // buffer is ever made visible.
+    tiles_expand_begin();
     tiles_expand(0, 0, 0, TILE_SCREEN_ROWS);
-    vic_waitBottom();
+    wait_vblank_start();
     tiles_flip();
-    tiles_expand(0, 0, 0, TILE_SCREEN_ROWS);
+    vic_waitTop();
 
-    target_dx = 0;
-    target_dy = 0;
-    target_tile_x = axis_x.tile;
-    target_tile_y = axis_y.tile;
-    target_sub_x = 0;
-    target_sub_y = 0;
-    built_rows = TILE_SCREEN_ROWS;
-    phase = 0;
+    tiles_expand_begin();
+    tiles_expand(0, 0, 0, TILE_SCREEN_ROWS);
+    wait_vblank_start();
+    tiles_flip();
+    vic_waitTop();
+
+    last_dx = 0;
+    last_dy = 0;
 }
 
-// Move the displayed position onto the target and reset the fine offsets to
-// the far side of the character we just left.
-static void adopt_target(signed char dx, signed char dy) {
+// Move one character in a cardinal direction. The renderer prepares just the
+// entering edge and performs the four raster-timed two-pixel phases.
+static unsigned char camera_step(signed char dx, signed char dy) {
+    unsigned char next_tile_x = axis_x.tile;
+    unsigned char next_tile_y = axis_y.tile;
+    unsigned char next_sub_x = axis_x.sub;
+    unsigned char next_sub_y = axis_y.sub;
+    unsigned char moved = 0;
+
     if (dx != 0) {
-        axis_x.tile = target_tile_x;
-        axis_x.sub = target_sub_x;
-        axis_x.fine = (dx > 0) ? 0 : 7;
+        if (dx > 0) {
+            // Leave the negative edge smoothly before advancing a character.
+            if (fine_x > 4) {
+                fine_x -= 2;
+                camera_apply_fine();
+                last_dx = dx;
+                last_dy = 0;
+                return 1;
+            }
+
+            // At the positive limit, offset 4 still leaves half of the last
+            // multicolour character behind the 38-column border. Finish with
+            // the same 4->2->0 phases as a regular left-moving screen scroll.
+            if (axis_x.tile == axis_x.limit_tile &&
+                axis_x.sub == axis_x.limit_sub && fine_x > 0) {
+                fine_x -= 2;
+                camera_apply_fine();
+                last_dx = dx;
+                last_dy = 0;
+                return 1;
+            }
+        } else {
+            // Leave the positive edge smoothly before moving back.
+            if (fine_x < 4) {
+                fine_x += 2;
+                camera_apply_fine();
+                last_dx = dx;
+                last_dy = 0;
+                return 1;
+            }
+
+            // CSEL still covers two pixels of the first map column at x=0.
+            if (axis_x.tile == 0 && axis_x.sub == 0 && fine_x < 6) {
+                fine_x += 2;
+                camera_apply_fine();
+                last_dx = dx;
+                last_dy = 0;
+                return 1;
+            }
+        }
+        moved = char_step(&axis_x, dx, &next_tile_x, &next_sub_x);
+    } else if (dy != 0) {
+        if (dy > 0) {
+            if (fine_y > 4) {
+                fine_y -= 2;
+                camera_apply_fine();
+                last_dx = 0;
+                last_dy = dy;
+                return 1;
+            }
+            if (axis_y.tile == axis_y.limit_tile &&
+                axis_y.sub == axis_y.limit_sub && fine_y > 0) {
+                fine_y -= 2;
+                camera_apply_fine();
+                last_dx = 0;
+                last_dy = dy;
+                return 1;
+            }
+        } else {
+            if (fine_y < 4) {
+                fine_y += 2;
+                camera_apply_fine();
+                last_dx = 0;
+                last_dy = dy;
+                return 1;
+            }
+
+            // RSEL hides the first two raster rows at y=0. Offset 6 exposes
+            // them without shifting screen RAM or adding a virtual map row.
+            if (axis_y.tile == 0 && axis_y.sub == 0 && fine_y < 6) {
+                fine_y += 2;
+                camera_apply_fine();
+                last_dx = 0;
+                last_dy = dy;
+                return 1;
+            }
+        }
+        moved = char_step(&axis_y, dy, &next_tile_y, &next_sub_y);
     }
-    if (dy != 0) {
-        axis_y.tile = target_tile_y;
-        axis_y.sub = target_sub_y;
-        axis_y.fine = (dy > 0) ? 0 : 7;
-    }
+    if (!moved) return 0;
+
+    tiles_cache_move_to(next_tile_x, next_tile_y);
+    tiles_scroll(dx, dy, next_sub_x, next_sub_y);
+
+    axis_x.tile = next_tile_x;
+    axis_x.sub = next_sub_x;
+    axis_y.tile = next_tile_y;
+    axis_y.sub = next_sub_y;
+    last_dx = dx;
+    last_dy = dy;
+    return 1;
 }
 
 // =============================================================================
@@ -233,45 +293,19 @@ void tile_viewer_run(void) {
         signed char dx = joyx[0];
         signed char dy = joyy[0];
 
-        // A new direction invalidates whatever the back buffer was being built
-        // for, so it restarts from the top.
-        if (dx != target_dx || dy != target_dy) {
-            target_set(dx, dy);
-        }
-
-        if (dx != 0 || dy != 0) {
-            build_slice(TILE_EXPAND_SLICE);
-        }
-
-        // Advance the shared phase. Both axes reach the character boundary at
-        // the same moment, so one test covers the diagonal case too.
-        unsigned char crossed = 0;
-        if (target_dx != 0 || target_dy != 0) {
-            phase += SCROLL_SPEED;
-            if (phase >= 8) {
-                phase = 0;
-                crossed = 1;
+        // Four-way camera: a diagonal keeps the most recently used axis.
+        if (dx != 0 && dy != 0) {
+            if (last_dx != 0) {
+                dy = 0;
+            } else if (last_dy != 0) {
+                dx = 0;
+            } else {
+                dy = 0;
             }
         }
 
-        if (!crossed) {
-            if (target_dx != 0) axis_x.fine = axis_offset(target_dx, axis_x.fine);
-            if (target_dy != 0) axis_y.fine = axis_offset(target_dy, axis_y.fine);
-        }
-
-        vic_waitBottom();
-
-        if (crossed) {
-            // Finish anything the slices did not get to, then show it. Both
-            // happen in the vertical blank.
-            build_slice(TILE_SCREEN_ROWS);
-            tiles_flip();
-            adopt_target(target_dx, target_dy);
-            tiles_fine_scroll(axis_x.fine, axis_y.fine);
-            target_set(dx, dy);   // also clears the phase
-        } else {
-            tiles_fine_scroll(axis_x.fine, axis_y.fine);
-            vic_waitTop();
+        if (!camera_step(dx, dy)) {
+            camera_apply_fine();
         }
     }
 

@@ -7,22 +7,17 @@
 // Draws the generated dungeon with the CharPad tileset in multicolour
 // character mode. One map cell is one 3x3 character tile.
 //
-// The black frame around walkable tiles and the fog of war checkerboard are
-// not part of the artwork: tools/tileset_build.py stamps them into the
-// character set, and this module only picks which pre-stamped variant to emit.
+// The black frame around walkable tiles is not part of the artwork:
+// tools/tileset_build.py stamps it into generated character variants, and this
+// module only picks which pre-stamped variant to emit. Optional fog support is
+// retained but disabled by default.
 // See docs/tile-rendering.md.
 //
-// Scrolling follows the OSCAR64 samples (samples/games/hscrollshmup.c): screen
-// memory is never shifted. The visible area is re-expanded from a small tile
-// cache, and the VIC fine scroll registers cover the seven pixels between one
-// character position and the next. Re-expanding beats a shift here because
-// colour RAM has to move too - the tileset uses seven different colour RAM
-// values - and it needs no direction-specific code.
-//
-// A full re-expand is about 19,300 cycles against a 19,656 cycle PAL frame, so
-// it cannot be done in one go without tearing. Instead the screen is double
-// buffered: the next character position is expanded into the hidden buffer a
-// few rows per frame, and crossing the character boundary is just a flip.
+// Regular movement follows OSCAR64's samples/scrolling/cgrid8way.c: VIC fine
+// scroll covers the pixels between character positions, while screen RAM and
+// Color RAM are shifted in raster-safe sections. Only the newly exposed 25-cell
+// column or 40-cell row is generated from the tile cache. Double buffering is
+// retained for full redraws such as generating a new dungeon.
 
 #include "tileset_data.h"
 
@@ -38,38 +33,32 @@
 #define TILE_CACHE_W        ((TILE_SCREEN_COLS / TILESET_TILE_W) + 1)
 #define TILE_CACHE_H        ((TILE_SCREEN_ROWS / TILESET_TILE_H) + 1)
 
-// Rows expanded into the back buffer per frame. Four rows is about 3,100
-// cycles, so the work stays well inside a frame even at two pixels per frame,
-// where a character boundary arrives every fourth frame.
-#define TILE_EXPAND_SLICE   4
-
 // -----------------------------------------------------------------------------
 // Tileset tile indices - must match main/assets/tileset.ctm
 // -----------------------------------------------------------------------------
 
 #define TS_EMPTY        0   // Solid black, outside the dungeon
 #define TS_FLOOR        1   // Walkable floor
-#define TS_WALL_H       3   // Wall running left-right
-#define TS_WALL_V       4   // Wall running up-down
-#define TS_WALL_RD      5   // Wall corner opening right and down
-#define TS_WALL_LD      6   // Wall corner opening left and down
-#define TS_WALL_RU      7   // Wall corner opening right and up
-#define TS_WALL_LU      8   // Wall corner opening left and up
-#define TS_STAIR_A      9   // Staircase, one direction
-#define TS_STAIR_B      10  // Staircase, the other direction
-#define TS_GRATE_V      12  // Iron grating in an up-down wall
-#define TS_GRATE_H      13  // Iron grating in a left-right wall
-#define TS_DOOR_OPEN_V  14  // Open door in an up-down wall
-#define TS_DOOR_OPEN_H  15  // Open door in a left-right wall
-#define TS_DOOR_WOOD    18  // Wooden door
-#define TS_FLOOR_ITEM   19  // Floor carrying a pickup, demo artwork
+#define TS_WALL_H       2   // Wall running left-right
+#define TS_WALL_V       3   // Wall running up-down
+#define TS_WALL_RD      4   // Wall corner opening right and down
+#define TS_WALL_LD      5   // Wall corner opening left and down
+#define TS_WALL_RU      6   // Wall corner opening right and up
+#define TS_WALL_LU      7   // Wall corner opening left and up
+#define TS_STAIR_A      8   // Staircase, one direction (walkable)
+#define TS_STAIR_B      9   // Staircase, the other direction (walkable)
+#define TS_GRATE_V      11  // Closed iron grating in an up-down wall
+#define TS_GRATE_H      12  // Closed iron grating in a left-right wall
+#define TS_DOOR_OPEN_V  13  // Open, walkable door in an up-down wall
+#define TS_DOOR_OPEN_H  14  // Open, walkable door in a left-right wall
+#define TS_DOOR_WOOD    17  // Closed wooden door
+#define TS_FLOOR_ITEM   18  // Floor carrying a pickup, demo artwork
 
 // An open door still shows the wall's top rim; only the closed leaf is gone.
 // A cell with no door has no rim at all, so plain floor is used there.
 //
-// Tiles 2, 11, 16 and 17 are hand drawn fog copies of tiles 1, 10, 14 and 15.
-// The fog variant is generated now, so they are redundant and can be deleted
-// from the CTM file.
+// Tiles 10, 15 and 16 are retained artwork duplicates of tiles 9, 13 and 14.
+// They share the same walkability and generated-grid behaviour.
 
 // -----------------------------------------------------------------------------
 // Display
@@ -90,16 +79,16 @@ void tiles_init(void);
 void tiles_shutdown(void);
 
 /**
- * @brief Show the back buffer and copy the shadow colours into colour RAM
- * Call inside the vertical blank: the colour copy is about 5,000 cycles of the
- * roughly 7,000 the blank provides.
+ * @brief Show the back buffer and update changed shadow colours in Color RAM
+ * Call inside the vertical blank. Only positions recorded as changed while the
+ * back buffer was expanded are written.
  */
 void tiles_flip(void);
 
 /**
- * @brief Set the hardware fine scroll offset
- * @param px Horizontal offset, 0-7 pixels
- * @param py Vertical offset, 0-7 pixels
+ * @brief Set the raw hardware fine scroll offset
+ * @param px Horizontal VIC offset, 0-7
+ * @param py Vertical VIC offset, 0-7
  * Keeps 38 column and 24 row mode so the partially scrolled edge stays hidden
  * behind the border.
  */
@@ -137,9 +126,27 @@ void tiles_cache_move_to(unsigned char tile_x, unsigned char tile_y);
  */
 void tiles_cache_shift(signed char dx, signed char dy);
 
+/**
+ * @brief Move the visible screen one character in a cardinal direction
+ * Uses a two-pixel raster scroll and shifts screen/Color RAM in place. The tile
+ * cache must already describe the target tile origin.
+ * @param dx Camera direction: -1, 0 or +1
+ * @param dy Camera direction: -1, 0 or +1
+ * @param sub_x Target character offset inside the leftmost tile, 0-2
+ * @param sub_y Target character offset inside the topmost tile, 0-2
+ */
+void tiles_scroll(signed char dx, signed char dy,
+                  unsigned char sub_x, unsigned char sub_y);
+
 // -----------------------------------------------------------------------------
 // Rendering
 // -----------------------------------------------------------------------------
+
+/**
+ * @brief Start building a fresh back-buffer position
+ * Resets the sparse Color RAM update list used by tiles_flip().
+ */
+void tiles_expand_begin(void);
 
 /**
  * @brief Re-expand a horizontal band of the BACK buffer from the tile cache

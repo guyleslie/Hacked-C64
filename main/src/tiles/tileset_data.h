@@ -6,11 +6,11 @@
 // =============================================================================
 // Source: tileset.ctm
 //
-// The grid frame and the fog checkerboard are generated overlay layers, not
-// hand drawn artwork. Re-run the tool after changing the CTM file.
+// The grid frame is a generated layer, not hand drawn artwork. The optional
+// fog mask is disabled by default. Re-run the tool after changing the CTM.
 
-#define TILESET_CHAR_COUNT   52
-#define TILESET_TILE_COUNT   20
+#define TILESET_CHAR_COUNT   33
+#define TILESET_TILE_COUNT   19
 #define TILESET_TILE_W       3
 #define TILESET_TILE_H       3
 #define TILESET_TILE_CELLS   9

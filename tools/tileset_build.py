@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 """Build C64 tileset assets from a CharPad CTM file.
 
-The map tiles are 3x3 characters. Two visual layers are *not* drawn by hand in
-CharPad; this tool generates them from mask tables:
+The map tiles are 3x3 characters. Visual layers do not have to be drawn by hand
+in CharPad; this tool can generate them from mask tables:
 
   grid  a one pixel black line on the top edge and the left edge of every
         walkable tile. Neighbouring tiles complete each other's frame, so a
         continuous lattice appears over the walkable area.
-  fog   a checkerboard of black pixels that darkens explored but currently
-        unseen tiles (fog of war).
+  fog   an optional checkerboard of black pixels (disabled by default).
 
 Both layers are stencils: only black matters, everything else passes through.
 On the VIC-II that is a single bitwise operation per character row, and the
 polarity depends on the character's colour mode:
 
-  hires char (colour RAM < 8)   set bits show the foreground colour
-                                -> layer is OR, and is black when colour == 0
-  multicolour char (>= 8)       %00 bit pairs show background colour 0
-                                -> layer is AND, and is black when $d021 == 0
+  hires char (colour RAM 0)     set bits show black foreground
+                                -> layer is OR
+  multicolour char (colour 8)   %11 bit pairs show colour RAM black
+                                -> layer is OR on complete pixel pairs
+
+Characters that do not currently use their per-character colour can be safely
+remapped to colour 0/8 in the generated variant. Falling back to background
+colour 0 is only possible when $d021 is black.
 
 Because the layers are pure masks, the tileset authored in CharPad only has to
 contain the clean artwork. The lit/fog variants and the framed characters are
@@ -172,29 +175,52 @@ def _expand_pairs(value):
     return out
 
 
-def stamp_is_or(attr):
-    """True when setting bits is what paints black on this character.
+def _hires_foreground_outside_mask(rows, mask):
+    return any(rows[r] & (~mask[r] & 0xFF) for r in range(8))
 
-    Only a hires character whose foreground is black can be stamped by setting
-    bits. Every other character has to have bits cleared instead, which reveals
-    background colour 0 - black only if $d021 is black.
+
+def _multicolour_char_colour_outside_mask(rows, mask):
+    """Whether a %11 pixel pair survives outside the layer mask."""
+    pairs = [_expand_pairs(value) for value in mask]
+    for r, byte in enumerate(rows):
+        for shift in (6, 4, 2, 0):
+            bits = 3 << shift
+            if byte & bits == bits and not pairs[r] & bits:
+                return True
+    return False
+
+
+def apply_black_mask(rows, mask, attr, bg0):
+    """Stamp a black stencil and return (rows, output_attr, applied).
+
+    In multicolour mode colour RAM value 8 means that the character-specific
+    colour selected by %11 is black. This is the key path for the clean floor
+    in newest5: setting complete pixel pairs paints a true black frame without
+    consuming any of the three global colours.
+
+    A non-black per-character colour may still be remapped to black when no
+    foreground/%11 artwork survives outside the mask. Otherwise black can only
+    be revealed through background colour 0 when $d021 is black.
     """
-    return attr == 0
-
-
-def apply_mask(rows, mask, attr):
-    """Stamp the black stencil onto one character.
-
-    A hires black character takes the mask as OR: set bits show its black
-    foreground. Anything else takes it as AND, clearing pixels down to
-    background colour 0. Clearing a multicolour character has to take out whole
-    bit pairs, otherwise %11 would degrade to %01 instead of going to %00.
-    """
-    if stamp_is_or(attr):
-        return [rows[r] | mask[r] for r in range(8)]
     if attr < 8:
-        return [rows[r] & (~mask[r] & 0xFF) for r in range(8)]
-    return [rows[r] & (~_expand_pairs(mask[r]) & 0xFF) for r in range(8)]
+        if attr == 0 or not _hires_foreground_outside_mask(rows, mask):
+            return [rows[r] | mask[r] for r in range(8)], 0, True
+        if bg0 == 0:
+            return [rows[r] & (~mask[r] & 0xFF) for r in range(8)], attr, True
+        return list(rows), attr, False
+
+    pairs = [_expand_pairs(value) for value in mask]
+    if (attr & 7) == 0 or not _multicolour_char_colour_outside_mask(rows, mask):
+        return [rows[r] | pairs[r] for r in range(8)], 8, True
+    if bg0 == 0:
+        return [rows[r] & (~pairs[r] & 0xFF) for r in range(8)], attr, True
+    return list(rows), attr, False
+
+
+def apply_mask(rows, mask, attr, bg0=0):
+    """Compatibility wrapper used by the small mask unit tests."""
+    stamped, _, _ = apply_black_mask(rows, mask, attr, bg0)
+    return stamped
 
 
 def strip_mask(rows, mask, hires):
@@ -228,6 +254,9 @@ def strip_mask(rows, mask, hires):
 #
 # The connection mask below is CONN_UP | CONN_DOWN | CONN_LEFT | CONN_RIGHT.
 CONN_UP, CONN_DOWN, CONN_LEFT, CONN_RIGHT = 1, 2, 4, 8
+
+WALK_UP, WALK_DOWN, WALK_LEFT, WALK_RIGHT = 1, 2, 4, 8
+WALK_UL, WALK_UR, WALK_DL, WALK_DR = 16, 32, 64, 128
 
 WALL_SHAPES = [
     ("HORIZONTAL", CONN_LEFT | CONN_RIGHT),
@@ -282,22 +311,27 @@ ROLE_NAMES = ("empty", "floor", "WALL", "DOOR", "stairA", "stairB", "item")
 # Which tileset tile stands for which role in the reference artwork. The hand
 # drawn fog copies collapse onto their lit originals first, because fog is a
 # generated layer and not a separate map cell.
-FOG_DUPLICATES = {2: 1, 11: 10, 16: 14, 17: 15}
+FOG_DUPLICATES = {10: 9, 15: 13, 16: 14}
 TILE_ROLE = {
-    0: ROLE_EMPTY, 1: ROLE_FLOOR, 19: ROLE_ITEM,
-    9: ROLE_STAIR_A, 10: ROLE_STAIR_B,
-    3: ROLE_WALL, 4: ROLE_WALL, 5: ROLE_WALL,
-    6: ROLE_WALL, 7: ROLE_WALL, 8: ROLE_WALL,
-    # Tiles 14 and 15 are open doors: the leaf is gone but the wall's top rim
+    0: ROLE_EMPTY, 1: ROLE_FLOOR, 18: ROLE_ITEM,
+    8: ROLE_STAIR_A, 9: ROLE_STAIR_B,
+    2: ROLE_WALL, 3: ROLE_WALL, 4: ROLE_WALL,
+    5: ROLE_WALL, 6: ROLE_WALL, 7: ROLE_WALL,
+    # Tiles 13 and 14 are open doors: the leaf is gone but the wall's top rim
     # stays, which is why they are not plain floor. A cell with no door has no
     # rim at all.
-    12: ROLE_DOOR, 13: ROLE_DOOR, 18: ROLE_DOOR, 14: ROLE_DOOR, 15: ROLE_DOOR,
+    11: ROLE_DOOR, 12: ROLE_DOOR, 17: ROLE_DOOR, 13: ROLE_DOOR, 14: ROLE_DOOR,
 }
 
-TILE_WALL_H, TILE_WALL_V = 3, 4
-TILE_WALL_RD, TILE_WALL_LD, TILE_WALL_RU, TILE_WALL_LU = 5, 6, 7, 8
-TILE_GRATE_V, TILE_GRATE_H, TILE_DOOR_WOOD = 12, 13, 18
-TILE_DOOR_OPEN_V, TILE_DOOR_OPEN_H = 14, 15
+TILE_WALL_H, TILE_WALL_V = 2, 3
+TILE_WALL_RD, TILE_WALL_LD, TILE_WALL_RU, TILE_WALL_LU = 4, 5, 6, 7
+TILE_GRATE_V, TILE_GRATE_H, TILE_DOOR_WOOD = 11, 12, 17
+TILE_DOOR_OPEN_V, TILE_DOOR_OPEN_H = 13, 14
+
+# Walkable tiles in newest5: floor, both stairs and open-door variants.
+# Closed doors, walls and the black outside tile deliberately receive none.
+DEFAULT_GRID_TILES = {1, 8, 9, 10, 13, 14, 15, 16}
+DEFAULT_FOG_TILES = set()
 
 
 def map_roles(ctm):
@@ -335,14 +369,37 @@ def reproduce_map(ctm):
     def wall_like(x, y):
         return role(x, y) in (ROLE_WALL, ROLE_DOOR)
 
+    def walkable_space(x, y):
+        return role(x, y) not in (ROLE_EMPTY, ROLE_WALL)
+
     def select_wall(x, y):
-        down, up = wall_like(x, y + 1), wall_like(x, y - 1)
-        left, right = wall_like(x - 1, y), wall_like(x + 1, y)
-        if down:
-            return TILE_WALL_RD if right else (TILE_WALL_LD if left else TILE_WALL_V)
-        if up:
-            return TILE_WALL_RU if right else (TILE_WALL_LU if left else TILE_WALL_V)
-        return TILE_WALL_H
+        mask = 0
+        if wall_like(x, y - 1): mask |= CONN_UP
+        if wall_like(x, y + 1): mask |= CONN_DOWN
+        if wall_like(x - 1, y): mask |= CONN_LEFT
+        if wall_like(x + 1, y): mask |= CONN_RIGHT
+
+        walk_mask = 0
+        for dx, dy, bit in (
+                (0, -1, WALK_UP), (0, 1, WALK_DOWN),
+                (-1, 0, WALK_LEFT), (1, 0, WALK_RIGHT),
+                (-1, -1, WALK_UL), (1, -1, WALK_UR),
+                (-1, 1, WALK_DL), (1, 1, WALK_DR)):
+            if walkable_space(x + dx, y + dy):
+                walk_mask |= bit
+
+        shape = select_wall_shape(
+            mask, walk_mask,
+            far_left_walkable=walkable_space(x - 2, y),
+            far_upper_left_wall=wall_like(x - 2, y - 2))
+        return {
+            CONN_LEFT | CONN_RIGHT: TILE_WALL_H,
+            CONN_UP | CONN_DOWN: TILE_WALL_V,
+            CONN_RIGHT | CONN_DOWN: TILE_WALL_RD,
+            CONN_LEFT | CONN_DOWN: TILE_WALL_LD,
+            CONN_RIGHT | CONN_UP: TILE_WALL_RU,
+            CONN_LEFT | CONN_UP: TILE_WALL_LU,
+        }[shape]
 
     def select(x, y):
         current = role(x, y)
@@ -358,11 +415,11 @@ def reproduce_map(ctm):
                 return TILE_DOOR_WOOD
             return TILE_GRATE_V if vertical else TILE_GRATE_H
         if current == ROLE_STAIR_A:
-            return 9
+            return 8
         if current == ROLE_STAIR_B:
-            return 10
+            return 9
         if current == ROLE_ITEM:
-            return 19
+            return 18
         return 1
 
     predicted = [[select(x, y) for x in range(w)] for y in range(h)]
@@ -435,11 +492,6 @@ def build(ctm, grid_tiles, fog_tiles, strip=()):
     warnings = []
     tables = []
 
-    if ctm.bg0 != 0:
-        warnings.append(
-            "background colour 0 is %d, not black - multicolour characters "
-            "will show that colour where the layers stamp." % ctm.bg0)
-
     source = [list(rows) for rows in ctm.chars]
     for layer_name in strip:
         mask_fn = LAYERS[layer_name]
@@ -461,6 +513,7 @@ def build(ctm, grid_tiles, fog_tiles, strip=()):
             row = []
             for cell, char_index in enumerate(cells):
                 attr = ctm.char_attrs[char_index]
+                output_attr = attr
                 hires = attr < 8
                 rows = list(source[char_index])
                 for layer_name in layer_names:
@@ -469,18 +522,16 @@ def build(ctm, grid_tiles, fog_tiles, strip=()):
                     if layer_name == "fog" and tile_index not in fog_tiles:
                         continue
                     mask = LAYERS[layer_name](cell, ctm.tile_w, ctm.tile_h, hires)
-                    stamped = apply_mask(rows, mask, attr)
-                    # An OR character that does not change is simply already
-                    # stamped. An AND character that does not change had no
-                    # non-background pixels to take away, which is a real gap.
-                    if stamped == rows and not stamp_is_or(attr):
+                    rows, output_attr, applied = apply_black_mask(
+                        rows, mask, output_attr, ctm.bg0)
+                    if not applied:
                         warnings.append(
-                            "char %d is entirely background, so the %s layer "
-                            "has nothing to darken. Give it colour 0 to make it "
-                            "a hires black character, or paint its body in a "
-                            "real colour." % (char_index, layer_name))
-                    rows = stamped
-                row.append(pool.intern(rows, attr))
+                            "tile %d cell %d (char %d, colour %d): the %s "
+                            "layer cannot be black with $d021=%d because the "
+                            "character-specific colour is used by artwork "
+                            "outside the mask." % (tile_index, cell, char_index,
+                                                   attr, layer_name, ctm.bg0))
+                row.append(pool.intern(rows, output_attr))
             table.append(row)
         tables.append((variant_name, table))
 
@@ -507,8 +558,8 @@ HEADER_TEMPLATE = """\
 // =============================================================================
 // Source: {source}
 //
-// The grid frame and the fog checkerboard are generated overlay layers, not
-// hand drawn artwork. Re-run the tool after changing the CTM file.
+// The grid frame is a generated layer, not hand drawn artwork. The optional
+// fog mask is disabled by default. Re-run the tool after changing the CTM.
 
 #define TILESET_CHAR_COUNT   {char_count}
 #define TILESET_TILE_COUNT   {tile_count}
@@ -739,12 +790,7 @@ def render_map_comparison(ctm, pool, tables, path, scale=2):
 # -----------------------------------------------------------------------------
 
 def self_test(ctm):
-    """Verify the layer model against artwork that already has it baked in.
-
-    The reference tileset was drawn by hand with both layers included. Every
-    framed and fogged character must be reproducible from the blank floor
-    character by stamping the masks, otherwise the mask tables are wrong.
-    """
+    """Verify black-mask mechanics and the current clean CTM mapping."""
     failures = []
 
     def check(name, got, want):
@@ -754,56 +800,166 @@ def self_test(ctm):
                 " ".join("%02x" % b for b in got),
                 " ".join("%02x" % b for b in want)))
 
-    blank = ctm.chars[4]
-    for cell, expected in ((0, 1), (1, 2), (3, 3)):
-        mask = grid_mask(cell, ctm.tile_w, ctm.tile_h, hires=True)
-        check("grid cell %d -> char %d" % (cell, expected),
-              apply_mask(blank, mask, attr=0), ctm.chars[expected])
+    corner_hires = grid_mask(0, 3, 3, hires=True)
+    check("hires black grid",
+          apply_mask([0x00] * 8, corner_hires, attr=0, bg0=11),
+          [0xFF] + [0xC0] + [0x80] * 6)
 
-    fog = fog_mask(0, ctm.tile_w, ctm.tile_h, hires=True)
-    for lit, fogged in ((1, 5), (2, 6), (3, 7), (4, 8)):
-        check("fog char %d -> char %d" % (lit, fogged),
-              apply_mask(ctm.chars[lit], fog, attr=0), ctm.chars[fogged])
+    # newest5 uses multicolour colour RAM value 8 on clean floor cells. %11 is
+    # therefore the character-specific colour 0 (black), and complete pairs
+    # are set rather than cleared to the grey $d021 background.
+    corner_mc = grid_mask(0, 3, 3, hires=False)
+    rows, attr, applied = apply_black_mask([0x00] * 8, corner_mc, 8, 11)
+    check("multicolour colour-8 black grid", rows, [0xFF] + [0xC0] * 7)
+    if attr != 8 or not applied:
+        failures.append("multicolour colour-8 grid did not stay black")
 
-    # Stripping only recovers artwork that is blank under the mask. The fogged
-    # blank floor qualifies. The fogged frame does not: its top line shares
-    # pixels with the checkerboard, so those pixels are gone. Both are asserted
-    # so the limitation stays visible rather than being discovered later.
-    check("strip fog char 8 -> char 4",
-          strip_mask(ctm.chars[8], fog, hires=True), ctm.chars[4])
-    if strip_mask(ctm.chars[5], fog, hires=True) == ctm.chars[1]:
-        failures.append("strip fog char 5: expected artwork loss, got a clean "
-                        "recovery - the overlap assumption changed")
+    # A character that does not use %11 can be remapped from a non-black
+    # per-character colour to colour 8 without changing its existing pixels.
+    rows, attr, applied = apply_black_mask([0x55] * 8, corner_mc, 11, 11)
+    check("unused multicolour colour remap", rows, [0xFF] + [0xD5] * 7)
+    if attr != 8 or not applied:
+        failures.append("unused multicolour colour was not remapped to black")
 
-    # Multicolour polarity: stamping must clear whole bit pairs. The hires
-    # corner joint adds nothing here, because one multicolour pixel is already
-    # two physical pixels wide.
-    check("multicolour grid pair clear",
-          apply_mask([0xFF] * 8, grid_mask(0, 3, 3, hires=False), attr=8),
+    # When %11 artwork survives outside the mask and $d021 is not black there
+    # is no black colour slot available. The generator must leave it untouched
+    # and report it, rather than silently stamping a grey line.
+    source = [0x03] * 8
+    rows, attr, applied = apply_black_mask(source, corner_mc, 9, 11)
+    check("incompatible multicolour artwork unchanged", rows, source)
+    if attr != 9 or applied:
+        failures.append("incompatible multicolour artwork was modified")
+
+    # With a black $d021 the safe fallback is still to clear whole pairs.
+    check("multicolour black-background fallback",
+          apply_mask([0xFF] * 8, corner_mc, attr=9, bg0=0),
           [0x00] + [0x3F] * 7)
 
-    # A hires character that is not black darkens by clearing pixels, so the
-    # fog thins its foreground instead of painting the foreground colour on.
-    check("hires non-black fog clears",
-          apply_mask([0xF0] * 8, [0xAA] * 8, attr=7), [0x50] * 8)
+    if ctm.tile_w != 3 or ctm.tile_h != 3:
+        failures.append("tiles are %dx%d, expected 3x3" %
+                        (ctm.tile_w, ctm.tile_h))
+
+    # Final newest5 visual-reference junction rules.
+    horizontal_t = CONN_DOWN | CONN_LEFT | CONN_RIGHT
+    if select_wall_shape(horizontal_t, WALK_UP) != CONN_LEFT | CONN_RIGHT:
+        failures.append("unconfirmed lower T branch did not stay horizontal")
+    if select_wall_shape(horizontal_t, WALK_DL) != CONN_LEFT | CONN_DOWN:
+        failures.append("lower-left-only T did not select LD")
+    if select_wall_shape(horizontal_t, WALK_LEFT | WALK_DL) != CONN_RIGHT | CONN_DOWN:
+        failures.append("confirmed lower T branch did not select RD")
+
+    vertical_t_right = CONN_UP | CONN_DOWN | CONN_RIGHT
+    if select_wall_shape(vertical_t_right, WALK_LEFT) != CONN_UP | CONN_DOWN:
+        failures.append("unconfirmed right T branch did not stay vertical")
+    if select_wall_shape(vertical_t_right, WALK_UR) != CONN_RIGHT | CONN_DOWN:
+        failures.append("confirmed right T branch did not select RD")
+
+    vertical_t_left = CONN_UP | CONN_DOWN | CONN_LEFT
+    if select_wall_shape(vertical_t_left, WALK_RIGHT) != CONN_UP | CONN_DOWN:
+        failures.append("unconfirmed left T branch did not stay vertical")
+    if select_wall_shape(vertical_t_left, WALK_UL) != CONN_LEFT | CONN_UP:
+        failures.append("isolated upper-left T did not select LU")
+    if select_wall_shape(vertical_t_left, WALK_DL) != CONN_LEFT | CONN_DOWN:
+        failures.append("confirmed lower-left T did not select LD")
+
+    horizontal_t_up = CONN_UP | CONN_LEFT | CONN_RIGHT
+    if select_wall_shape(horizontal_t_up, WALK_DOWN) != CONN_LEFT | CONN_RIGHT:
+        failures.append("unconfirmed upper T branch did not stay horizontal")
+    if select_wall_shape(horizontal_t_up, WALK_UL) != CONN_LEFT | CONN_UP:
+        failures.append("upper-left-only T did not select LU")
+    if select_wall_shape(horizontal_t_up, WALK_UR) != CONN_RIGHT | CONN_UP:
+        failures.append("confirmed upper T branch did not select RU")
+
+    cross = CONN_UP | CONN_DOWN | CONN_LEFT | CONN_RIGHT
+    if select_wall_shape(cross, WALK_UR) != CONN_RIGHT | CONN_UP:
+        failures.append("upper-right cross did not select RU")
+    if select_wall_shape(cross, WALK_DR) != CONN_RIGHT | CONN_DOWN:
+        failures.append("lower-right cross did not select RD")
+
+    _, _, mismatches = reproduce_map(ctm)
+    if mismatches:
+        failures.append("map reproduction differs in %d cells" % len(mismatches))
+
+    _, _, warnings = build(ctm, DEFAULT_GRID_TILES, DEFAULT_FOG_TILES)
+    failures.extend("default grid: %s" % warning for warning in warnings)
 
     return failures
 
 
-def select_wall_shape(mask):
+def select_wall_shape(mask, walk_mask=None, far_left_walkable=False,
+                      far_upper_left_wall=False):
     """Reduce a four-way connection mask to one of the six available shapes.
 
-    Read out of the map drawn in CharPad. The tileset has no T or cross piece,
-    so a junction keeps one vertical and one horizontal direction, preferring
-    DOWN over UP and RIGHT over LEFT. A tile connected on one axis only becomes
-    the matching straight run. This reproduces every wall tile in the reference
-    map, junctions included.
+    The newest5 reference confirms a junction branch only when walkable space
+    lies on the matching diagonal. Otherwise the through axis remains straight.
+    Two door-overlap patterns use one second-ring bit to assign the corner to
+    the correct neighbouring cell. With no walk context, retain the original
+    down/right CharPad fallback for the connection-mask diagnostic report.
     """
-    vertical = CONN_DOWN if mask & CONN_DOWN else (CONN_UP if mask & CONN_UP else 0)
-    horizontal = CONN_RIGHT if mask & CONN_RIGHT else (CONN_LEFT if mask & CONN_LEFT else 0)
-    if vertical and horizontal:
-        return vertical | horizontal
-    if vertical:
+    up = bool(mask & CONN_UP)
+    down = bool(mask & CONN_DOWN)
+    left = bool(mask & CONN_LEFT)
+    right = bool(mask & CONN_RIGHT)
+
+    if walk_mask is not None:
+        if up and down and right and not left:
+            return (CONN_RIGHT | CONN_DOWN
+                    if walk_mask & (WALK_UR | WALK_DR)
+                    else CONN_UP | CONN_DOWN)
+
+        if up and down and left and not right:
+            if not walk_mask & (WALK_UL | WALK_DL):
+                return CONN_UP | CONN_DOWN
+            if walk_mask == WALK_UL:
+                return CONN_LEFT | CONN_UP
+            if walk_mask == (WALK_UP | WALK_RIGHT | WALK_UL | WALK_UR):
+                return CONN_UP | CONN_DOWN
+            if walk_mask == (WALK_UP | WALK_RIGHT | WALK_UL |
+                             WALK_UR | WALK_DR):
+                return (CONN_LEFT | CONN_DOWN
+                        if far_left_walkable else CONN_UP | CONN_DOWN)
+            if walk_mask == (WALK_DOWN | WALK_RIGHT | WALK_DL | WALK_DR):
+                return (CONN_LEFT | CONN_DOWN
+                        if far_upper_left_wall else CONN_UP | CONN_DOWN)
+            return CONN_LEFT | CONN_DOWN
+
+        if left and right and up and not down:
+            if not walk_mask & (WALK_UL | WALK_UR):
+                return CONN_LEFT | CONN_RIGHT
+            return (CONN_LEFT | CONN_UP
+                    if walk_mask == WALK_UL else CONN_RIGHT | CONN_UP)
+
+        if left and right and down and not up:
+            if not walk_mask & (WALK_DL | WALK_DR):
+                return CONN_LEFT | CONN_RIGHT
+            if (walk_mask & WALK_DL and not walk_mask & WALK_DR and
+                    not walk_mask & WALK_LEFT):
+                return CONN_LEFT | CONN_DOWN
+            return CONN_RIGHT | CONN_DOWN
+
+        if up and down and left and right:
+            if walk_mask & WALK_DR:
+                return CONN_RIGHT | CONN_DOWN
+            if walk_mask & WALK_UR:
+                return CONN_RIGHT | CONN_UP
+            if walk_mask & WALK_DL:
+                return CONN_LEFT | CONN_DOWN
+            if walk_mask & WALK_UL:
+                return CONN_LEFT | CONN_UP
+            return CONN_RIGHT | CONN_DOWN
+
+    # Ordinary two-way shapes, plus the no-context CharPad fallback.
+    if down:
+        if right:
+            return CONN_RIGHT | CONN_DOWN
+        if left:
+            return CONN_LEFT | CONN_DOWN
+        return CONN_UP | CONN_DOWN
+    if up:
+        if right:
+            return CONN_RIGHT | CONN_UP
+        if left:
+            return CONN_LEFT | CONN_UP
         return CONN_UP | CONN_DOWN
     return CONN_LEFT | CONN_RIGHT
 
@@ -823,6 +979,11 @@ def check_wall_rule(ctm, wall_tiles, wall_like):
                 shape_tile[shape] = next(iter(used))
 
     for mask in sorted(observed):
+        # T and cross masks deliberately depend on walkable diagonals (and two
+        # rare door-overlap continuations), so a four-bit connection mask alone
+        # cannot validate them. reproduce_map() performs the contextual check.
+        if mask.bit_count() >= 3:
+            continue
         predicted_shape = select_wall_shape(mask)
         expected = shape_tile.get(predicted_shape)
         for tile, count in sorted(observed[mask].items()):
@@ -883,10 +1044,10 @@ def main(argv=None):
                              "(default: every walkable tile role)")
     parser.add_argument("--fog-tiles", default=None,
                         help="tile indices that receive the fog checkerboard "
-                             "(default: every tile except the empty tile 0)")
-    parser.add_argument("--wall-tiles", default="3,4,5,6,7,8",
+                             "(default: none)")
+    parser.add_argument("--wall-tiles", default="2,3,4,5,6,7",
                         help="tile indices whose wall shape the joining report classifies")
-    parser.add_argument("--wall-like", default="3,4,5,6,7,8,12,13,15,17,18",
+    parser.add_argument("--wall-like", default="2,3,4,5,6,7,11,12,13,14,15,16,17",
                         help="tile indices that count as a wall connection when "
                              "looking at a neighbour (walls plus doors and gratings)")
     parser.add_argument("--strip", default="",
@@ -900,6 +1061,8 @@ def main(argv=None):
                              "the tile selection rule produces")
     parser.add_argument("--self-test", action="store_true",
                         help="verify the layer masks against the reference artwork")
+    parser.add_argument("--quiet", action="store_true",
+                        help="omit the wall and full-map diagnostic reports")
     args = parser.parse_args(argv)
 
     ctm = Ctm.load(args.ctm)
@@ -914,15 +1077,15 @@ def main(argv=None):
         for line in failures:
             print("FAIL %s" % line)
         print("self-test: %s" % ("FAILED" if failures else "ok"))
-        report_wall_rule(ctm, parse_indices(args.wall_tiles, ()),
-                         parse_indices(args.wall_like, ()))
-        print()
-        report_reproduction(ctm)
+        if not args.quiet:
+            report_wall_rule(ctm, parse_indices(args.wall_tiles, ()),
+                             parse_indices(args.wall_like, ()))
+            print()
+            report_reproduction(ctm)
         return 1 if failures else 0
 
-    all_tiles = range(len(ctm.tiles))
-    grid_tiles = parse_indices(args.grid_tiles, [1, 2])
-    fog_tiles = parse_indices(args.fog_tiles, [t for t in all_tiles if t != 0])
+    grid_tiles = parse_indices(args.grid_tiles, DEFAULT_GRID_TILES)
+    fog_tiles = parse_indices(args.fog_tiles, DEFAULT_FOG_TILES)
     strip = tuple(s.strip() for s in args.strip.split(",") if s.strip())
     for name in strip:
         if name not in LAYERS:
@@ -953,10 +1116,11 @@ def main(argv=None):
         else:
             print("no map block in the CTM file, nothing to compare")
 
-    report_wall_rule(ctm, parse_indices(args.wall_tiles, ()),
-                     parse_indices(args.wall_like, ()))
-    print()
-    report_reproduction(ctm)
+    if not args.quiet:
+        report_wall_rule(ctm, parse_indices(args.wall_tiles, ()),
+                         parse_indices(args.wall_like, ()))
+        print()
+        report_reproduction(ctm)
     return 0
 
 

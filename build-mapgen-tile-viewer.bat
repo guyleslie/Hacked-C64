@@ -3,7 +3,7 @@ setlocal
 
 set "SCRIPT_DIR=%~dp0"
 set "BUILD_DIR=%SCRIPT_DIR%build"
-set "OUTPUT=%BUILD_DIR%\Hacked C64-tileviewer.prg"
+set "OUTPUT=%BUILD_DIR%\Hacked C64-mapgen-tile-viewer.prg"
 
 REM Locate the OSCAR64 compiler.
 REM Order: OSCAR64_HOME environment variable, then a copy inside the repo,
@@ -22,24 +22,53 @@ if not defined OSCAR64_DIR (
     exit /b 1
 )
 
+where python >nul 2>&1
+if errorlevel 1 (
+    echo  Status:    FAILED
+    echo  Error:     python.exe not found; tileset data cannot be generated.
+    echo.
+    pause
+    exit /b 1
+)
+
 echo.
 echo =============================================================================
-echo                           TILE VIEWER Build
+echo                       MAPGEN TILE VIEWER Build
 echo =============================================================================
 echo.
-echo  Scrollable 3x3 tile preview of a generated dungeon.
-echo  Joystick 2 scrolls, FIRE generates a new map, Q quits.
+echo  Generates the 3x3 character tiles from newest5/tileset.ctm, then builds
+echo  a standalone scrolling dungeon viewer PRG.
 echo.
-echo  Graphics live in VIC bank 3: character set $C000, screens $C800/$CC00.
-echo  CPU code/stack stays below $A000; VIC graphics starts at $C000.
-echo.
-echo  Built with -O2 -n. Native code generation is required here: without it
-echo  the scroll is bytecode and nowhere near frame rate.
+echo  Black grid: walkable floor, stairs and open doors only.
+echo  No grid:    walls, closed doors and black outside cells.
 echo.
 
 if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
-del /Q "%BUILD_DIR%\*-tileviewer.*" 2>nul
+del /Q "%BUILD_DIR%\*-mapgen-tile-viewer.*" 2>nul
 
+echo Generating tileset data...
+python "%SCRIPT_DIR%tools\tileset_build.py" "%SCRIPT_DIR%main\assets\tileset.ctm" --self-test --quiet
+if errorlevel 1 (
+    echo.
+    echo  Status:    FAILED
+    echo  Error:     tileset self-test failed
+    echo =============================================================================
+    echo.
+    pause
+    exit /b 1
+)
+python "%SCRIPT_DIR%tools\tileset_build.py" "%SCRIPT_DIR%main\assets\tileset.ctm" --out-dir "%SCRIPT_DIR%main\src\tiles" --quiet
+if errorlevel 1 (
+    echo.
+    echo  Status:    FAILED
+    echo  Error:     tileset generation failed
+    echo =============================================================================
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
 echo Compiling...
 echo.
 
@@ -52,10 +81,7 @@ if %BUILD_ERROR% equ 0 (
     if exist "%OUTPUT%" (
         echo  Status:    OK
         for %%A in ("%OUTPUT%") do echo  Size:      %%~zA bytes
-        echo  Output:    %BUILD_DIR%\
-        echo -----------------------------------------------------------------------------
-        echo  Files:
-        for %%F in ("%BUILD_DIR%\*-tileviewer.*") do echo              %%~nxF
+        echo  Output:    %OUTPUT%
     ) else (
         echo  Status:    FAILED
         echo  Error:     Output file not created

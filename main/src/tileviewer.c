@@ -12,9 +12,11 @@
 // Controls: joystick 2 scrolls, FIRE generates a new dungeon, Q quits.
 
 // Memory layout: the VIC runs in bank 3, with the character set at 0xC000 and
-// the screen at 0xC800 - plain RAM, so neither needs $01 bank switching. The
-// code and data region is capped at 0xC000 so the linker stays out of there.
-#pragma region( main, 0x0a00, 0xc000, , , {code, data, bss, heap, stack} )
+// the screen at 0xC800. Keep the CPU program region below $A000: with the
+// normal C64 memory map the BASIC ROM is visible at $A000-$BFFF, so placing an
+// OSCAR64 software stack there would write RAM underneath the ROM but read the
+// ROM back. The linker still stays well clear of the VIC data at $C000.
+#pragma region( main, 0x0a00, 0xa000, , , {code, data, bss, heap, stack} )
 
 #include <conio.h>
 
