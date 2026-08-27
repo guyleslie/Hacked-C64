@@ -140,8 +140,15 @@ TOTAL SPRITE SYSTEM:                  ~2.3 KB
 
 - **Tile Size:** 3x3 characters (24x24 pixels logical tile size)
 - **Sprite Size:** Standard C64 sprite: 24x21 pixels
-- **Alignment:** Sprites visually aligned to **bottom of tile**
+- **Alignment:** 24x21 sprites are centered in the 24x24 tile using a fixed
+  vertical offset of 2 pixels
 - **Entity Alignment:** All entities are **tile-aligned**
+- **Coordinate Contract:** Gameplay stores tile coordinates; rendering maps
+  them to 24x24 world pixels and projects tiles, players and enemies through
+  the same `TileViewOrigin`. Raw VIC fine scroll belongs to that camera
+  transform and must never be compensated with per-entity `+/-` offsets.
+- **Level Entry:** The player starts on a randomly selected walkable tile one
+  cell away from the up staircase
 
 ### 3.2 Screen Layout
 
@@ -154,6 +161,11 @@ TOTAL SPRITE SYSTEM:                  ~2.3 KB
 - **Maximum Visible Area:** 30 columns / 3 chars/tile = **10 tiles wide**
 - **Vertical:** 25 rows / 3 chars/tile = **8 tiles tall**
 - **Camera System:** Centered on player with map scrolling
+- **Movement Direction:** Gameplay is tile-by-tile. A successful player action
+  consumes one turn, then each active enemy receives one turn (NetHack style).
+- **Visual Transition:** One 24-pixel move is presented as three 8-pixel
+  character stages. The camera follows these stages while it can; at map edges
+  it clamps and the player sprite completes the remaining screen movement.
 - **Map Sizes:** 50x50, 64x64, 78x78 tiles (selectable via mapgen config)
 
 ### 3.4 HUD Contents
@@ -909,7 +921,7 @@ typedef struct {
     EnemyState enemies[6];                // 72 B (12 B each)
 
     // Player interaction tracking
-    unsigned char fog_of_war[800];        // 800 B (80x80 bits)
+    unsigned char fog_of_war[800];        // 800 B (80x80 explored bits)
     unsigned char visited;                // 1 B
 
     // Total: 1,135 B per level
@@ -931,6 +943,11 @@ typedef struct {
 | Dark room + NO light | **1 tile** |
 | Dark room + light source | 5 tiles |
 | Corridors | Always 3 tiles |
+
+Display states are deliberately limited to three: never discovered is black,
+current LOS is normal artwork, and explored cells outside LOS use one generated
+checkerboard-darkened variant. Current LOS is transient and does not add an
+80x80 state map.
 
 **Light Sources:**
 1. **Torch** - Equipable item, fuel system (~300-500 turns)

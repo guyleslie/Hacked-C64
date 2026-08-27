@@ -9,8 +9,8 @@
 //
 // The black frame around walkable tiles is not part of the artwork:
 // tools/tileset_build.py stamps it into generated character variants, and this
-// module only picks which pre-stamped variant to emit. Optional fog support is
-// retained but disabled by default.
+// module only picks which pre-stamped variant to emit. Explored cells outside
+// current LOS use the generated checkerboard fog variant.
 // See docs/tile-rendering.md.
 //
 // Regular movement follows OSCAR64's samples/scrolling/cgrid8way.c: VIC fine
@@ -27,6 +27,25 @@
 
 #define TILE_SCREEN_COLS    40
 #define TILE_SCREEN_ROWS    25
+
+// One map tile is 3x3 characters, therefore 24x24 world pixels. World pixel
+// (0,0) is the top-left of map tile (0,0); gameplay and every visual layer use
+// this coordinate system instead of inventing per-layer screen offsets.
+#define TILE_WORLD_PIXELS   (TILESET_TILE_W * 8)
+
+/**
+ * World pixel currently mapped to OSCAR64's standard VIC screen origin
+ * (sprite coordinate 24,50). Keeping this as camera state makes character RAM,
+ * raw VIC fine scroll and hardware sprites share one coordinate transform.
+ */
+typedef struct {
+    int world_x;
+    int world_y;
+} TileViewOrigin;
+
+/** Called once for every two-pixel camera phase inside tiles_scroll(). */
+typedef void (*TilesScrollPhaseHook)(signed char camera_dx,
+                                     signed char camera_dy);
 
 // Tile cache covering the visible area. One extra tile on each axis because the
 // view is almost never aligned to a tile boundary.
@@ -86,6 +105,15 @@ void tiles_shutdown(void);
 void tiles_flip(void);
 
 /**
+ * @brief Set one hardware sprite image in both screen pointer tables
+ * Each double-buffered screen owns the eight bytes at screen+$3f8. Keeping
+ * both copies equal prevents sprite frames changing when tiles_flip() runs.
+ * @param slot Hardware sprite slot, 0-7
+ * @param image VIC-bank-relative 64-byte sprite image index
+ */
+void tiles_set_sprite_image(unsigned char slot, unsigned char image);
+
+/**
  * @brief Set the raw hardware fine scroll offset
  * @param px Horizontal VIC offset, 0-7
  * @param py Vertical VIC offset, 0-7
@@ -93,6 +121,38 @@ void tiles_flip(void);
  * behind the border.
  */
 void tiles_fine_scroll(unsigned char px, unsigned char py);
+
+/**
+ * @brief Derive the common world-pixel camera origin from renderer state
+ * The Y calculation accounts for OSCAR64's standard YSCROLL value of 3; X uses
+ * the standard XSCROLL value of 0. These are VIC coordinate rules, not actor
+ * artwork corrections.
+ */
+void tiles_view_origin_set(TileViewOrigin * view,
+                           unsigned char tile_x, unsigned char sub_x,
+                           unsigned char tile_y, unsigned char sub_y,
+                           unsigned char fine_x, unsigned char fine_y);
+
+/** Advance the common camera origin during one raster scroll phase. */
+void tiles_view_origin_move(TileViewOrigin * view,
+                            signed char camera_dx, signed char camera_dy);
+
+/** Project an arbitrary world-pixel position through the common camera. */
+void tiles_project_world(const TileViewOrigin * view,
+                         int world_x, int world_y,
+                         int * screen_x, int * screen_y);
+
+/** Project a map tile's top-left world pixel to VIC sprite coordinates. */
+void tiles_project_tile(const TileViewOrigin * view,
+                        unsigned char tile_x, unsigned char tile_y,
+                        int * screen_x, int * screen_y);
+
+/**
+ * Register an observer for the internal two-pixel phases of tiles_scroll().
+ * Passing NULL removes it. The observer runs with IRQs masked, so it must stay
+ * short; it exists so sprite overlays move in the exact same camera phases.
+ */
+void tiles_set_scroll_phase_hook(TilesScrollPhaseHook hook);
 
 // -----------------------------------------------------------------------------
 // Tile cache
@@ -125,6 +185,13 @@ void tiles_cache_move_to(unsigned char tile_x, unsigned char tile_y);
  * out of the scrolling path.
  */
 void tiles_cache_shift(signed char dx, signed char dy);
+
+/** Re-evaluate cached LOS states and collect only cells whose state changed. */
+unsigned char tiles_refresh_visibility_prepare(void);
+
+/** Draw one raster-safe batch; returns 1 while another batch is pending. */
+unsigned char tiles_refresh_visibility_draw(unsigned char sub_x,
+                                            unsigned char sub_y);
 
 /**
  * @brief Move the visible screen one character in a cardinal direction
@@ -171,9 +238,7 @@ void tiles_expand(unsigned char sub_x, unsigned char sub_y,
 unsigned char tiles_select(unsigned char map_x, unsigned char map_y);
 
 /**
- * @brief Fog of war hook
- * Replace the body when the visibility system exists; it decides whether a
- * cell is drawn lit or darkened.
+ * @brief Choose the lit/checker variant from current visibility state
  * @param map_x Map X coordinate
  * @param map_y Map Y coordinate
  * @return TILE_VARIANT_LIT or TILE_VARIANT_FOG

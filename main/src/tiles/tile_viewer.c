@@ -15,6 +15,10 @@
 #include "../mapgen/mapgen_internal.h"
 #include "../mapgen/mapgen_config.h"
 #include "../mapgen/mapgen_api.h"
+#include "../mapgen/mapgen_utils.h"
+#include "../mapgen/tmea_core.h"
+#include "../sprites/actor_sprites.h"
+#include "../visibility/visibility.h"
 #include "tile_render.h"
 #include "tile_viewer.h"
 
@@ -37,9 +41,129 @@ static ScrollAxis axis_x;
 static ScrollAxis axis_y;
 static unsigned char fine_x;
 static unsigned char fine_y;
+static TileViewOrigin view_origin;
+
+// Logical player position plus a temporary world-pixel position used only
+// during the three-stage visual transition.
+static unsigned char player_x;
+static unsigned char player_y;
+static unsigned char player_facing;
+static int player_world_x;
+static int player_world_y;
+static unsigned char player_transition_active;
+
+// A hardware sprite is 24x21 pixels, so its only artwork-specific adjustment
+// inside a 24x24 world tile is the two-pixel vertical centering anchor.
+#define PLAYER_TILE_OFFSET_Y    2
+
+// The camera aims to keep the top-left of the player's 24x24 world tile at
+// this screen position. The sprite itself is centred inside that tile below.
+#define PLAYER_HOME_SCREEN_X  172
+#define PLAYER_HOME_SCREEN_Y  147
+
+static const signed char entrance_dx[8] = {
+    -1,  0,  1, -1,  1, -1,  0,  1
+};
+static const signed char entrance_dy[8] = {
+    -1, -1, -1,  0,  0,  1,  1,  1
+};
 
 // Used only to resolve a diagonal joystick position into one cardinal axis.
 static signed char last_dx, last_dy;
+
+// add_stairs() places each stair at a room center, so locating TILE_UP costs at
+// most 20 tile reads instead of a complete map scan.
+static void player_place_near_up_stairs(void) {
+    unsigned char up_x;
+    unsigned char up_y;
+    unsigned char found = 0;
+    unsigned char candidates = 0;
+
+    if (room_count > 0) {
+        up_x = room_list[0].center_x;
+        up_y = room_list[0].center_y;
+    } else {
+        up_x = current_params.map_width / 2;
+        up_y = current_params.map_height / 2;
+    }
+
+    for (unsigned char i = 0; i < room_count; i++) {
+        unsigned char x = room_list[i].center_x;
+        unsigned char y = room_list[i].center_y;
+        if (get_compact_tile(x, y) == TILE_UP) {
+            up_x = x;
+            up_y = y;
+            found = 1;
+            break;
+        }
+    }
+
+    player_x = up_x;
+    player_y = up_y;
+
+    if (found) {
+        // Reservoir selection gives every walkable neighbour equal probability
+        // without a candidate array or a second pass.
+        for (unsigned char i = 0; i < 8; i++) {
+            int nx = (int)up_x + entrance_dx[i];
+            int ny = (int)up_y + entrance_dy[i];
+
+            if (nx < 0 || ny < 0 ||
+                nx >= current_params.map_width ||
+                ny >= current_params.map_height) continue;
+
+            if (get_compact_tile((unsigned char)nx,
+                                 (unsigned char)ny) != TILE_FLOOR) continue;
+
+            candidates++;
+            if (rnd(candidates) == 0) {
+                player_x = (unsigned char)nx;
+                player_y = (unsigned char)ny;
+            }
+        }
+    }
+
+    player_facing = (player_x > up_x)
+        ? ACTOR_FACING_LEFT : ACTOR_FACING_RIGHT;
+}
+
+static void player_sprite_sync(void) {
+    int screen_x;
+    int screen_y;
+
+    tiles_project_world(&view_origin, player_world_x, player_world_y,
+                        &screen_x, &screen_y);
+
+    actor_sprite_move(ACTOR_SPRITE_SLOT_PLAYER, screen_x,
+                      screen_y + PLAYER_TILE_OFFSET_Y);
+}
+
+static void camera_rebuild_view_origin(void) {
+    tiles_view_origin_set(&view_origin,
+                          axis_x.tile, axis_x.sub,
+                          axis_y.tile, axis_y.sub,
+                          fine_x, fine_y);
+}
+
+// tiles_scroll() owns the four raster-timed intermediate states. This observer
+// advances the same world-pixel camera origin and moves every active actor by
+// the inverse screen delta, keeping all visual layers on one transform.
+static void camera_scroll_phase(signed char camera_dx,
+                                signed char camera_dy) {
+    tiles_view_origin_move(&view_origin, camera_dx, camera_dy);
+
+    // During a player action the actor advances through world space by the
+    // same amount as the following camera. Their screen deltas cancel, so the
+    // player remains stable while the map scrolls underneath it.
+    if (player_transition_active) {
+        actor_sprites_shift_except(-camera_dx, -camera_dy,
+                                   ACTOR_SPRITE_SLOT_PLAYER);
+        player_world_x += camera_dx;
+        player_world_y += camera_dy;
+    } else {
+        actor_sprites_shift(-camera_dx, -camera_dy);
+    }
+}
 
 // Set the exact last character-aligned camera position. The VIC runs in 38x24
 // mode while the backing screen is 40x25, so the positive edge hides the final
@@ -101,9 +225,61 @@ static void wait_vblank_start(void) {
 // Apply an edge-only two-pixel phase without touching screen or Color RAM.
 // Keeping both offsets here also preserves one axis when the other one moves.
 static void camera_apply_fine(void) {
+    int old_world_x = view_origin.world_x;
+    int old_world_y = view_origin.world_y;
+    signed char camera_dx;
+    signed char camera_dy;
+
     wait_vblank_start();
     tiles_fine_scroll(fine_x, fine_y);
+    camera_rebuild_view_origin();
+
+    camera_dx = (signed char)(view_origin.world_x - old_world_x);
+    camera_dy = (signed char)(view_origin.world_y - old_world_y);
+    if (player_transition_active) {
+        actor_sprites_shift_except(-camera_dx, -camera_dy,
+                                   ACTOR_SPRITE_SLOT_PLAYER);
+        player_world_x += camera_dx;
+        player_world_y += camera_dy;
+    } else {
+        actor_sprites_shift(-camera_dx, -camera_dy);
+        player_sprite_sync();
+    }
     vic_waitTop();
+}
+
+static int camera_min_x(void) {
+    return -6;
+}
+
+static int camera_min_y(void) {
+    return -3;
+}
+
+static int camera_max_x(void) {
+    return ((int)axis_x.limit_tile * TILESET_TILE_W + axis_x.limit_sub) * 8;
+}
+
+static int camera_max_y(void) {
+    return ((int)axis_y.limit_tile * TILESET_TILE_H + axis_y.limit_sub) * 8 + 3;
+}
+
+static int camera_target_x(unsigned char tile_x) {
+    int target = (int)tile_x * TILE_WORLD_PIXELS
+               - (PLAYER_HOME_SCREEN_X - 24);
+
+    if (target < camera_min_x()) return camera_min_x();
+    if (target > camera_max_x()) return camera_max_x();
+    return target;
+}
+
+static int camera_target_y(unsigned char tile_y) {
+    int target = (int)tile_y * TILE_WORLD_PIXELS
+               - (PLAYER_HOME_SCREEN_Y - 50);
+
+    if (target < camera_min_y()) return camera_min_y();
+    if (target > camera_max_y()) return camera_max_y();
+    return target;
 }
 
 static void camera_reset(void) {
@@ -112,13 +288,10 @@ static void camera_reset(void) {
     axis_set_limit(&axis_x, current_params.map_width, TILE_SCREEN_COLS);
     axis_set_limit(&axis_y, current_params.map_height, TILE_SCREEN_ROWS);
 
-    if (room_count > 0) {
-        cx = room_list[0].center_x;
-        cy = room_list[0].center_y;
-    } else {
-        cx = current_params.map_width / 2;
-        cy = current_params.map_height / 2;
-    }
+    player_place_near_up_stairs();
+    cx = player_x;
+    cy = player_y;
+    visibility_reset(player_x, player_y);
 
     axis_x.sub = 0;
     axis_x.tile = (cx > 6) ? cx - 6 : 0;
@@ -134,10 +307,39 @@ static void camera_reset(void) {
         axis_y.sub = axis_y.limit_sub;
     }
 
-    tiles_cache_fill(axis_x.tile, axis_y.tile);
     fine_x = 4;
     fine_y = 4;
+
+    // Exact clamped endpoints. At the negative edge a fine offset of 6
+    // exposes the first pixels hidden by 38x24 mode; at the positive edge 0
+    // exposes the last pixels. Everywhere else the centred value uses 4.
+    if (camera_target_x(cx) == camera_min_x()) {
+        axis_x.tile = 0;
+        axis_x.sub = 0;
+        fine_x = 6;
+    } else if (camera_target_x(cx) == camera_max_x()) {
+        axis_x.tile = axis_x.limit_tile;
+        axis_x.sub = axis_x.limit_sub;
+        fine_x = 0;
+    }
+    if (camera_target_y(cy) == camera_min_y()) {
+        axis_y.tile = 0;
+        axis_y.sub = 0;
+        fine_y = 6;
+    } else if (camera_target_y(cy) == camera_max_y()) {
+        axis_y.tile = axis_y.limit_tile;
+        axis_y.sub = axis_y.limit_sub;
+        fine_y = 0;
+    }
+
+    tiles_cache_fill(axis_x.tile, axis_y.tile);
     tiles_fine_scroll(fine_x, fine_y);
+    camera_rebuild_view_origin();
+    player_world_x = (int)player_x * TILE_WORLD_PIXELS;
+    player_world_y = (int)player_y * TILE_WORLD_PIXELS;
+    player_transition_active = 0;
+    actor_sprite_set(ACTOR_SPRITE_SLOT_PLAYER, ACTOR_APPEAR_HERO,
+                     player_facing);
 
     // Draw the same aligned position into both buffers. Only a complete hidden
     // buffer is ever made visible.
@@ -145,6 +347,7 @@ static void camera_reset(void) {
     tiles_expand(0, 0, 0, TILE_SCREEN_ROWS);
     wait_vblank_start();
     tiles_flip();
+    player_sprite_sync();
     vic_waitTop();
 
     tiles_expand_begin();
@@ -257,6 +460,107 @@ static unsigned char camera_step(signed char dx, signed char dy) {
     axis_y.sub = next_sub_y;
     last_dx = dx;
     last_dy = dy;
+    camera_rebuild_view_origin();
+    player_sprite_sync();
+    return 1;
+}
+
+// A metadata marker normally overlays floor. Door markers are only passable
+// once their door is open; ordinary TILE_DOOR cells have the same rule.
+static unsigned char player_can_enter(unsigned char x, unsigned char y) {
+    unsigned char raw;
+
+    if (x >= current_params.map_width || y >= current_params.map_height) {
+        return 0;
+    }
+
+    raw = get_compact_tile(x, y);
+    if (raw == TILE_FLOOR || raw == TILE_UP || raw == TILE_DOWN) return 1;
+    if (raw == TILE_DOOR) return is_door_open(x, y);
+
+    if (raw == TILE_MARKER) {
+        unsigned char flags;
+        if (get_tile_metadata(x, y, &flags, NULL) &&
+            is_meta_type(flags, TMTYPE_DOOR)) {
+            return is_door_open(x, y);
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+static void player_visual_residual(signed char dx, signed char dy) {
+    if (dx == 0 && dy == 0) return;
+
+    wait_vblank_start();
+    player_world_x += dx;
+    player_world_y += dy;
+    player_sprite_sync();
+    vic_waitTop();
+}
+
+// One gameplay action crosses exactly one 3x3-character map tile. The visual
+// move is split into the tile's three natural eight-pixel character stages.
+// A following camera consumes a stage; at a clamped edge the player consumes
+// the pixels that the camera cannot, so both paths use the same transition.
+static unsigned char player_step(signed char dx, signed char dy) {
+    unsigned char target_x;
+    unsigned char target_y;
+    int target_camera;
+
+    if (dx == 0 && dy == 0) return 0;
+
+    target_x = (unsigned char)((int)player_x + dx);
+    target_y = (unsigned char)((int)player_y + dy);
+    if (!player_can_enter(target_x, target_y)) return 0;
+
+    if (dx < 0) player_facing = ACTOR_FACING_LEFT;
+    if (dx > 0) player_facing = ACTOR_FACING_RIGHT;
+    actor_sprite_set(ACTOR_SPRITE_SLOT_PLAYER, ACTOR_APPEAR_HERO,
+                     player_facing);
+
+    target_camera = (dx != 0)
+        ? camera_target_x(target_x) : camera_target_y(target_y);
+    visibility_update(target_x, target_y);
+    player_transition_active = 1;
+
+    for (unsigned char stage = 0; stage < TILESET_TILE_W; stage++) {
+        int old_camera = (dx != 0)
+            ? view_origin.world_x : view_origin.world_y;
+        signed char camera_pixels = 0;
+        signed char residual_x = dx * 8;
+        signed char residual_y = dy * 8;
+
+        if ((dx > 0 && old_camera < target_camera) ||
+            (dx < 0 && old_camera > target_camera) ||
+            (dy > 0 && old_camera < target_camera) ||
+            (dy < 0 && old_camera > target_camera)) {
+            camera_step(dx, dy);
+            camera_pixels = (signed char)(((dx != 0)
+                ? view_origin.world_x : view_origin.world_y) - old_camera);
+        }
+
+        if (dx != 0) residual_x -= camera_pixels;
+        else residual_y -= camera_pixels;
+        player_visual_residual(residual_x, residual_y);
+    }
+
+    player_transition_active = 0;
+    player_x = target_x;
+    player_y = target_y;
+    player_world_x = (int)player_x * TILE_WORLD_PIXELS;
+    player_world_y = (int)player_y * TILE_WORLD_PIXELS;
+    player_sprite_sync();
+
+    if (tiles_refresh_visibility_prepare()) {
+        unsigned char more;
+        do {
+            wait_vblank_start();
+            more = tiles_refresh_visibility_draw(axis_x.sub, axis_y.sub);
+            vic_waitTop();
+        } while (more);
+    }
     return 1;
 }
 
@@ -272,6 +576,8 @@ static void wait_for_fire_release(void) {
 
 void tile_viewer_run(void) {
     tiles_init();
+    actor_sprites_init();
+    tiles_set_scroll_phase_hook(camera_scroll_phase);
     camera_reset();
     wait_for_fire_release();
 
@@ -293,7 +599,7 @@ void tile_viewer_run(void) {
         signed char dx = joyx[0];
         signed char dy = joyy[0];
 
-        // Four-way camera: a diagonal keeps the most recently used axis.
+        // Four-way movement: a diagonal keeps the most recently used axis.
         if (dx != 0 && dy != 0) {
             if (last_dx != 0) {
                 dy = 0;
@@ -304,11 +610,11 @@ void tile_viewer_run(void) {
             }
         }
 
-        if (!camera_step(dx, dy)) {
-            camera_apply_fine();
-        }
+        player_step(dx, dy);
     }
 
+    tiles_set_scroll_phase_hook(NULL);
+    actor_sprites_shutdown();
     tiles_shutdown();
     clrscr();
 }

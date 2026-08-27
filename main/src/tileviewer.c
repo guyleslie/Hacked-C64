@@ -9,7 +9,8 @@
 // system hides, draw as plain wall - tiles_select() asks TMEA and treats them
 // as part of the wall run, so nothing about them is visible.
 //
-// Controls: joystick 2 scrolls, FIRE generates a new dungeon, Q quits.
+// Controls: joystick 2 moves one map tile, FIRE generates a new dungeon,
+// Q quits. The camera follows the player until it reaches a map edge.
 
 // Memory layout: the VIC runs in bank 3, with the character set at 0xC000 and
 // the screen at 0xC800. Keep the CPU program region below $A000: with the
@@ -17,6 +18,10 @@
 // OSCAR64 software stack there would write RAM underneath the ROM but read the
 // ROM back. The linker still stays well clear of the VIC data at $C000.
 #pragma region( main, 0x0a00, 0xa000, , , {code, data, bss, heap, stack} )
+
+// This target follows the project-wide no-malloc rule, so reserving OSCAR64's
+// default 1 KB minimum heap would only steal space from code and the stack.
+#pragma heapsize(0)
 
 #include <conio.h>
 
@@ -36,8 +41,10 @@
 #include "mapgen/room_management.c"   // Room placement algorithms
 #include "mapgen/connection_system.c" // Corridor and feature generation
 
+#include "visibility/visibility.c"     // LOS and explored-cell memory
 #include "tiles/tileset_data.c"       // Generated character set and tile tables
 #include "tiles/tile_render.c"        // VIC setup, tile blit, tile selection
+#include "sprites/actor_sprites.c"    // SpritePad actor images and VIC sprites
 #include "tiles/tile_viewer.c"        // Camera and input loop
 
 int main(void) {

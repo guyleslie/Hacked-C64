@@ -61,8 +61,24 @@ The clean floor uses multicolour attribute `8`. Its `%00` body stays dark grey,
 while the generated frame writes `%11`, whose character colour is black. This
 keeps the existing three global colours and does not require bitmap mode.
 
-The old checkerboard fog is disabled by default. `TILE_VARIANT_FOG` remains a
-no-op hook until visibility artwork/rules are decided.
+The generated fog variant is active for every non-empty artwork tile. It uses
+a black checker where the per-character VIC colour is available (notably the
+floor), and falls back to the shared dark-grey background on coloured wall and
+door pixels. The runtime therefore only selects `LIT` or `FOG`; no checkerboard
+is drawn while the game is running.
+
+Visibility has exactly three display states:
+
+| state | rendering |
+|---|---|
+| never discovered | `TS_EMPTY` (completely black) |
+| current line of sight | normal `TILE_VARIANT_LIT` |
+| explored but outside current LOS | one `TILE_VARIANT_FOG` checker |
+
+`visibility/visibility.c` stores exploration as one bit per possible 80x80
+cell (800 bytes). Current LOS uses Bresenham rays and a transient 11x11,
+16-byte bit window: radius 5 in rooms and radius 3 in corridors. Walls and
+closed doors are visible endpoints and block cells behind them.
 
 ## Wall joining
 
@@ -239,10 +255,38 @@ passages and niches alike. Nothing about them is visible.
 
 ### Scrolling
 
-The camera moves in atomic character steps. Each step covers eight pixels in
-four fixed two-pixel VIC fine-scroll phases. Once a step starts, its direction
-is held until the next character alignment; the joystick is sampled again
-there.
+Gameplay moves in atomic map-tile steps. One successful action changes the
+player coordinate by exactly one 3x3-character tile and will later consume one
+player/enemy turn. Its visual transition is the tile's three natural
+eight-pixel character stages. Each camera character stage still uses the
+renderer’s four fixed two-pixel VIC phases from the OSCAR64 reference.
+
+Normally the three camera stages follow the player and keep the sprite pinned
+at its home screen position. Near a map edge the camera target is clamped; any
+pixels the camera cannot consume are applied to the player's temporary world
+pixel position instead. Moving back inward reverses this naturally until the
+player reaches the home position, without a separate edge coordinate system.
+
+#### Coordinate contract
+
+All map layers use one world-pixel coordinate system:
+
+- map tile `(x,y)` starts at world pixel `(x*24,y*24)`;
+- `TileViewOrigin` stores the world pixel currently mapped to OSCAR64's
+  standard VIC sprite coordinate `(24,50)`;
+- the origin is derived from the backing-screen character position and the
+  **raw** VIC fine-scroll registers. XSCROLL `0` and YSCROLL `3` are the
+  installed `vic_setmode()` reference values;
+- `tiles_project_tile()` is the single world-to-VIC projection used by actor
+  sprites. A 24x21 actor then adds only its real two-pixel vertical centering
+  anchor inside the 24x24 tile.
+
+The 38x24 VIC mode is a clipping window over this coordinate system; it does
+not create a second origin. The special map-edge phases only change what that
+window exposes. During an ordinary character scroll, the renderer reports all
+four two-pixel camera phases to the actor layer, so tile graphics and hardware
+sprites move in the same frames instead of the sprite jumping eight pixels at
+the end.
 
 The earlier implementation rebuilt all 1,000 screen cells in a hidden buffer
 for every character boundary. That consumed approximately one whole PAL frame
@@ -282,6 +326,10 @@ normal scrolling path now follows OSCAR64's
   exposed row or column is selected when the view crosses a tile, which keeps
   `tiles_select()` - the expensive part, several `get_compact_tile()` calls per
   wall - out of the scrolling path entirely.
+- **LOS refreshes are sparse and bounded.** Visibility is recalculated once per
+  turn, changed cached tiles are collected outside vertical blank, and at most
+  12 changed 3x3 tiles are written per border interval. This prevents a
+  room/corridor radius change from turning into one long tearing update.
 - **Cell-major tables** `tileset_cell_char[cell][entry]` and
   `tileset_cell_color[cell][entry]` make each lookup a single indexed load. The
     visual variant is folded into the entry index.
@@ -302,10 +350,16 @@ The VIC runs in bank 3, where `$C000-$CFFF` is plain RAM - no `$01` bank
 switching, and no character ROM shadow:
 
 ```
+$0400-$071F   explored-cell bitset after tile mode takes over the old screen
 $C000-$C7FF   character set
 $C800-$CBFF   screen buffer 0
 $CC00-$CFFF   screen buffer 1
 ```
+
+The `$0400` range is explicitly cleared by `visibility_reset()` and reused only
+after `tiles_init()` moves the VIC display to bank 3. The tile-viewer target
+also sets OSCAR64's minimum heap to zero because the project forbids dynamic
+allocation.
 
 `main/src/tileviewer.c` caps the CPU program region at `$A000`. This keeps the
 OSCAR64 heap and software stacks below the BASIC ROM window at `$A000-$BFFF`,

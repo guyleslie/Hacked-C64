@@ -6,10 +6,10 @@
 // =============================================================================
 // Source: tileset.ctm
 //
-// The grid frame is a generated layer, not hand drawn artwork. The optional
-// fog mask is disabled by default. Re-run the tool after changing the CTM.
+// The grid frame and remembered-cell fog are generated layers, not hand drawn
+// artwork. Re-run the tool after changing the CTM.
 
-#define TILESET_CHAR_COUNT   33
+#define TILESET_CHAR_COUNT   65
 #define TILESET_TILE_COUNT   19
 #define TILESET_TILE_W       3
 #define TILESET_TILE_H       3

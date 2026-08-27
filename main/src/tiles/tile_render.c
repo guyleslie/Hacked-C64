@@ -10,6 +10,7 @@
 #include "../mapgen/mapgen_utils.h"
 #include "../mapgen/mapgen_config.h"
 #include "../mapgen/tmea_core.h"
+#include "../visibility/visibility.h"
 #include "tileset_data.h"
 #include "tile_render.h"
 
@@ -66,10 +67,29 @@ static unsigned char scroll_tmp3[TILE_SCREEN_COLS];
 // can use them directly as an index into the cell-major tables.
 static unsigned char tile_cache[TILE_CACHE_H][TILE_CACHE_W];
 #pragma align(tile_cache, 16)
+static unsigned char tile_cache_visibility[TILE_CACHE_H][TILE_CACHE_W];
+
+// Visibility changes are prepared outside the vertical blank, then only the
+// affected 3x3 tiles are written while the raster is in the border.
+static unsigned char visibility_dirty_tiles[TILE_CACHE_W * TILE_CACHE_H];
+static unsigned char visibility_dirty_count;
+static unsigned char visibility_dirty_drawn;
+
+#define VISIBILITY_TILES_PER_FRAME  12
 
 // Map coordinate of tile_cache[0][0].
 static unsigned char cache_x = 0;
 static unsigned char cache_y = 0;
+
+// Optional overlay observer. The tile viewer uses it to move hardware sprites
+// in the same four two-pixel phases as screen RAM; the renderer remains usable
+// without actors when the hook is NULL.
+static TilesScrollPhaseHook scroll_phase_hook;
+
+static void notify_scroll_phase(signed char camera_dx,
+                                signed char camera_dy) {
+    if (scroll_phase_hook) scroll_phase_hook(camera_dx, camera_dy);
+}
 
 // =============================================================================
 // DISPLAY
@@ -118,6 +138,44 @@ void tiles_fine_scroll(unsigned char px, unsigned char py) {
     vic.ctrl1 = VIC_CTRL1_DEN | (py & 7);
 }
 
+void tiles_view_origin_set(TileViewOrigin * view,
+                           unsigned char tile_x, unsigned char sub_x,
+                           unsigned char tile_y, unsigned char sub_y,
+                           unsigned char fine_x, unsigned char fine_y) {
+    // OSCAR64's normal VIC screen maps logical pixel (0,0) to sprite (24,50)
+    // at XSCROLL=0 and YSCROLL=3 (see the installed vic_setmode()). Convert the
+    // raw scroll registers into the world pixel located at that same anchor.
+    view->world_x = ((int)tile_x * TILESET_TILE_W + sub_x) * 8 - fine_x;
+    view->world_y = ((int)tile_y * TILESET_TILE_H + sub_y) * 8
+                  + 3 - fine_y;
+}
+
+void tiles_view_origin_move(TileViewOrigin * view,
+                            signed char camera_dx, signed char camera_dy) {
+    view->world_x += camera_dx;
+    view->world_y += camera_dy;
+}
+
+void tiles_project_world(const TileViewOrigin * view,
+                         int world_x, int world_y,
+                         int * screen_x, int * screen_y) {
+    *screen_x = 24 + world_x - view->world_x;
+    *screen_y = 50 + world_y - view->world_y;
+}
+
+void tiles_project_tile(const TileViewOrigin * view,
+                        unsigned char tile_x, unsigned char tile_y,
+                        int * screen_x, int * screen_y) {
+    tiles_project_world(view,
+                        (int)tile_x * TILE_WORLD_PIXELS,
+                        (int)tile_y * TILE_WORLD_PIXELS,
+                        screen_x, screen_y);
+}
+
+void tiles_set_scroll_phase_hook(TilesScrollPhaseHook hook) {
+    scroll_phase_hook = hook;
+}
+
 void tiles_flip(void) {
     unsigned char * swap = screen_front;
     screen_front = screen_back;
@@ -147,6 +205,12 @@ void tiles_flip(void) {
         dest += TILE_SCREEN_COLS;
     }
     memset(color_dirty_counts, 0, TILE_SCREEN_ROWS);
+}
+
+void tiles_set_sprite_image(unsigned char slot, unsigned char image) {
+    if (slot >= 8) return;
+    tile_screen0[0x03F8 + slot] = image;
+    tile_screen1[0x03F8 + slot] = image;
 }
 
 // =============================================================================
@@ -324,20 +388,19 @@ static unsigned char select_door_tile(unsigned char x, unsigned char y) {
     return vertical ? TS_GRATE_V : TS_GRATE_H;
 }
 
-// Integration point. The visibility system does not exist yet, so everything
-// is drawn lit. Returning TILE_VARIANT_FOG for an explored but currently
-// unseen cell is all that is needed to darken it; the darkened characters are
-// already in the character set.
 unsigned char tiles_variant_at(unsigned char map_x, unsigned char map_y) {
-    (void)map_x;
-    (void)map_y;
-    return TILE_VARIANT_LIT;
+    return visibility_state_at(map_x, map_y) == VISIBILITY_REMEMBERED
+        ? TILE_VARIANT_FOG : TILE_VARIANT_LIT;
 }
 
-unsigned char tiles_select(unsigned char map_x, unsigned char map_y) {
+static unsigned char tiles_select_for_visibility(unsigned char map_x,
+                                                 unsigned char map_y,
+                                                 unsigned char visibility) {
     unsigned char tile;
+    unsigned char variant;
 
-    if (map_x >= current_params.map_width || map_y >= current_params.map_height) {
+    if (visibility == VISIBILITY_HIDDEN ||
+        map_x >= current_params.map_width || map_y >= current_params.map_height) {
         return TILESET_ENTRY(TILE_VARIANT_LIT, TS_EMPTY);
     }
 
@@ -374,12 +437,27 @@ unsigned char tiles_select(unsigned char map_x, unsigned char map_y) {
         tile = TS_EMPTY;
     }
 
-    return TILESET_ENTRY(tiles_variant_at(map_x, map_y), tile);
+    variant = (visibility == VISIBILITY_REMEMBERED)
+        ? TILE_VARIANT_FOG : TILE_VARIANT_LIT;
+    return TILESET_ENTRY(variant, tile);
+}
+
+unsigned char tiles_select(unsigned char map_x, unsigned char map_y) {
+    unsigned char visibility = visibility_state_at(map_x, map_y);
+    return tiles_select_for_visibility(map_x, map_y, visibility);
 }
 
 // =============================================================================
 // TILE CACHE
 // =============================================================================
+
+static void cache_select_cell(unsigned char row, unsigned char col,
+                              unsigned char map_x, unsigned char map_y) {
+    unsigned char visibility = visibility_state_at(map_x, map_y);
+    tile_cache_visibility[row][col] = visibility;
+    tile_cache[row][col] = tiles_select_for_visibility(map_x, map_y,
+                                                       visibility);
+}
 
 void tiles_cache_fill(unsigned char tile_x, unsigned char tile_y) {
     cache_x = tile_x;
@@ -388,7 +466,7 @@ void tiles_cache_fill(unsigned char tile_x, unsigned char tile_y) {
     for (unsigned char row = 0; row < TILE_CACHE_H; row++) {
         unsigned char my = tile_y + row;
         for (unsigned char col = 0; col < TILE_CACHE_W; col++) {
-            tile_cache[row][col] = tiles_select(tile_x + col, my);
+            cache_select_cell(row, col, tile_x + col, my);
         }
     }
 }
@@ -396,14 +474,14 @@ void tiles_cache_fill(unsigned char tile_x, unsigned char tile_y) {
 static void cache_fill_col(unsigned char col) {
     unsigned char mx = cache_x + col;
     for (unsigned char row = 0; row < TILE_CACHE_H; row++) {
-        tile_cache[row][col] = tiles_select(mx, cache_y + row);
+        cache_select_cell(row, col, mx, cache_y + row);
     }
 }
 
 static void cache_fill_row(unsigned char row) {
     unsigned char my = cache_y + row;
     for (unsigned char col = 0; col < TILE_CACHE_W; col++) {
-        tile_cache[row][col] = tiles_select(cache_x + col, my);
+        cache_select_cell(row, col, cache_x + col, my);
     }
 }
 
@@ -427,12 +505,16 @@ void tiles_cache_shift(signed char dx, signed char dy) {
         cache_y++;
         for (unsigned char row = 0; row < TILE_CACHE_H - 1; row++) {
             memcpy(tile_cache[row], tile_cache[row + 1], TILE_CACHE_W);
+            memcpy(tile_cache_visibility[row],
+                   tile_cache_visibility[row + 1], TILE_CACHE_W);
         }
         cache_fill_row(TILE_CACHE_H - 1);
     } else if (dy < 0) {
         cache_y--;
         for (unsigned char row = TILE_CACHE_H - 1; row > 0; row--) {
             memcpy(tile_cache[row], tile_cache[row - 1], TILE_CACHE_W);
+            memcpy(tile_cache_visibility[row],
+                   tile_cache_visibility[row - 1], TILE_CACHE_W);
         }
         cache_fill_row(0);
     }
@@ -441,15 +523,95 @@ void tiles_cache_shift(signed char dx, signed char dy) {
         cache_x++;
         for (unsigned char row = 0; row < TILE_CACHE_H; row++) {
             memmove(&tile_cache[row][0], &tile_cache[row][1], TILE_CACHE_W - 1);
+            memmove(&tile_cache_visibility[row][0],
+                    &tile_cache_visibility[row][1], TILE_CACHE_W - 1);
         }
         cache_fill_col(TILE_CACHE_W - 1);
     } else if (dx < 0) {
         cache_x--;
         for (unsigned char row = 0; row < TILE_CACHE_H; row++) {
             memmove(&tile_cache[row][1], &tile_cache[row][0], TILE_CACHE_W - 1);
+            memmove(&tile_cache_visibility[row][1],
+                    &tile_cache_visibility[row][0], TILE_CACHE_W - 1);
         }
         cache_fill_col(0);
     }
+}
+
+unsigned char tiles_refresh_visibility_prepare(void) {
+    visibility_dirty_count = 0;
+    visibility_dirty_drawn = 0;
+
+    for (unsigned char row = 0; row < TILE_CACHE_H; row++) {
+        unsigned char map_y = cache_y + row;
+        for (unsigned char col = 0; col < TILE_CACHE_W; col++) {
+            unsigned char map_x = cache_x + col;
+            unsigned char visibility = visibility_state_at(map_x, map_y);
+
+            if (visibility == tile_cache_visibility[row][col]) continue;
+
+            tile_cache_visibility[row][col] = visibility;
+            tile_cache[row][col] = tiles_select_for_visibility(
+                map_x, map_y, visibility);
+            visibility_dirty_tiles[visibility_dirty_count++] =
+                row * TILE_CACHE_W + col;
+        }
+    }
+
+    return visibility_dirty_count;
+}
+
+unsigned char tiles_refresh_visibility_draw(unsigned char sub_x,
+                                            unsigned char sub_y) {
+    unsigned char draw_to = visibility_dirty_drawn
+                          + VISIBILITY_TILES_PER_FRAME;
+    if (draw_to > visibility_dirty_count) draw_to = visibility_dirty_count;
+
+    for (unsigned char dirty = visibility_dirty_drawn; dirty < draw_to; dirty++) {
+        unsigned char packed = visibility_dirty_tiles[dirty];
+        unsigned char row = 0;
+        unsigned char col;
+        unsigned char entry;
+        int tile_screen_x;
+        int tile_screen_y;
+
+        while (packed >= TILE_CACHE_W) {
+            packed -= TILE_CACHE_W;
+            row++;
+        }
+        col = packed;
+        entry = tile_cache[row][col];
+        tile_screen_x = (int)col * TILESET_TILE_W - sub_x;
+        tile_screen_y = (int)row * TILESET_TILE_H - sub_y;
+
+        for (unsigned char cell_y = 0; cell_y < TILESET_TILE_H; cell_y++) {
+            int screen_y = tile_screen_y + cell_y;
+            if (screen_y < 0 || screen_y >= TILE_SCREEN_ROWS) continue;
+
+            for (unsigned char cell_x = 0; cell_x < TILESET_TILE_W; cell_x++) {
+                int screen_x = tile_screen_x + cell_x;
+                unsigned char cell;
+                unsigned int screen_pos;
+                unsigned char color;
+
+                if (screen_x < 0 || screen_x >= TILE_SCREEN_COLS) continue;
+
+                cell = cell_y * TILESET_TILE_W + cell_x;
+                screen_pos = screen_y * TILE_SCREEN_COLS + screen_x;
+                color = tileset_cell_color[cell][entry];
+                screen_front[screen_pos] = tileset_cell_char[cell][entry];
+                tile_color[screen_pos] = color;
+                if (color_front_valid) color_front[screen_pos] = color;
+            }
+        }
+    }
+
+    visibility_dirty_drawn = draw_to;
+    if (visibility_dirty_drawn < visibility_dirty_count) return 1;
+
+    visibility_dirty_count = 0;
+    visibility_dirty_drawn = 0;
+    return 0;
 }
 
 // =============================================================================
@@ -523,9 +685,11 @@ static void scroll_content_left(void) {
     vic_waitTop();
     vic_waitBottom();
     vic.ctrl2 = VIC_CTRL2_MCM | 2;
+    notify_scroll_phase(2, 0);
     vic_waitTop();
     vic_waitBottom();
     vic.ctrl2 = VIC_CTRL2_MCM | 0;
+    notify_scroll_phase(2, 0);
 
     vic_waitLine(50 + 8 * TILE_SCROLL_SPLIT1);
 
@@ -550,6 +714,7 @@ static void scroll_content_left(void) {
 
     vic_waitBottom();
     vic.ctrl2 = VIC_CTRL2_MCM | 6;
+    notify_scroll_phase(2, 0);
 
     for (unsigned char x = 0; x < TILE_SCREEN_COLS - 1; x++) {
 #assign ty TILE_SCROLL_SPLIT1
@@ -572,6 +737,7 @@ static void scroll_content_left(void) {
 
     vic_waitBottom();
     vic.ctrl2 = VIC_CTRL2_MCM | 4;
+    notify_scroll_phase(2, 0);
 
     __asm {
         plp
@@ -590,6 +756,7 @@ static void scroll_content_right(void) {
     vic_waitTop();
     vic_waitBottom();
     vic.ctrl2 = VIC_CTRL2_MCM | 6;
+    notify_scroll_phase(-2, 0);
     vic_waitLine(50 + 8 * TILE_SCROLL_SPLIT1);
 
     for (unsigned char x = TILE_SCREEN_COLS - 1; x > 0; x--) {
@@ -612,6 +779,7 @@ static void scroll_content_right(void) {
 
     vic_waitBottom();
     vic.ctrl2 = VIC_CTRL2_MCM | 0;
+    notify_scroll_phase(-2, 0);
 
     for (unsigned char x = TILE_SCREEN_COLS - 1; x > 0; x--) {
 #assign ty TILE_SCROLL_SPLIT1
@@ -633,9 +801,11 @@ static void scroll_content_right(void) {
 
     vic_waitBottom();
     vic.ctrl2 = VIC_CTRL2_MCM | 2;
+    notify_scroll_phase(-2, 0);
     vic_waitTop();
     vic_waitBottom();
     vic.ctrl2 = VIC_CTRL2_MCM | 4;
+    notify_scroll_phase(-2, 0);
 
     __asm {
         plp
@@ -654,9 +824,11 @@ static void scroll_content_up(void) {
     vic_waitTop();
     vic_waitBottom();
     vic.ctrl1 = VIC_CTRL1_DEN | 2;
+    notify_scroll_phase(0, 2);
     vic_waitTop();
     vic_waitBottom();
     vic.ctrl1 = VIC_CTRL1_DEN | 0;
+    notify_scroll_phase(0, 2);
     vic_waitLine(50 + 8 * TILE_SCROLL_SPLIT1);
 
     for (unsigned char x = 0; x < TILE_SCREEN_COLS; x++) {
@@ -672,6 +844,7 @@ static void scroll_content_up(void) {
 
     vic_waitBottom();
     vic.ctrl1 = VIC_CTRL1_DEN | 6;
+    notify_scroll_phase(0, 2);
 
     for (unsigned char x = 0; x < TILE_SCREEN_COLS; x++) {
 #assign ty TILE_SCROLL_SPLIT1
@@ -688,6 +861,7 @@ static void scroll_content_up(void) {
 
     vic_waitBottom();
     vic.ctrl1 = VIC_CTRL1_DEN | 4;
+    notify_scroll_phase(0, 2);
 
     __asm {
         plp
@@ -716,6 +890,7 @@ static void scroll_content_down(void) {
     }
 
     vic.ctrl1 = VIC_CTRL1_DEN | 6;
+    notify_scroll_phase(0, -2);
     vic_waitLine(58 + 8 * TILE_SCROLL_SPLIT1);
 
     for (unsigned char x = 0; x < TILE_SCREEN_COLS; x++) {
@@ -732,6 +907,7 @@ static void scroll_content_down(void) {
     }
 
     vic.ctrl1 = VIC_CTRL1_DEN | 0;
+    notify_scroll_phase(0, -2);
 
     for (unsigned char x = 0; x < TILE_SCREEN_COLS; x++) {
 #assign ty TILE_SCROLL_SPLIT2
@@ -761,9 +937,11 @@ static void scroll_content_down(void) {
 
     vic_waitBottom();
     vic.ctrl1 = VIC_CTRL1_DEN | 2;
+    notify_scroll_phase(0, -2);
     vic_waitTop();
     vic_waitBottom();
     vic.ctrl1 = VIC_CTRL1_DEN | 4;
+    notify_scroll_phase(0, -2);
 
     __asm {
         plp

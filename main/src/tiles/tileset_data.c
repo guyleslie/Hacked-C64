@@ -40,45 +40,77 @@ const unsigned char tileset_charset[TILESET_CHAR_COUNT * 8] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x50, 0x40,   // char 30
     0x01, 0x01, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00,   // char 31
     0x40, 0xc0, 0xf0, 0x34, 0x10, 0x00, 0x00, 0x00,   // char 32
+    0xff, 0xf3, 0xcc, 0xf3, 0xcc, 0xf3, 0xcc, 0xf3,   // char 33
+    0xff, 0x33, 0xcc, 0x33, 0xcc, 0x33, 0xcc, 0x33,   // char 34
+    0xcc, 0xf3, 0xcc, 0xf3, 0xcc, 0xf3, 0xcc, 0xf3,   // char 35
+    0xcc, 0x33, 0xcc, 0x33, 0xcc, 0x33, 0xcc, 0x33,   // char 36
+    0xdd, 0x77, 0xff, 0xff, 0xff, 0xff, 0xdd, 0x77,   // char 37
+    0x33, 0x04, 0x03, 0x44, 0x33, 0xc0, 0x01, 0xc4,   // char 38
+    0xfd, 0x7f, 0xfd, 0x7f, 0xfd, 0x7f, 0xfd, 0x7f,   // char 39
+    0x11, 0xcc, 0x33, 0xc0, 0x03, 0xcc, 0x33, 0x44,   // char 40
+    0xff, 0xf7, 0xdd, 0xf7, 0xde, 0xfb, 0xde, 0xfb,   // char 41
+    0xde, 0xfb, 0xde, 0xfb, 0xde, 0xfb, 0xde, 0xfb,   // char 42
+    0xff, 0xf7, 0xdd, 0xf7, 0xde, 0xfb, 0xde, 0xf7,   // char 43
+    0xde, 0xfb, 0xde, 0xfb, 0xde, 0xfb, 0xde, 0xf7,   // char 44
+    0xff, 0xf7, 0xed, 0xfb, 0xed, 0xfb, 0xed, 0xfb,   // char 45
+    0xed, 0xfb, 0xed, 0xfb, 0xed, 0xfb, 0xed, 0xfb,   // char 46
+    0xdc, 0xb7, 0xed, 0xbb, 0xed, 0xbb, 0xed, 0xbb,   // char 47
+    0xed, 0xfb, 0xed, 0xfb, 0xed, 0xfb, 0xdd, 0xf7,   // char 48
+    0xed, 0xbb, 0xed, 0xbb, 0xed, 0x7b, 0xdd, 0x77,   // char 49
+    0xdc, 0xb7, 0xed, 0xbb, 0xed, 0xbb, 0xed, 0x77,   // char 50
+    0x50, 0x28, 0x05, 0x82, 0x50, 0x28, 0x05, 0x82,   // char 51
+    0x11, 0x88, 0x44, 0x22, 0x44, 0x22, 0x11, 0x88,   // char 52
+    0xff, 0xff, 0xfd, 0xff, 0xfd, 0xff, 0xfd, 0xff,   // char 53
+    0xfd, 0xff, 0xfd, 0xff, 0xfd, 0xff, 0xfd, 0xff,   // char 54
+    0xff, 0xf7, 0xff, 0xff, 0xff, 0xff, 0xdd, 0xf7,   // char 55
+    0xff, 0x77, 0xff, 0xff, 0xff, 0xff, 0xdd, 0x77,   // char 56
+    0x11, 0x4c, 0x31, 0x4c, 0x31, 0xcc, 0x31, 0x44,   // char 57
+    0x11, 0xcc, 0x31, 0xcc, 0x31, 0xcc, 0x31, 0x44,   // char 58
+    0x11, 0xcc, 0x31, 0xcc, 0x31, 0x4c, 0x11, 0x44,   // char 59
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00,   // char 60
+    0x00, 0xc0, 0x30, 0x0c, 0x30, 0x0c, 0x03, 0x00,   // char 61
+    0xcc, 0x33, 0xcc, 0x33, 0xcc, 0x33, 0xdc, 0x73,   // char 62
+    0xcd, 0x33, 0xcd, 0x37, 0xcc, 0x33, 0xcc, 0x33,   // char 63
+    0x00, 0xc0, 0x30, 0x04, 0x10, 0x00, 0x00, 0x00,   // char 64
 };
 
 // Indexed by TILESET_ENTRY(variant, tile); variants run in order.
 const unsigned char tileset_cell_char[TILESET_TILE_CELLS][TILESET_ENTRY_COUNT] = {
     { // cell 0 (col 0, row 0)
           0,   1,   5,   7,   8,   8,   8,   8,   0,  13,  13,   7,   5,  21,  23,  21,  23,   7,  28,   // TILE_VARIANT_LIT
-          0,   1,   5,   7,   8,   8,   8,   8,   0,  13,  13,   7,   5,  21,  23,  21,  23,   7,  28,   // TILE_VARIANT_FOG
+          0,  33,  37,  39,  40,  40,  40,  40,   0,  45,  45,  39,  37,  53,  55,  53,  55,  39,  60,   // TILE_VARIANT_FOG
     },
     { // cell 1 (col 1, row 0)
           0,   2,   5,   6,   5,   6,   5,   6,   0,   2,   2,  19,   5,   2,  24,   2,  24,  25,   4,   // TILE_VARIANT_LIT
-          0,   2,   5,   6,   5,   6,   5,   6,   0,   2,   2,  19,   5,   2,  24,   2,  24,  25,   4,   // TILE_VARIANT_FOG
+          0,  34,  37,  38,  37,  38,  37,  38,   0,  34,  34,  51,  37,  34,  56,  34,  56,  57,  36,   // TILE_VARIANT_FOG
     },
     { // cell 2 (col 2, row 0)
           0,   2,   5,   6,   5,   6,   5,   6,   9,   2,   2,  19,   5,   2,  24,   2,  24,  26,   4,   // TILE_VARIANT_LIT
-          0,   2,   5,   6,   5,   6,   5,   6,   9,   2,   2,  19,   5,   2,  24,   2,  24,  26,   4,   // TILE_VARIANT_FOG
+          0,  34,  37,  38,  37,  38,  37,  38,  41,  34,  34,  51,  37,  34,  56,  34,  56,  58,  36,   // TILE_VARIANT_FOG
     },
     { // cell 3 (col 0, row 1)
           0,   3,   6,   7,   7,   7,   6,   6,   0,  14,  14,   7,  20,  22,   3,  22,   3,   7,   4,   // TILE_VARIANT_LIT
-          0,   3,   6,   7,   7,   7,   6,   6,   0,  14,  14,   7,  20,  22,   3,  22,   3,   7,   4,   // TILE_VARIANT_FOG
+          0,  35,  38,  39,  39,  39,  38,  38,   0,  46,  46,  39,  52,  54,  35,  54,  35,  39,  36,   // TILE_VARIANT_FOG
     },
     { // cell 4 (col 1, row 1)
           0,   4,   6,   6,   6,   6,   6,   6,   9,  15,  15,  19,  20,   4,   4,   4,   4,  26,  29,   // TILE_VARIANT_LIT
-          0,   4,   6,   6,   6,   6,   6,   6,   9,  15,  15,  19,  20,   4,   4,   4,   4,  26,  29,   // TILE_VARIANT_FOG
+          0,  36,  38,  38,  38,  38,  38,  38,  41,  47,  47,  51,  52,  36,  36,  36,  36,  58,  61,   // TILE_VARIANT_FOG
     },
     { // cell 5 (col 2, row 1)
           0,   4,   6,   6,   6,   6,   6,   6,  10,   4,   4,  19,  20,   4,   4,   4,   4,  26,  30,   // TILE_VARIANT_LIT
-          0,   4,   6,   6,   6,   6,   6,   6,  10,   4,   4,  19,  20,   4,   4,   4,   4,  26,  30,   // TILE_VARIANT_FOG
+          0,  36,  38,  38,  38,  38,  38,  38,  42,  36,  36,  51,  52,  36,  36,  36,  36,  58,  62,   // TILE_VARIANT_FOG
     },
     { // cell 6 (col 0, row 2)
           0,   3,   6,   7,   7,   7,   6,   6,  11,  16,  16,   7,  20,  22,   3,  22,   3,   7,   4,   // TILE_VARIANT_LIT
-          0,   3,   6,   7,   7,   7,   6,   6,  11,  16,  16,   7,  20,  22,   3,  22,   3,   7,   4,   // TILE_VARIANT_FOG
+          0,  35,  38,  39,  39,  39,  38,  38,  43,  48,  48,  39,  52,  54,  35,  54,  35,  39,  36,   // TILE_VARIANT_FOG
     },
     { // cell 7 (col 1, row 2)
           0,   4,   6,   6,   6,   6,   6,   6,  12,  17,  17,  19,  20,   4,   4,   4,   4,  27,  31,   // TILE_VARIANT_LIT
-          0,   4,   6,   6,   6,   6,   6,   6,  12,  17,  17,  19,  20,   4,   4,   4,   4,  27,  31,   // TILE_VARIANT_FOG
+          0,  36,  38,  38,  38,  38,  38,  38,  44,  49,  49,  51,  52,  36,  36,  36,  36,  59,  63,   // TILE_VARIANT_FOG
     },
     { // cell 8 (col 2, row 2)
           0,   4,   6,   6,   6,   6,   6,   6,  12,  18,  18,  19,  20,   4,   4,   4,   4,  26,  32,   // TILE_VARIANT_LIT
-          0,   4,   6,   6,   6,   6,   6,   6,  12,  18,  18,  19,  20,   4,   4,   4,   4,  26,  32,   // TILE_VARIANT_FOG
+          0,  36,  38,  38,  38,  38,  38,  38,  44,  50,  50,  51,  52,  36,  36,  36,  36,  58,  64,   // TILE_VARIANT_FOG
     },
 };
 
@@ -106,7 +138,7 @@ const unsigned char tileset_cell_color[TILESET_TILE_CELLS][TILESET_ENTRY_COUNT] 
     },
     { // cell 5 (col 2, row 1)
           8,   8,  14,  14,  14,  14,  14,  14,   8,   8,   8,   7,   7,   8,   8,   8,   8,  10,   9,   // TILE_VARIANT_LIT
-          8,   8,  14,  14,  14,  14,  14,  14,   8,   8,   8,   7,   7,   8,   8,   8,   8,  10,   9,   // TILE_VARIANT_FOG
+          8,   8,  14,  14,  14,  14,  14,  14,   8,   8,   8,   7,   7,   8,   8,   8,   8,  10,   8,   // TILE_VARIANT_FOG
     },
     { // cell 6 (col 0, row 2)
           8,   8,  14,   8,   8,   8,  14,  14,   8,   8,   8,   8,   7,   8,   8,   8,   8,   8,   8,   // TILE_VARIANT_LIT
@@ -114,7 +146,7 @@ const unsigned char tileset_cell_color[TILESET_TILE_CELLS][TILESET_ENTRY_COUNT] 
     },
     { // cell 7 (col 1, row 2)
           8,   8,  14,  14,  14,  14,  14,  14,   8,   8,   8,   7,   7,   8,   8,   8,   8,  10,   9,   // TILE_VARIANT_LIT
-          8,   8,  14,  14,  14,  14,  14,  14,   8,   8,   8,   7,   7,   8,   8,   8,   8,  10,   9,   // TILE_VARIANT_FOG
+          8,   8,  14,  14,  14,  14,  14,  14,   8,   8,   8,   7,   7,   8,   8,   8,   8,  10,   8,   // TILE_VARIANT_FOG
     },
     { // cell 8 (col 2, row 2)
           8,   8,  14,  14,  14,  14,  14,  14,   8,   8,   8,   7,   7,   8,   8,   8,   8,  10,  10,   // TILE_VARIANT_LIT

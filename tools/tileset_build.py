@@ -7,9 +7,11 @@ in CharPad; this tool can generate them from mask tables:
   grid  a one pixel black line on the top edge and the left edge of every
         walkable tile. Neighbouring tiles complete each other's frame, so a
         continuous lattice appears over the walkable area.
-  fog   an optional checkerboard of black pixels (disabled by default).
+  fog   a checkerboard for explored cells outside the current line of sight.
 
-Both layers are stencils: only black matters, everything else passes through.
+Both layers are stencils. The grid is black; fog prefers black and falls back
+to the shared dark-grey background where coloured artwork already consumes the
+character-specific VIC-II colour.
 On the VIC-II that is a single bitwise operation per character row, and the
 polarity depends on the character's colour mode:
 
@@ -148,7 +150,7 @@ def grid_mask(cell, tile_w, tile_h, hires):
 
 
 def fog_mask(cell, tile_w, tile_h, hires):
-    """Checkerboard of black pixels, used to darken explored-but-unseen tiles."""
+    """Checkerboard used to darken explored-but-unseen tiles."""
     del cell, tile_w, tile_h
     even, odd = (0xAA, 0x55) if hires else (0xCC, 0x33)
     return [even if (r & 1) == 0 else odd for r in range(8)]
@@ -331,7 +333,7 @@ TILE_DOOR_OPEN_V, TILE_DOOR_OPEN_H = 13, 14
 # Walkable tiles in newest5: floor, both stairs and open-door variants.
 # Closed doors, walls and the black outside tile deliberately receive none.
 DEFAULT_GRID_TILES = {1, 8, 9, 10, 13, 14, 15, 16}
-DEFAULT_FOG_TILES = set()
+DEFAULT_FOG_TILES = set(range(1, 19))
 
 
 def map_roles(ctm):
@@ -524,6 +526,16 @@ def build(ctm, grid_tiles, fog_tiles, strip=()):
                     mask = LAYERS[layer_name](cell, ctm.tile_w, ctm.tile_h, hires)
                     rows, output_attr, applied = apply_black_mask(
                         rows, mask, output_attr, ctm.bg0)
+                    if not applied and layer_name == "fog":
+                        # Coloured wall/door artwork may already need the
+                        # per-character colour outside the mask. Clearing the
+                        # checker pixels to %00 preserves that artwork and
+                        # reveals the shared dark-grey background instead.
+                        clear_mask = (mask if hires else
+                                      [_expand_pairs(value) for value in mask])
+                        rows = [rows[r] & (~clear_mask[r] & 0xFF)
+                                for r in range(8)]
+                        applied = True
                     if not applied:
                         warnings.append(
                             "tile %d cell %d (char %d, colour %d): the %s "
@@ -558,8 +570,8 @@ HEADER_TEMPLATE = """\
 // =============================================================================
 // Source: {source}
 //
-// The grid frame is a generated layer, not hand drawn artwork. The optional
-// fog mask is disabled by default. Re-run the tool after changing the CTM.
+// The grid frame and remembered-cell fog are generated layers, not hand drawn
+// artwork. Re-run the tool after changing the CTM.
 
 #define TILESET_CHAR_COUNT   {char_count}
 #define TILESET_TILE_COUNT   {tile_count}
@@ -1044,7 +1056,7 @@ def main(argv=None):
                              "(default: every walkable tile role)")
     parser.add_argument("--fog-tiles", default=None,
                         help="tile indices that receive the fog checkerboard "
-                             "(default: none)")
+                             "(default: every non-empty artwork tile)")
     parser.add_argument("--wall-tiles", default="2,3,4,5,6,7",
                         help="tile indices whose wall shape the joining report classifies")
     parser.add_argument("--wall-like", default="2,3,4,5,6,7,11,12,13,14,15,16,17",

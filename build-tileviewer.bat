@@ -28,7 +28,7 @@ echo                           TILE VIEWER Build
 echo =============================================================================
 echo.
 echo  Scrollable 3x3 tile preview of a generated dungeon.
-echo  Joystick 2 scrolls, FIRE generates a new map, Q quits.
+echo  Joystick 2 moves one 3x3 tile, FIRE generates a new map, Q quits.
 echo.
 echo  Graphics live in VIC bank 3: character set $C000, screens $C800/$CC00.
 echo  CPU code/stack stays below $A000; VIC graphics starts at $C000.

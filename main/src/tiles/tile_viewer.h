@@ -10,7 +10,8 @@
 // The viewport shows 10x8 map cells instead of 40x25, so scrolling is how the
 // map is inspected rather than an optional extra.
 //
-// Controls: joystick 2 scrolls, FIRE generates a new dungeon, Q quits.
+// Controls: joystick 2 moves one map tile, FIRE generates a new dungeon,
+// Q quits.
 
 /**
  * @brief Run the interactive viewer until the user quits
